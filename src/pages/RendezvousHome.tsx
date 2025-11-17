@@ -119,40 +119,40 @@ export const RendezvousHome: React.FC = () => {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-bg-primary transition-colors duration-300">
-      <TopNavBar
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        onPostClick={() => setIsPostModalOpen(true)}
-      />
-
-      <div className="max-w-7xl mx-auto">
-        <div className="flex">
-          {/* Left Sidebar (Desktop) */}
-          <Sidebar
-            boards={boards}
-            selectedBoardId={selectedBoardId}
-            onBoardSelect={setSelectedBoardId}
+      return (
+        <div className="min-h-screen bg-bg-primary transition-colors duration-300">
+          <TopNavBar
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            onPostClick={() => setIsPostModalOpen(true)}
           />
 
-          {/* Mobile Board Chips */}
-          <MobileBoardChips
-            boards={boards}
-            selectedBoardId={selectedBoardId}
-            onBoardSelect={setSelectedBoardId}
-          />
+          <div className="max-w-7xl mx-auto">
+            <div className="flex">
+              {/* Left Sidebar (Desktop) */}
+              <Sidebar
+                boards={boards}
+                selectedBoardId={selectedBoardId}
+                onBoardSelect={setSelectedBoardId}
+              />
 
-          {/* Center Feed */}
-          <div className="flex-1 min-w-0">
-            <TabSwitcher
-              activeTab={activeTab}
-              onTabChange={setActiveTab}
-              feedFilter={feedFilter}
-              onFeedFilterChange={setFeedFilter}
-            />
+              {/* Mobile Board Chips */}
+              <MobileBoardChips
+                boards={boards}
+                selectedBoardId={selectedBoardId}
+                onBoardSelect={setSelectedBoardId}
+              />
 
-            <div className="p-4 space-y-4">
+              {/* Center Feed */}
+              <div className="flex-1 min-w-0 bg-bg-secondary">
+                <TabSwitcher
+                  activeTab={activeTab}
+                  onTabChange={setActiveTab}
+                  feedFilter={feedFilter}
+                  onFeedFilterChange={setFeedFilter}
+                />
+
+                <div className="p-4 space-y-4" style={{ background: 'linear-gradient(to bottom, var(--bg-secondary), var(--bg-primary))' }}>
               {filteredPosts.length === 0 ? (
                 <div className="text-center py-16">
                   <p className="text-text-secondary text-xl mb-2" style={{ fontFamily: 'Garamond, Baskerville, Georgia, Times New Roman, serif', fontWeight: 900 }}>No posts found</p>
@@ -184,8 +184,8 @@ export const RendezvousHome: React.FC = () => {
             </div>
           </div>
 
-          {/* Right Column (Placeholder) */}
-          <div className="hidden lg:block w-80 bg-bg-secondary border-l border-border-color p-5 transition-colors duration-300">
+              {/* Right Column (Placeholder) */}
+              <div className="hidden lg:block w-80 bg-bg-sidebar-right border-l border-border-color p-5 transition-colors duration-300">
             <div className="sticky top-20">
               <h3 className="text-xl text-text-primary mb-4 tracking-tight" style={{ fontFamily: 'Garamond, Baskerville, Georgia, Times New Roman, serif', fontWeight: 900 }}>Coming Soon</h3>
               <p className="text-base text-text-secondary leading-relaxed" style={{ fontFamily: 'Garamond, Baskerville, Georgia, Times New Roman, serif', fontWeight: 900 }}>

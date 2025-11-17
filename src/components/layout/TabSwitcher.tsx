@@ -14,16 +14,16 @@ export const TabSwitcher: React.FC<TabSwitcherProps> = ({
   onFeedFilterChange,
 }) => {
   return (
-    <div className="border-b border-elegant-border bg-spotify-dark sticky top-16 z-10 shadow-elegant">
+    <div className="border-b border-stone-200 bg-bg-secondary sticky top-16 z-10 transition-colors duration-300 shadow-sm">
       <div className="flex items-center justify-between px-5 py-4">
         {/* Tabs */}
         <div className="flex space-x-2">
           <button
             onClick={() => onTabChange('reviews')}
-            className={`px-5 py-2.5 text-base rounded-lg transition-all duration-200 ${
+            className={`px-5 py-3 text-base rounded-lg transition-all duration-200 ${
               activeTab === 'reviews'
-                ? 'text-spotify-green border-b-2 border-spotify-green bg-spotify-gray bg-opacity-30'
-                : 'text-spotify-text-dim hover:text-spotify-text hover:bg-elegant-hover'
+                ? 'text-accent-primary border-b-3 border-accent-primary bg-bg-card shadow-sm font-bold'
+                : 'text-text-secondary hover:text-text-primary hover:bg-bg-hover'
             }`}
             style={{ fontFamily: 'Garamond, Baskerville, Georgia, Times New Roman, serif', fontWeight: 900 }}
           >
@@ -31,10 +31,10 @@ export const TabSwitcher: React.FC<TabSwitcherProps> = ({
           </button>
           <button
             onClick={() => onTabChange('meetups')}
-            className={`px-5 py-2.5 text-base rounded-lg transition-all duration-200 ${
+            className={`px-5 py-3 text-base rounded-lg transition-all duration-200 ${
               activeTab === 'meetups'
-                ? 'text-spotify-green border-b-2 border-spotify-green bg-spotify-gray bg-opacity-30'
-                : 'text-spotify-text-dim hover:text-spotify-text hover:bg-elegant-hover'
+                ? 'text-accent-primary border-b-3 border-accent-primary bg-bg-card shadow-sm font-bold'
+                : 'text-text-secondary hover:text-text-primary hover:bg-bg-hover'
             }`}
             style={{ fontFamily: 'Garamond, Baskerville, Georgia, Times New Roman, serif', fontWeight: 900 }}
           >
@@ -43,13 +43,13 @@ export const TabSwitcher: React.FC<TabSwitcherProps> = ({
         </div>
 
         {/* All / Following Toggle */}
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 bg-bg-card rounded-lg p-1 shadow-sm">
           <button
             onClick={() => onFeedFilterChange('all')}
-            className={`px-4 py-2 text-base rounded-lg transition-all duration-200 ${
+            className={`px-4 py-2 text-sm rounded-md transition-all duration-200 ${
               feedFilter === 'all'
-                ? 'bg-spotify-gray text-spotify-text shadow-premium border border-spotify-green border-opacity-50'
-                : 'text-spotify-text-dim hover:bg-elegant-hover hover:text-spotify-text'
+                ? 'bg-accent-gold text-text-primary shadow-md font-bold'
+                : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary'
             }`}
             style={{ fontFamily: 'Garamond, Baskerville, Georgia, Times New Roman, serif', fontWeight: 900 }}
           >
@@ -57,10 +57,10 @@ export const TabSwitcher: React.FC<TabSwitcherProps> = ({
           </button>
           <button
             onClick={() => onFeedFilterChange('following')}
-            className={`px-4 py-2 text-base rounded-lg transition-all duration-200 ${
+            className={`px-4 py-2 text-sm rounded-md transition-all duration-200 ${
               feedFilter === 'following'
-                ? 'bg-spotify-gray text-spotify-text shadow-premium border border-spotify-green border-opacity-50'
-                : 'text-spotify-text-dim hover:bg-elegant-hover hover:text-spotify-text'
+                ? 'bg-accent-gold text-text-primary shadow-md font-bold'
+                : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary'
             }`}
             style={{ fontFamily: 'Garamond, Baskerville, Georgia, Times New Roman, serif', fontWeight: 900 }}
           >

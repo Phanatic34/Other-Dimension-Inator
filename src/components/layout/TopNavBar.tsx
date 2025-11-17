@@ -35,9 +35,7 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
         <div className="flex items-center justify-between h-16">
           {/* Left: Logo */}
           <div className="flex items-center">
-            <div className="flex-shrink-0 flex items-center">
-              <Logo />
-            </div>
+            <Logo />
           </div>
 
           {/* Center: Search */}
@@ -46,7 +44,7 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
           </div>
 
           {/* Right: Actions */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center justify-end space-x-4" style={{ width: '240px' }}>
             {/* Theme Toggle Button */}
             <button
               onClick={toggleTheme}

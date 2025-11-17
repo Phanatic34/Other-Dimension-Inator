@@ -9,6 +9,7 @@ module.exports = {
         'bg-primary': 'var(--bg-primary)',
         'bg-secondary': 'var(--bg-secondary)',
         'bg-tertiary': 'var(--bg-tertiary)',
+        'bg-sidebar-right': 'var(--bg-sidebar-right)',
         'bg-topbar': 'var(--bg-topbar)',
         'bg-hover': 'var(--bg-hover)',
         'bg-card': 'var(--bg-card)',
