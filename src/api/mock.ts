@@ -1,5 +1,9 @@
 import { Board, Post, ReviewPost, MeetupPost, User } from '../types/models';
 
+// IMPORTANT: For production apps, DO NOT use direct Unsplash hotlinks.
+// User-uploaded images must be stored in cloud storage (AWS S3, Google Cloud Storage, or Firebase Storage).
+// The image URLs below are DEMO placeholders only.
+
 // Mock data
 const mockBoards: Board[] = [
   // By Cuisine / Style
@@ -47,7 +51,11 @@ const mockReviewPosts: ReviewPost[] = [
     createdAt: '2小時前',
     likeCount: 42,
     commentCount: 12,
-    imageUrl: undefined,
+    images: [
+      'https://images.unsplash.com/photo-1557872943-16a5ac26437e?w=800&q=80',
+      'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=800&q=80',
+      'https://images.unsplash.com/photo-1617093727343-374698b1b08d?w=800&q=80',
+    ],
     isFromFollowedUser: true,
   },
   {
@@ -80,6 +88,10 @@ const mockReviewPosts: ReviewPost[] = [
     createdAt: '1天前',
     likeCount: 156,
     commentCount: 45,
+    images: [
+      'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=800&q=80',
+      'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=800&q=80',
+    ],
     isFromFollowedUser: true,
   },
   {
@@ -112,6 +124,9 @@ const mockReviewPosts: ReviewPost[] = [
     createdAt: '2天前',
     likeCount: 94,
     commentCount: 31,
+    images: [
+      'https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?w=800&q=80',
+    ],
     isFromFollowedUser: true,
   },
 ];

@@ -152,11 +152,11 @@ export const RendezvousHome: React.FC = () => {
                   onFeedFilterChange={setFeedFilter}
                 />
 
-                <div className="p-4 space-y-4" style={{ background: 'linear-gradient(to bottom, var(--bg-secondary), var(--bg-primary))' }}>
+                <div className="px-4" style={{ background: 'linear-gradient(to bottom, var(--bg-secondary), var(--bg-primary))' }}>
               {filteredPosts.length === 0 ? (
                 <div className="text-center py-16">
-                  <p className="text-text-secondary text-xl mb-2" style={{ fontFamily: 'Garamond, Baskerville, Georgia, Times New Roman, serif', fontWeight: 900 }}>No posts found</p>
-                  <p className="text-text-secondary text-base opacity-70" style={{ fontFamily: 'Garamond, Baskerville, Georgia, Times New Roman, serif', fontWeight: 900 }}>
+                  <p className="text-text-secondary text-xl mb-2">No posts found</p>
+                  <p className="text-text-secondary text-base opacity-70">
                     Try adjusting your filters or search query
                   </p>
                 </div>

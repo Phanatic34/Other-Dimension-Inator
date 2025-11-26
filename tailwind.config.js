@@ -20,6 +20,7 @@ module.exports = {
         'accent-primary': 'var(--accent-primary)',
         'accent-hover': 'var(--accent-hover)',
         'accent-gold': 'var(--accent-gold)',
+        'brand-orange': 'var(--brand-orange)',
         // Keep old colors for backward compatibility
         'spotify-black': '#121212',
         'spotify-dark': '#181818',
@@ -36,8 +37,7 @@ module.exports = {
         'elegant-hover': '#2a2a2a',
       },
       fontFamily: {
-        'serif': ['Garamond', 'Baskerville', 'Georgia', 'Times New Roman', 'serif'],
-        'heading': ['Garamond', 'Baskerville', 'Georgia', 'serif'],
+        'sans': ['-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
       },
       boxShadow: {
         'elegant': '0 4px 20px rgba(0, 0, 0, 0.5)',

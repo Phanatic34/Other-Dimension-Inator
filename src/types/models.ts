@@ -29,7 +29,8 @@ export interface ReviewPost {
   createdAt: string;    // ISO or human-friendly string
   likeCount: number;
   commentCount: number;
-  imageUrl?: string;
+  imageUrl?: string;    // Single image (legacy support)
+  images?: string[];    // Multiple images array
   isFromFollowedUser?: boolean;
 }
 

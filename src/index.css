@@ -17,54 +17,54 @@
   --accent-primary: #4a7c59;
   --accent-hover: #5a8c69;
   --accent-gold: #d4af37;
+  --brand-orange: #FF9F76;
 }
 
 :root[data-theme='light'] {
-  --bg-primary: #F6F1E7;
-  --bg-secondary: #FBF8F2;
+  --bg-primary: #FDFBF7;
+  --bg-secondary: #FDFBF7;
   --bg-tertiary: #F0E7D8;
   --bg-sidebar-right: #EFE7DA;
   --bg-topbar: #751414;
-  --bg-hover: #f5ede0;
-  --bg-card: #ffffff;
-  --border-color: #d4c4b0;
-  --text-primary: #2d2013;
-  --text-secondary: #6b5d4f;
+  --bg-hover: #f5f5f5;
+  --bg-card: #FFFFFF;
+  --border-color: #eeeeee;
+  --text-primary: #2D2424;
+  --text-secondary: #666666;
   --text-topbar: #ffffff;
-  --accent-primary: #c49a5a;
-  --accent-hover: #b8941f;
+  --accent-primary: #FF6B35;
+  --accent-hover: #FF8556;
   --accent-gold: #c49a5a;
+  --brand-orange: #FF6B35;
 }
 
 body {
   margin: 0;
-  font-family: 'Garamond', 'Baskerville', 'Georgia', 'Times New Roman', serif !important;
-  font-weight: 700 !important;
-  font-size: 16px !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 16px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--bg-primary);
   color: var(--text-primary);
-  letter-spacing: 0.02em;
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 * {
-  font-family: 'Garamond', 'Baskerville', 'Georgia', 'Times New Roman', serif !important;
-  font-weight: 700 !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
-h1, h2, h3, h4, h5, h6, strong, b, button {
-  font-weight: 900 !important;
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 700;
 }
 
-[data-theme='dark'] body {
-  -webkit-text-stroke: 0.3px rgba(255, 255, 255, 0.3);
+strong, b {
+  font-weight: 700;
 }
 
-[data-theme='light'] body {
-  -webkit-text-stroke: 0.2px rgba(0, 0, 0, 0.1);
+button {
+  font-weight: 600;
 }
+
 
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
