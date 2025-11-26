@@ -16,7 +16,7 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick })
     const parts = text.split(/(#[\w\u4e00-\u9fa5]+)/g);
     return parts.map((part, index) => {
       if (part.startsWith('#')) {
-        return (
+    return (
           <span key={index} className="text-blue-500 hover:underline cursor-pointer">
             {part}
           </span>
@@ -65,76 +65,70 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick })
   return (
     <div
       onClick={onClick}
-      className="px-4 py-3 border-b border-border-color cursor-pointer hover:bg-bg-card transition-colors duration-200"
+      className="group px-4 py-3 border-b border-border-color cursor-pointer hover:bg-bg-hover transition-colors duration-200"
     >
       {/* TOP SECTION: Header Row */}
       <div className="flex items-start mb-2">
         {/* Avatar */}
         <div className="relative mr-3 flex-shrink-0">
           <div className="w-10 h-10 rounded-full bg-accent-gold bg-opacity-40 flex items-center justify-center overflow-hidden">
-            {post.author.avatarUrl ? (
-              <img src={post.author.avatarUrl} alt={post.author.displayName} className="w-full h-full object-cover" />
-            ) : (
+          {post.author.avatarUrl ? (
+            <img src={post.author.avatarUrl} alt={post.author.displayName} className="w-full h-full object-cover" />
+          ) : (
               <span className="text-text-primary text-lg">👤</span>
-            )}
+          )}
           </div>
         </div>
 
         {/* Header Info */}
         <div className="flex-1 min-w-0">
-          {/* Line 1: Name, Username, Time */}
-          <div className="flex items-baseline flex-wrap gap-1 text-sm">
-            <span className="font-bold text-text-primary">
+          {/* Line 1: Name, Username, Time + More Menu (right-aligned) */}
+          <div className="flex items-baseline justify-between gap-2">
+            <div className="flex items-baseline flex-wrap gap-1 text-sm">
+              <span className="font-bold text-text-primary">
               {post.author.displayName}
             </span>
-            <span className="text-text-secondary">
-              {post.author.handle}
-            </span>
-            <span className="text-text-secondary">•</span>
-            <span className="text-text-secondary">
-              {post.createdAt}
-            </span>
+              <span className="text-text-secondary">
+                {post.author.handle}
+              </span>
+              <span className="text-text-secondary">•</span>
+              <span className="text-text-secondary">
+                {post.createdAt}
+              </span>
+            </div>
+            
+            {/* Right-aligned: More menu (...) */}
+            <button
+              className="p-1 rounded-full hover:bg-neutral-100 cursor-pointer text-text-secondary flex-shrink-0"
+              onClick={(e) => {
+                e.stopPropagation();
+                console.log('open post menu', post.id);
+              }}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="1"></circle>
+                <circle cx="19" cy="12" r="1"></circle>
+                <circle cx="5" cy="12" r="1"></circle>
+              </svg>
+            </button>
           </div>
           
-          {/* Line 2: Restaurant + Cuisine Pill Tag */}
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-gray-200 text-sm shadow-sm mt-1.5">
+          {/* Line 2: Single Pill - Location + Restaurant + Cuisine */}
+          <div 
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white group-hover:bg-neutral-50 border border-gray-200 text-sm shadow-sm mt-1.5 cursor-pointer transition"
+            onClick={(e) => {
+              e.stopPropagation();
+              const query = encodeURIComponent(`${post.restaurantName} ${post.locationArea}`);
+              window.open(`https://www.google.com/maps/search/?api=1&query=${query}`, '_blank');
+            }}
+          >
+            <span className="text-text-secondary">{post.locationArea}</span>
+            <span className="text-gray-300">·</span>
             <span className="font-medium text-text-primary">{post.restaurantName}</span>
-            <span style={{ color: '#C7C7C7' }}>·</span>
+            <span className="text-gray-300">·</span>
             <span className="text-text-secondary">{post.board.label}</span>
           </div>
-          
-          {/* Line 3: Location */}
-          <div className="mt-1">
-            <a
-              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(post.locationArea)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="inline-flex items-center gap-0.5 text-text-secondary hover:text-brand-orange transition-colors text-xs"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                <circle cx="12" cy="10" r="3"></circle>
-              </svg>
-              {post.locationArea}
-            </a>
-          </div>
         </div>
-
-        {/* More options button */}
-        <button 
-          className="text-text-secondary hover:text-brand-orange transition-colors p-1 ml-2"
-          onClick={(e) => {
-            e.stopPropagation();
-            console.log('More options clicked');
-          }}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="1"></circle>
-            <circle cx="19" cy="12" r="1"></circle>
-            <circle cx="5" cy="12" r="1"></circle>
-          </svg>
-        </button>
       </div>
 
       {/* Post Content Area */}
@@ -154,15 +148,10 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick })
               </svg>
             ))}
             <span className="ml-1 font-semibold text-text-primary">{post.rating.toFixed(1)}</span>
-          </div>
-          
+      </div>
+
           {/* Price Level */}
           <span className="font-semibold text-text-primary">{post.priceLevel}</span>
-          
-          {/* Board Tag */}
-          <span className="text-xs text-text-secondary px-2 py-0.5 rounded bg-bg-card border border-border-color">
-            {post.board.label}
-          </span>
         </div>
 
         {/* CONTENT TEXT with hashtag styling */}
@@ -229,17 +218,17 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick })
           </div>
         ) : null}
 
-        {/* BOTTOM ACTION BAR - Twitter style */}
+        {/* BOTTOM ACTION BAR - Like, Comment, Share, Save */}
         <div className="flex items-center gap-6 text-text-secondary text-sm pt-2">
           {/* Like */}
           <button 
-            className="flex items-center gap-2 hover:text-red-500 transition-colors group"
+            className="flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity"
             onClick={(e) => {
               e.stopPropagation();
-              console.log('Like clicked');
+              console.log('like post', post.id);
             }}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="group-hover:fill-red-500 transition-all">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
             </svg>
             <span className="font-medium">{post.likeCount}</span>
@@ -247,10 +236,10 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick })
 
           {/* Comment */}
           <button 
-            className="flex items-center gap-2 hover:text-blue-500 transition-colors group"
+            className="flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity"
             onClick={(e) => {
               e.stopPropagation();
-              console.log('Comment clicked');
+              console.log('comment post', post.id);
             }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -259,21 +248,31 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick })
             <span className="font-medium">{post.commentCount}</span>
           </button>
 
-          {/* Share */}
+          {/* Share (paper airplane) */}
           <button 
-            className="flex items-center gap-2 hover:text-brand-orange transition-colors"
+            className="flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity"
             onClick={(e) => {
               e.stopPropagation();
-              console.log('Share clicked');
+              console.log('share post', post.id);
             }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="18" cy="5" r="3"></circle>
-              <circle cx="6" cy="12" r="3"></circle>
-              <circle cx="18" cy="19" r="3"></circle>
-              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
-              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
             </svg>
+          </button>
+
+          {/* Save (bookmark) */}
+          <button 
+            className="flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={(e) => {
+              e.stopPropagation();
+              console.log('save restaurant', post.id);
+            }}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+          </svg>
           </button>
         </div>
       </div>
