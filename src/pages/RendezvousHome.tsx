@@ -7,7 +7,19 @@ import { MobileBoardChips } from '../components/layout/MobileBoardChips';
 import { TabSwitcher } from '../components/layout/TabSwitcher';
 import { ReviewPostCard } from '../components/posts/ReviewPostCard';
 import { MeetupPostCard } from '../components/posts/MeetupPostCard';
+import { CreatePostCard } from '../components/posts/CreatePostCard';
 import { PostTypeModal } from '../components/modals/PostTypeModal';
+
+// Active Filters Type (single-select per group)
+type ActiveFilters = {
+  searchQuery: string;
+  style: string | null;      // single style key or null
+  category: string | null;   // single category key or null
+  priceMin: number | null;
+  priceMax: number | null;
+  ratingAtLeast: number | null;
+  distanceKm: number | null;
+};
 
 export const RendezvousHome: React.FC = () => {
   // State
@@ -15,10 +27,46 @@ export const RendezvousHome: React.FC = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [activeTab, setActiveTab] = useState<'reviews' | 'meetups'>('reviews');
   const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
   const [feedFilter, setFeedFilter] = useState<'all' | 'following'>('all');
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Centralized filter state
+  const [filters, setFilters] = useState<ActiveFilters>({
+    searchQuery: '',
+    style: null,
+    category: null,
+    priceMin: null,
+    priceMax: null,
+    ratingAtLeast: null,
+    distanceKm: null,
+  });
+
+  // Filter updaters
+  const updateSearchQuery = (q: string) =>
+    setFilters((f) => ({ ...f, searchQuery: q }));
+
+  const updateStyle = (style: string | null) =>
+    setFilters((f) => ({ ...f, style }));
+
+  const updateCategory = (category: string | null) =>
+    setFilters((f) => ({ ...f, category }));
+
+  const updatePrice = (min: number | '', max: number | '') =>
+    setFilters((f) => ({
+      ...f,
+      priceMin: min === '' ? null : min,
+      priceMax: max === '' ? null : max,
+    }));
+
+  const applyPrice = (min: number, max: number) =>
+    setFilters((f) => ({ ...f, priceMin: min, priceMax: max }));
+
+  const updateRating = (rating: number | null) =>
+    setFilters((f) => ({ ...f, ratingAtLeast: rating }));
+
+  const updateDistance = (km: number | '') =>
+    setFilters((f) => ({ ...f, distanceKm: km === '' ? null : km }));
 
   // Fetch data on mount
   useEffect(() => {
@@ -41,7 +89,66 @@ export const RendezvousHome: React.FC = () => {
     loadData();
   }, []);
 
-  // Filter posts based on active tab, board, feed filter, and search query
+  // Helper: Check if text matches search query
+  function matchesText(post: ReviewPost, q: string): boolean {
+    if (!q) return true;
+    const text = q.toLowerCase();
+
+    // Include restaurant, location, content and tags
+    if (post.restaurantName?.toLowerCase().includes(text)) return true;
+    if (post.locationArea?.toLowerCase().includes(text)) return true;
+    if (post.contentSnippet?.toLowerCase().includes(text)) return true;
+    if (post.styleType?.toLowerCase().includes(text)) return true;
+    if (post.foodType?.toLowerCase().includes(text)) return true;
+    if (post.author?.displayName?.toLowerCase().includes(text)) return true;
+    if (post.author?.handle?.toLowerCase().includes(text)) return true;
+
+    return false;
+  }
+
+  // Helper: Check if post passes all active filters
+  function passesFilters(post: ReviewPost, filters: ActiveFilters): boolean {
+    // 1) Search text
+    if (!matchesText(post, filters.searchQuery)) return false;
+
+    // 2) Style (single-select)
+    if (filters.style) {
+      if (!post.styleType || post.styleType !== filters.style) {
+        return false;
+      }
+    }
+
+    // 3) Category (single-select)
+    if (filters.category) {
+      if (!post.foodType || post.foodType !== filters.category) {
+        return false;
+      }
+    }
+
+    // 4) Price
+    if (filters.priceMin != null || filters.priceMax != null) {
+      const maxPrice = post.priceMax;
+      if (maxPrice == null) return false;
+      if (filters.priceMin != null && maxPrice < filters.priceMin) return false;
+      if (filters.priceMax != null && maxPrice > filters.priceMax) return false;
+    }
+
+    // 5) Rating
+    if (filters.ratingAtLeast != null) {
+      if (post.rating == null) return false;
+      if (post.rating < filters.ratingAtLeast) return false;
+    }
+
+    // 6) Near Me distance (skip for now if not available)
+    if (filters.distanceKm != null) {
+      // Distance filtering would go here if we had location data
+      // For now, we'll skip this as posts don't have distanceKm field
+    }
+
+    return true;
+  }
+
+  // Filter posts based on active tab, board, feed filter, and ALL active filters
   const filteredPosts = useMemo(() => {
     let filtered = [...posts];
 
@@ -59,47 +166,26 @@ export const RendezvousHome: React.FC = () => {
 
     // Filter by following
     if (feedFilter === 'following') {
-      filtered = filtered.filter(post => {
-        if (post.type === 'review') {
-          return post.isFromFollowedUser === true;
-        } else {
-          return post.isFromFollowedUser === true;
-        }
-      });
+      filtered = filtered.filter(post => post.isFromFollowedUser === true);
     }
 
-    // Filter by search query
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim();
-      filtered = filtered.filter(post => {
-        const matchesTitle = post.title.toLowerCase().includes(query);
-        const matchesBoard = post.board.name.toLowerCase().includes(query) ||
-                           post.board.label.toLowerCase().includes(query);
-        
-        if (post.type === 'review') {
-          const reviewPost = post as ReviewPost;
-          const matchesRestaurant = reviewPost.restaurantName.toLowerCase().includes(query);
-          const matchesAuthor = reviewPost.author.displayName.toLowerCase().includes(query) ||
-                              reviewPost.author.handle.toLowerCase().includes(query);
-          return matchesTitle || matchesRestaurant || matchesBoard || matchesAuthor;
-        } else {
-          const meetupPost = post as MeetupPost;
-          const matchesRestaurant = meetupPost.restaurantName?.toLowerCase().includes(query) || false;
-          const matchesHost = meetupPost.host.displayName.toLowerCase().includes(query) ||
-                            meetupPost.host.handle.toLowerCase().includes(query);
-          const matchesDescription = meetupPost.description.toLowerCase().includes(query);
-          return matchesTitle || matchesRestaurant || matchesBoard || matchesHost || matchesDescription;
-        }
-      });
+    // Apply comprehensive filters (only for review posts)
+    if (activeTab === 'reviews') {
+      filtered = filtered.filter((post) => passesFilters(post as ReviewPost, filters));
     }
 
     return filtered;
-  }, [posts, activeTab, selectedBoardId, feedFilter, searchQuery]);
+  }, [posts, activeTab, selectedBoardId, feedFilter, filters]);
 
   const handlePostClick = (post: Post) => {
     console.log('Post clicked:', post.id);
     // TODO: In the future, this will navigate to a post detail page
     // TODO: The detail page will show full content, comments, etc.
+  };
+
+  const handleSearchFromTag = (tag: string) => {
+    updateSearchQuery(tag);
+    // The filtering will happen automatically via the filteredPosts useMemo
   };
 
   const handlePostTypeSelect = (type: 'review' | 'meetup') => {
@@ -122,8 +208,8 @@ export const RendezvousHome: React.FC = () => {
       return (
         <div className="min-h-screen bg-bg-primary transition-colors duration-300">
           <TopNavBar
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
+            searchQuery={filters.searchQuery}
+            onSearchChange={updateSearchQuery}
             onPostClick={() => setIsPostModalOpen(true)}
           />
 
@@ -134,6 +220,13 @@ export const RendezvousHome: React.FC = () => {
                 boards={boards}
                 selectedBoardId={selectedBoardId}
                 onBoardSelect={setSelectedBoardId}
+                filters={filters}
+                onChangeStyle={updateStyle}
+                onChangeCategory={updateCategory}
+                onChangePrice={updatePrice}
+                onApplyPrice={applyPrice}
+                onChangeRating={updateRating}
+                onChangeNearMe={updateDistance}
               />
 
               {/* Mobile Board Chips */}
@@ -153,6 +246,9 @@ export const RendezvousHome: React.FC = () => {
                 />
 
                 <div className="px-4" style={{ background: 'linear-gradient(to bottom, var(--bg-secondary), var(--bg-primary))' }}>
+              {/* Create Post Composer */}
+              <CreatePostCard />
+
               {filteredPosts.length === 0 ? (
                 <div className="text-center py-16">
                   <p className="text-text-secondary text-xl mb-2">No posts found</p>
@@ -168,6 +264,7 @@ export const RendezvousHome: React.FC = () => {
                         key={post.id}
                         post={post}
                         onClick={() => handlePostClick(post)}
+                        onTagClick={handleSearchFromTag}
                       />
                     );
                   } else {

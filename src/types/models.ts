@@ -20,15 +20,19 @@ export interface ReviewPost {
   type: 'review';
   author: User;
   restaurantName: string;
-  board: Board;         // cuisine or food type board
+  board: Board;         // cuisine or food type board (legacy)
+  styleType?: string;   // e.g. "美式 American" (cuisine/style)
+  foodType?: string;    // e.g. "漢堡 Burgers" (food type)
   title: string;
   contentSnippet: string;
   rating: number;       // 1–5
   priceLevel: '$' | '$$' | '$$$';
+  priceMax?: number;    // Maximum price per person in NTD (for detailed range)
   locationArea: string; // e.g. "Gongguan", "Xinyi"
   createdAt: string;    // ISO or human-friendly string
   likeCount: number;
   commentCount: number;
+  shareCount?: number;  // Number of shares
   imageUrl?: string;    // Single image (legacy support)
   images?: string[];    // Multiple images array
   isFromFollowedUser?: boolean;

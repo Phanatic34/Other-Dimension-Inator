@@ -4,15 +4,51 @@ import { ReviewPost } from '../../types/models';
 interface ReviewPostCardProps {
   post: ReviewPost;
   onClick?: () => void;
+  onTagClick?: (tag: string) => void;
 }
 
-export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick }) => {
+// Helper function to map priceMax to symbols and label
+function getPriceInfo(maxPrice: number | null | undefined) {
+  if (maxPrice == null) {
+    return { symbols: "", label: "" };
+  }
+
+  if (maxPrice <= 300) {
+    return { symbols: "$", label: "NT$0–300" };
+  }
+
+  if (maxPrice <= 1000) {
+    return { symbols: "$$", label: "NT$301–1000" };
+  }
+
+  if (maxPrice <= 5000) {
+    return { symbols: "$$$", label: "NT$1001–5000" };
+  }
+
+  // 5000+
+  return { symbols: "$$$$$", label: "NT$5000+" };
+}
+
+export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick, onTagClick }) => {
   // Lightbox state
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   
   // Menu state
   const [menuOpen, setMenuOpen] = useState(false);
+
+  // Compute price info from priceMax
+  const priceInfo = getPriceInfo(post.priceMax);
+
+  // Handler for opening Google Maps
+  const handleOpenGoogleMaps = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const query = `${post.restaurantName ?? ""} ${post.locationArea ?? ""}`.trim();
+    window.open(
+      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`,
+      "_blank"
+    );
+  };
 
   // Helper function to parse and style hashtags
   const renderContentWithHashtags = (text: string) => {
@@ -172,20 +208,59 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick })
             </div>
           </div>
           
-          {/* Line 2: Single Pill - Location + Restaurant + Cuisine */}
-          <div 
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white group-hover:bg-neutral-50 border border-gray-200 text-sm shadow-sm mt-1.5 cursor-pointer transition"
-            onClick={(e) => {
-              e.stopPropagation();
-              const query = encodeURIComponent(`${post.restaurantName} ${post.locationArea}`);
-              window.open(`https://www.google.com/maps/search/?api=1&query=${query}`, '_blank');
-            }}
-          >
-            <span className="text-text-secondary">{post.locationArea}</span>
-            <span className="text-gray-300">·</span>
-            <span className="font-medium text-text-primary">{post.restaurantName}</span>
-            <span className="text-gray-300">·</span>
-            <span className="text-text-secondary">{post.board.label}</span>
+          {/* Line 2: Three Separate Pills - Restaurant+Location, Style Type, Food Type */}
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            {/* Chip 1: Restaurant + Location */}
+            <button
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-gray-200 text-sm shadow-sm cursor-pointer group-hover:bg-neutral-50 transition-colors"
+              onClick={handleOpenGoogleMaps}
+            >
+              {post.locationArea && (
+                <>
+                  <span className="text-text-secondary">{post.locationArea}</span>
+                  <span className="text-gray-300">·</span>
+                </>
+              )}
+              <span className="font-medium text-text-primary">
+                {post.restaurantName}
+              </span>
+            </button>
+
+            {/* Chip 2: Style Type (Cuisine) - use styleType if available, otherwise use board if it's cuisine */}
+            {(post.styleType || (post.board?.category === 'cuisine' && post.board?.label)) && (
+              <button
+                className="inline-flex items-center px-3 py-1 rounded-full bg-white border border-gray-200 text-sm shadow-sm cursor-pointer hover:bg-neutral-50 transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const tag = post.styleType || post.board?.label;
+                  if (tag && onTagClick) {
+                    onTagClick(tag);
+                  }
+                }}
+              >
+                <span className="font-medium text-text-primary">
+                  {post.styleType || post.board?.label}
+                </span>
+              </button>
+            )}
+
+            {/* Chip 3: Food Type - use foodType if available, otherwise use board if it's type */}
+            {(post.foodType || (post.board?.category === 'type' && post.board?.label)) && (
+              <button
+                className="inline-flex items-center px-3 py-1 rounded-full bg-white border border-gray-200 text-sm shadow-sm cursor-pointer hover:bg-neutral-50 transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const tag = post.foodType || post.board?.label;
+                  if (tag && onTagClick) {
+                    onTagClick(tag);
+                  }
+                }}
+              >
+                <span className="font-medium text-text-primary">
+                  {post.foodType || post.board?.label}
+                </span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -193,7 +268,7 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick })
       {/* Post Content Area */}
       <div className="ml-[52px]">
         {/* RATING ROW (ABOVE content text) */}
-        <div className="flex items-center gap-3 mb-2 text-sm">
+        <div className="mt-1 flex items-center text-sm text-text-secondary">
           {/* Stars */}
           <div className="flex items-center gap-0.5">
             {[...Array(5)].map((_, i) => (
@@ -206,15 +281,27 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick })
                 <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
               </svg>
             ))}
-            <span className="ml-1 font-semibold text-text-primary">{post.rating.toFixed(1)}</span>
-      </div>
+          </div>
 
-          {/* Price Level */}
-          <span className="font-semibold text-text-primary">{post.priceLevel}</span>
+          {/* Numeric rating */}
+          <span className="ml-2 font-semibold text-text-primary">
+            {post.rating.toFixed(1)}
+          </span>
+
+          {/* Dot separator */}
+          <span className="mx-2 text-text-secondary/60">·</span>
+
+          {/* Price Symbols + Range */}
+          {priceInfo.symbols && (
+            <>
+              <span className="font-semibold text-text-primary">{priceInfo.symbols}</span>
+              <span className="ml-2 text-xs text-text-secondary">{priceInfo.label}</span>
+            </>
+          )}
         </div>
 
         {/* CONTENT TEXT with hashtag styling */}
-        <p className="text-base text-text-primary leading-relaxed mb-3">
+        <p className="mt-3 text-base text-text-primary leading-relaxed mb-3">
           {renderContentWithHashtags(post.contentSnippet)}
         </p>
 
@@ -319,6 +406,7 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick })
               <line x1="22" y1="2" x2="11" y2="13"></line>
               <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
             </svg>
+            <span className="font-medium">{post.shareCount ?? 0}</span>
           </button>
 
           {/* Save restaurant location (map pin) */}
