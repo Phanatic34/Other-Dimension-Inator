@@ -34,9 +34,30 @@ const mockUsers: User[] = [
   { id: 'user3', displayName: 'Ramen Lover', handle: '@ramen_lover', isFollowedByCurrentUser: true },
   { id: 'user4', displayName: 'Sweet Tooth', handle: '@sweet_tooth', isFollowedByCurrentUser: false },
   { id: 'user5', displayName: 'Street Food Hunter', handle: '@street_hunter', isFollowedByCurrentUser: true },
+  { id: 'lamige_9', displayName: '王柏融', handle: '@lamige_9', avatarUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRRlemVfqgIwcy8YxYkeyEcWKZaQ8gKT64JVg&s', isFollowedByCurrentUser: false },
 ];
 
 const mockReviewPosts: ReviewPost[] = [
+  {
+    id: 'post-mcd-tianmu-1',
+    type: 'review',
+    author: mockUsers[5], // 王柏融
+    restaurantName: '麥當勞-天母餐廳',
+    board: mockBoards[0], // American
+    title: '天母這間麥當勞氣氛 surprisingly 不錯',
+    contentSnippet: '今天跟朋友在天母這間麥當勞吃晚餐，座位寬敞、不會太吵。薯條熱騰騰、雞塊也很酥，附近想找速食時可以考慮這家。#麥當勞 #天母 #速食',
+    rating: 4.3,
+    priceLevel: '$$',
+    locationArea: 'Tianmu',
+    createdAt: '1小時前',
+    likeCount: 59,
+    commentCount: 12,
+    images: [
+      'https://images.unsplash.com/photo-1550547660-d9450f859349?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?auto=format&fit=crop&w=1200&q=80',
+    ],
+    isFromFollowedUser: false,
+  },
   {
     id: 'review1',
     type: 'review',

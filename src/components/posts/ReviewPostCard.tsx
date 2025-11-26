@@ -10,6 +10,9 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick })
   // Lightbox state
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  
+  // Menu state
+  const [menuOpen, setMenuOpen] = useState(false);
 
   // Helper function to parse and style hashtags
   const renderContentWithHashtags = (text: string) => {
@@ -51,20 +54,34 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick })
     setActiveIndex((prev) => Math.min(maxIndex, prev + 1));
   };
 
-  // ESC key listener
+  // ESC key listener for lightbox and menu
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && lightboxOpen) {
-        closeLightbox();
+      if (e.key === 'Escape') {
+        if (lightboxOpen) {
+          closeLightbox();
+        }
+        if (menuOpen) {
+          setMenuOpen(false);
+        }
       }
     };
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
-  }, [lightboxOpen]);
+  }, [lightboxOpen, menuOpen]);
 
   return (
     <div
-      onClick={onClick}
+      onClick={(e) => {
+        // Close menu if open
+        if (menuOpen) {
+          setMenuOpen(false);
+        }
+        // Trigger parent onClick
+        if (onClick) {
+          onClick();
+        }
+      }}
       className="group px-4 py-3 border-b border-border-color cursor-pointer hover:bg-bg-hover transition-colors duration-200"
     >
       {/* TOP SECTION: Header Row */}
@@ -97,20 +114,62 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick })
               </span>
             </div>
             
-            {/* Right-aligned: More menu (...) */}
-            <button
-              className="p-1 rounded-full hover:bg-neutral-100 cursor-pointer text-text-secondary flex-shrink-0"
-              onClick={(e) => {
-                e.stopPropagation();
-                console.log('open post menu', post.id);
-              }}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="1"></circle>
-                <circle cx="19" cy="12" r="1"></circle>
-                <circle cx="5" cy="12" r="1"></circle>
-              </svg>
-            </button>
+            {/* Right-aligned: More menu (...) with dropdown */}
+            <div className="relative flex-shrink-0">
+              <button
+                className="p-1 rounded-full hover:bg-neutral-100 cursor-pointer text-text-secondary"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen((v) => !v);
+                }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="1"></circle>
+                  <circle cx="19" cy="12" r="1"></circle>
+                  <circle cx="5" cy="12" r="1"></circle>
+                </svg>
+              </button>
+              
+              {/* Dropdown menu */}
+              {menuOpen && (
+                <div 
+                  className="absolute right-0 mt-2 w-44 rounded-lg bg-white shadow-lg border border-neutral-200 z-20"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Save this post */}
+                  <button
+                    className="flex w-full items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-neutral-50 cursor-pointer rounded-t-lg"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      console.log('save post', post.id);
+                      setMenuOpen(false);
+                    }}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    <span>Save this post</span>
+                  </button>
+                  
+                  {/* Report this post */}
+                  <button
+                    className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 cursor-pointer rounded-b-lg"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      console.log('report post', post.id);
+                      setMenuOpen(false);
+                    }}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                      <line x1="12" y1="9" x2="12" y2="13"></line>
+                      <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                    <span>Report this post</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
           
           {/* Line 2: Single Pill - Location + Restaurant + Cuisine */}
@@ -262,16 +321,17 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick })
             </svg>
           </button>
 
-          {/* Save (bookmark) */}
+          {/* Save restaurant location (map pin) */}
           <button 
             className="flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity"
             onClick={(e) => {
               e.stopPropagation();
-              console.log('save restaurant', post.id);
+              console.log('save restaurant location', post.id);
             }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+              <circle cx="12" cy="10" r="3"></circle>
           </svg>
           </button>
         </div>
