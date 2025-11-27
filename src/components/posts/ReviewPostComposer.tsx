@@ -127,6 +127,12 @@ export const ReviewPostComposer: React.FC<ReviewPostComposerProps> = ({
     }
   };
 
+  // Derived: Check if price range is invalid (both have values and min > max)
+  const hasInvalidPriceRange =
+    priceMin !== '' &&
+    priceMax !== '' &&
+    Number(priceMin) > Number(priceMax);
+
   // Validation - All required fields
   const isLocationValid = 
     location !== null &&
@@ -138,7 +144,6 @@ export const ReviewPostComposer: React.FC<ReviewPostComposerProps> = ({
   const isRatingValid = rating > 0; // NEW: Rating must be > 0
   const isVisibilityValid = visibility !== null; // NEW: Visibility required
   const isContentValid = content.trim() !== '';
-  const isPriceValid = priceError === null; // NEW: Price range validation
 
   // Overall validation
   const isValid = 
@@ -148,7 +153,7 @@ export const ReviewPostComposer: React.FC<ReviewPostComposerProps> = ({
     isRatingValid && 
     isVisibilityValid && 
     isContentValid &&
-    isPriceValid;
+    !hasInvalidPriceRange;
 
   const handleExpand = () => {
     // Expand in-place without scrolling
@@ -193,7 +198,6 @@ export const ReviewPostComposer: React.FC<ReviewPostComposerProps> = ({
     const missingRating = !isRatingValid;
     const missingVisibility = !isVisibilityValid;
     const missingContent = !isContentValid;
-    const hasPriceError = priceError !== null;
 
     const hasError =
       missingLocation ||
@@ -202,7 +206,7 @@ export const ReviewPostComposer: React.FC<ReviewPostComposerProps> = ({
       missingRating ||
       missingVisibility ||
       missingContent ||
-      hasPriceError;
+      hasInvalidPriceRange;
 
     if (hasError) {
       // Do NOT submit, just show errors
@@ -248,6 +252,17 @@ export const ReviewPostComposer: React.FC<ReviewPostComposerProps> = ({
 
   const handleLocationSelect = (locationData: LocationData) => {
     setLocation(locationData);
+    setIsLocationModalOpen(false);
+
+    // Smoothly scroll back to the composer after modal closes
+    requestAnimationFrame(() => {
+      // Try expanded composer first, then fallback to compact
+      const targetElement = expandedComposerRef.current || compactComposerRef.current;
+      targetElement?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    });
   };
 
   const handleStyleClick = (styleId: string) => {
@@ -312,7 +327,7 @@ export const ReviewPostComposer: React.FC<ReviewPostComposerProps> = ({
         <section
           ref={compactComposerRef}
           onClick={handleExpand}
-          className="mb-4 rounded-3xl border border-border-color bg-bg-card px-5 py-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+          className="mt-4 md:mt-6 mb-4 rounded-3xl border border-border-color bg-bg-card px-5 py-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
         >
           <div className="flex gap-3">
             {/* Avatar */}
@@ -350,7 +365,7 @@ export const ReviewPostComposer: React.FC<ReviewPostComposerProps> = ({
     <>
       <section 
         ref={expandedComposerRef}
-        className="mb-4 rounded-3xl border border-border-color bg-bg-card px-6 py-5 shadow-lg"
+        className="mt-4 md:mt-6 mb-4 rounded-3xl border border-border-color bg-bg-card px-6 py-5 shadow-lg"
       >
         {/* Header with Avatar and Collapse Button */}
         <div className="flex gap-3 mb-5">
@@ -570,8 +585,9 @@ export const ReviewPostComposer: React.FC<ReviewPostComposerProps> = ({
                 }}
                 placeholder="最小值"
                 className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-gold focus:border-transparent ${
-                  priceError ? 'border-red-500' : 'border-gray-300'
+                  hasInvalidPriceRange ? 'border-red-500' : 'border-gray-300'
                 }`}
+                aria-invalid={hasInvalidPriceRange}
               />
             </div>
             <span className="text-text-secondary">—</span>
@@ -588,14 +604,15 @@ export const ReviewPostComposer: React.FC<ReviewPostComposerProps> = ({
                 }}
                 placeholder="最大值"
                 className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-gold focus:border-transparent ${
-                  priceError ? 'border-red-500' : 'border-gray-300'
+                  hasInvalidPriceRange ? 'border-red-500' : 'border-gray-300'
                 }`}
+                aria-invalid={hasInvalidPriceRange}
               />
             </div>
           </div>
-          {hasTriedSubmit && priceError ? (
-            <p className="text-xs text-red-500 mt-2">
-              {priceError}
+          {hasInvalidPriceRange ? (
+            <p className="mt-1 text-xs text-red-500">
+              請確認價格範圍：最大值必須大於或等於最小值
             </p>
           ) : (
             <p className="text-xs text-text-secondary mt-2">

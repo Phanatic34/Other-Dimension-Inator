@@ -24,6 +24,8 @@ interface PlaceResult {
   region?: string;
 }
 
+const MAX_LOCATION_RESULTS = 8;
+
 /**
  * Instagram-style location search modal with Google Places integration
  * Features: search, list of results, map preview, manual entry fallback
@@ -172,13 +174,28 @@ export const LocationSearchModal: React.FC<LocationSearchModalProps> = ({
                 }
 
                 // Combine: Autocomplete first (more precise), then Text Search
-                setPlaces([...autocompleteResults, ...textSearchResults]);
+                const combined: PlaceResult[] = [
+                  ...autocompleteResults,
+                  ...textSearchResults,
+                ];
+
+                // Deduplicate by placeId
+                const seen = new Set<string>();
+                const unique = combined.filter((place) => {
+                  if (!place.placeId || seen.has(place.placeId)) return false;
+                  seen.add(place.placeId);
+                  return true;
+                });
+
+                // Cap at MAX_LOCATION_RESULTS
+                setPlaces(unique.slice(0, MAX_LOCATION_RESULTS));
               }
             );
           } else {
             // Enough Autocomplete results, no need for Text Search
             setIsSearching(false);
-            setPlaces(autocompleteResults);
+            // Cap at MAX_LOCATION_RESULTS
+            setPlaces(autocompleteResults.slice(0, MAX_LOCATION_RESULTS));
           }
         }
       );
@@ -283,10 +300,38 @@ export const LocationSearchModal: React.FC<LocationSearchModalProps> = ({
           if (lat !== undefined && lng !== undefined) {
             showMapPreview(lat, lng);
           }
+
+          // Automatically select location and close modal when details are fetched
+          if (lat !== undefined && lng !== undefined) {
+            onSelectLocation({
+              restaurantName: selectedResult.name,
+              address: selectedResult.address,
+              lat: selectedResult.lat!,
+              lng: selectedResult.lng!,
+              region: selectedResult.region,
+            });
+            // Close modal - reset state and call onClose
+            setSearchQuery('');
+            setPlaces([]);
+            setSelectedPlace(null);
+            setShowManualEntry(false);
+            setManualName('');
+            setManualAddress('');
+            setManualLat(null);
+            setManualLng(null);
+            setManualRegion('');
+            if (mapInstanceRef.current) {
+              mapInstanceRef.current = null;
+            }
+            if (markerRef.current) {
+              markerRef.current = null;
+            }
+            onClose();
+          }
         }
       }
     );
-  }, [showMapPreview]);
+  }, [showMapPreview, onSelectLocation, onClose]);
 
   const handlePlaceClick = (place: PlaceResult) => {
     setSelectedPlace(place);

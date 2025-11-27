@@ -354,6 +354,7 @@ export const RendezvousHome: React.FC = () => {
                         post={post}
                         onClick={() => handlePostClick(post)}
                         onTagClick={handleSearchFromTag}
+                        isOwnPost={post.author.id === currentUser.id}
                       />
                     );
                   } else {
