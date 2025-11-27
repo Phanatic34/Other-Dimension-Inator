@@ -1,11 +1,12 @@
 import { Board, Post, ReviewPost, MeetupPost, User } from '../types/models';
+import { sortWithOthersLast } from '../utils/sorting';
 
 // IMPORTANT: For production apps, DO NOT use direct Unsplash hotlinks.
 // User-uploaded images must be stored in cloud storage (AWS S3, Google Cloud Storage, or Firebase Storage).
 // The image URLs below are DEMO placeholders only.
 
-// Mock data
-const mockBoards: Board[] = [
+// Mock data - raw boards array (will be sorted)
+const mockBoardsRaw: Board[] = [
   // By Cuisine / Style
   { id: 'american', name: 'American', label: '美式 American', category: 'cuisine' },
   { id: 'japanese', name: 'Japanese', label: '日式 Japanese', category: 'cuisine' },
@@ -19,6 +20,7 @@ const mockBoards: Board[] = [
   { id: 'vietnamese', name: 'Vietnamese', label: '越式 Vietnamese', category: 'cuisine' },
   { id: 'indian', name: 'Indian', label: '印度 Indian', category: 'cuisine' },
   { id: 'mexican', name: 'Mexican', label: '墨西哥 Mexican', category: 'cuisine' },
+  { id: 'others-style', name: 'Others', label: '其他 Others', category: 'cuisine' },
   // By Food Type
   { id: 'desserts', name: 'Desserts', label: '甜點 Desserts', category: 'type' },
   { id: 'breakfast', name: 'Breakfast', label: '早餐 Breakfast', category: 'type' },
@@ -26,7 +28,16 @@ const mockBoards: Board[] = [
   { id: 'beverages', name: 'Beverages', label: '飲料 Beverages', category: 'type' },
   { id: 'vegetarian', name: 'Vegetarian', label: '素食 Vegetarian', category: 'type' },
   { id: 'fastfood', name: 'Fast Food', label: '速食 Fast Food', category: 'type' },
+  { id: 'noodles', name: 'Noodles', label: '麵食 Noodles', category: 'type' },
+  { id: 'rice', name: 'Rice', label: '米飯 Rice', category: 'type' },
+  { id: 'lunch_din', name: 'Lunch / Dinner', label: '午晚餐 Lunch / Dinner', category: 'type' },
+  { id: 'late_night', name: 'Late Night', label: '宵夜 Late Night', category: 'type' },
+  { id: 'others-category', name: 'Others', label: '其他 Others', category: 'type' },
 ];
+
+// Keep original array for mock posts (they reference boards by index)
+// The sorted version will be exported for UI display
+const mockBoards = mockBoardsRaw;
 
 const mockUsers: User[] = [
   { id: 'user1', displayName: 'Foodie NTU', handle: '@foodie_ntu', isFollowedByCurrentUser: true },
@@ -277,7 +288,8 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export async function fetchBoards(): Promise<Board[]> {
   await delay(300);
-  return [...mockBoards];
+  // Return sorted boards: alphabetically by English name, with "Others" always last
+  return sortWithOthersLast(mockBoards, (board) => board.name);
 }
 
 export async function fetchPosts(): Promise<Post[]> {

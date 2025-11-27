@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Board, Post, ReviewPost, MeetupPost } from '../types/models';
+import { Board, Post, ReviewPost, MeetupPost, User } from '../types/models';
 import { fetchBoards, fetchPosts } from '../api/mock';
 import { TopNavBar } from '../components/layout/TopNavBar';
 import { Sidebar } from '../components/layout/Sidebar';
@@ -8,6 +8,7 @@ import { TabSwitcher } from '../components/layout/TabSwitcher';
 import { ReviewPostCard } from '../components/posts/ReviewPostCard';
 import { MeetupPostCard } from '../components/posts/MeetupPostCard';
 import { CreatePostCard } from '../components/posts/CreatePostCard';
+import { ReviewPostComposer, ReviewPostFormValues } from '../components/posts/ReviewPostComposer';
 import { PostTypeModal } from '../components/modals/PostTypeModal';
 
 // Active Filters Type (single-select per group)
@@ -90,7 +91,7 @@ export const RendezvousHome: React.FC = () => {
   }, []);
 
   // Helper: Check if text matches search query
-  function matchesText(post: ReviewPost, q: string): boolean {
+  const matchesText = React.useCallback((post: ReviewPost, q: string): boolean => {
     if (!q) return true;
     const text = q.toLowerCase();
 
@@ -104,10 +105,10 @@ export const RendezvousHome: React.FC = () => {
     if (post.author?.handle?.toLowerCase().includes(text)) return true;
 
     return false;
-  }
+  }, []);
 
   // Helper: Check if post passes all active filters
-  function passesFilters(post: ReviewPost, filters: ActiveFilters): boolean {
+  const passesFilters = React.useCallback((post: ReviewPost, filters: ActiveFilters): boolean => {
     // 1) Search text
     if (!matchesText(post, filters.searchQuery)) return false;
 
@@ -146,7 +147,7 @@ export const RendezvousHome: React.FC = () => {
     }
 
     return true;
-  }
+  }, [matchesText]);
 
   // Filter posts based on active tab, board, feed filter, and ALL active filters
   const filteredPosts = useMemo(() => {
@@ -175,7 +176,7 @@ export const RendezvousHome: React.FC = () => {
     }
 
     return filtered;
-  }, [posts, activeTab, selectedBoardId, feedFilter, filters]);
+  }, [posts, activeTab, selectedBoardId, feedFilter, filters, passesFilters]);
 
   const handlePostClick = (post: Post) => {
     console.log('Post clicked:', post.id);
@@ -192,6 +193,87 @@ export const RendezvousHome: React.FC = () => {
     console.log(`User wants to create a ${type} post`);
     // TODO: In the future, this will open a form modal
     // TODO: The form will submit to the backend API
+  };
+
+  // Current user (mock - in real app, get from auth context)
+  const currentUser: User = {
+    id: 'me',
+    displayName: 'Philip',
+    handle: '@philip',
+    avatarUrl: '/images/default-avatar.png',
+    isFollowedByCurrentUser: false, // User doesn't follow themselves
+  };
+
+  // Handler to create a new review post from form values
+  const handleCreateReviewPost = (values: ReviewPostFormValues) => {
+    const now = new Date();
+
+    // Find the style board (cuisine category)
+    const styleBoard = boards.find(b => b.id === values.styleTags[0] && b.category === 'cuisine');
+    // Find the category board (type category) for foodType
+    const categoryBoard = boards.find(b => b.id === values.categoryTags[0] && b.category === 'type');
+
+    // Derive priceLevel from price range
+    let priceLevel: '$' | '$$' | '$$$' = '$';
+    if (values.priceMax !== null && values.priceMax !== undefined) {
+      if (values.priceMax <= 200) {
+        priceLevel = '$';
+      } else if (values.priceMax <= 500) {
+        priceLevel = '$$';
+      } else {
+        priceLevel = '$$$';
+      }
+    } else if (values.priceMin !== null && values.priceMin !== undefined) {
+      if (values.priceMin > 500) {
+        priceLevel = '$$$';
+      } else if (values.priceMin > 200) {
+        priceLevel = '$$';
+      }
+    }
+
+    // Extract locationArea from locationDisplayName
+    // Format: "大安區 | 好吃炒飯" or just "好吃炒飯"
+    const locationDisplayParts = values.locationDisplayName.split(' | ');
+    const locationArea = locationDisplayParts.length > 1 
+      ? locationDisplayParts[0]  // e.g. "大安區"
+      : 'Taipei'; // Default if no region in display name
+
+    // Convert photo files to image URLs (object URLs for immediate display)
+    const imageUrls = values.photoFiles.map((file) => URL.createObjectURL(file));
+
+    const newPost: ReviewPost = {
+      id: `local-${now.getTime()}`,
+      type: 'review',
+      author: currentUser,
+      restaurantName: values.restaurantName,
+      board: styleBoard || boards[0], // Fallback to first board if not found
+      styleType: styleBoard?.label,
+      foodType: categoryBoard?.label,
+      title: values.restaurantName, // Use restaurant name as title for now
+      contentSnippet: values.content.length > 100 
+        ? values.content.substring(0, 100) + '...' 
+        : values.content,
+      rating: values.rating,
+      priceLevel,
+      priceMax: values.priceMax ?? undefined,
+      locationArea,
+      createdAt: now.toISOString(),
+      likeCount: 0,
+      commentCount: 0,
+      shareCount: 0,
+      images: imageUrls.length > 0 ? imageUrls : undefined,
+      imageUrl: imageUrls[0], // Legacy support
+      isFromFollowedUser: feedFilter === 'following',
+    };
+
+    // Add the new post to the beginning of the posts array
+    setPosts((prev) => [newPost, ...prev]);
+
+    // Optional: scroll to the top of the feed smoothly after posting
+    const feedTop = document.getElementById('review-feed-top');
+    if (feedTop) {
+      feedTop.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   };
 
   if (isLoading) {
@@ -246,8 +328,15 @@ export const RendezvousHome: React.FC = () => {
                 />
 
                 <div className="px-4" style={{ background: 'linear-gradient(to bottom, var(--bg-secondary), var(--bg-primary))' }}>
-              {/* Create Post Composer */}
-              <CreatePostCard />
+              {/* Feed top anchor for scrolling */}
+              <div id="review-feed-top" />
+              
+              {/* Create Post Composer - Different for each tab */}
+              {activeTab === 'reviews' ? (
+                <ReviewPostComposer onCreateReviewPost={handleCreateReviewPost} />
+              ) : (
+                <CreatePostCard />
+              )}
 
               {filteredPosts.length === 0 ? (
                 <div className="text-center py-16">

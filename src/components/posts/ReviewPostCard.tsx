@@ -215,10 +215,12 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick, o
               className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-gray-200 text-sm shadow-sm cursor-pointer group-hover:bg-neutral-50 transition-colors"
               onClick={handleOpenGoogleMaps}
             >
-              {post.locationArea && (
+              {(post.locationArea || (post as any).region) && (
                 <>
-                  <span className="text-text-secondary">{post.locationArea}</span>
-                  <span className="text-gray-300">·</span>
+                  <span className="text-text-secondary">
+                    {(post as any).region || post.locationArea}
+                  </span>
+                  <span className="text-gray-300">|</span>
                 </>
               )}
               <span className="font-medium text-text-primary">
