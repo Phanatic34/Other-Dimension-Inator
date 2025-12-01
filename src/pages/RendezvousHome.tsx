@@ -344,6 +344,9 @@ export const RendezvousHome: React.FC = () => {
       // Add the new post to the beginning of the posts array
       setPosts((prev) => [newPost, ...prev]);
 
+      // Close the modal after successful creation
+      setIsMeetupComposerOpen(false);
+
       // Scroll to the top of the feed smoothly after posting
       const feedTop = document.getElementById('review-feed-top');
       if (feedTop) {
@@ -352,6 +355,7 @@ export const RendezvousHome: React.FC = () => {
     } catch (error) {
       console.error('Error creating meetup post:', error);
       // TODO: Show error message to user
+      // Don't close modal on error so user can retry
     }
   };
 
@@ -433,13 +437,6 @@ export const RendezvousHome: React.FC = () => {
               {activeTab === 'reviews' ? (
                 <ReviewPostComposer onCreateReviewPost={handleCreateReviewPost} />
               ) : null}
-              
-              {/* Meetup Composer Modal */}
-              <DiningMeetupComposer
-                isOpen={isMeetupComposerOpen}
-                onClose={() => setIsMeetupComposerOpen(false)}
-                onCreateMeetupPost={handleCreateMeetupPost}
-              />
 
               {filteredPosts.length === 0 ? (
                 <div className="text-center py-16">
@@ -498,6 +495,13 @@ export const RendezvousHome: React.FC = () => {
         isOpen={isPostModalOpen}
         onClose={() => setIsPostModalOpen(false)}
         onSelectType={handlePostTypeSelect}
+      />
+
+      {/* Dining Meetup Composer Modal */}
+      <DiningMeetupComposer
+        isOpen={isMeetupComposerOpen}
+        onClose={() => setIsMeetupComposerOpen(false)}
+        onCreateMeetupPost={handleCreateMeetupPost}
       />
     </div>
   );
