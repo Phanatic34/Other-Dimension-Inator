@@ -110,15 +110,15 @@ export const MeetupPostCard: React.FC<MeetupPostCardProps> = ({ post, onClick, o
   const isClosed = post.status === 'CLOSED' || isFull;
   const budgetInfo = parseBudget(post.budgetDescription);
 
-  // Build full address for Google Maps and display
-  // Priority: address > locationText + restaurantName > locationText > restaurantName
+  // Build full detailed address (big → small): city, district, street, building, restaurant
+  // Priority: use address if it's already detailed, otherwise build from available fields
   const fullAddress = post.address || 
     (post.locationText && post.restaurantName 
       ? `${post.locationText} ${post.restaurantName}`.trim()
       : post.locationText || post.restaurantName || '');
   
-  // Build raw address for Google Maps search (same as fullAddress)
-  const rawAddress = fullAddress;
+  // Use the same fullAddress for Google Maps search
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress)}`;
   
   // Extract district/region from locationText or locationArea for the chip
   const district = post.locationArea || (post.locationText?.includes('區') ? post.locationText.split('區')[0] + '區' : post.locationText?.split(',')[0]?.trim() || post.locationText);
@@ -128,7 +128,6 @@ export const MeetupPostCard: React.FC<MeetupPostCardProps> = ({ post, onClick, o
     if (e) {
       e.stopPropagation();
     }
-    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(rawAddress)}`;
     window.open(mapsUrl, "_blank", "noopener,noreferrer");
   };
 
@@ -181,9 +180,9 @@ export const MeetupPostCard: React.FC<MeetupPostCardProps> = ({ post, onClick, o
             </span>
           </div>
           
-          {/* "→ looking for:" row */}
+          {/* "→" row */}
           <div className="text-sm text-text-secondary mt-0.5">
-            <span>→ looking for: </span>
+            <span>→ </span>
             <button
               type="button"
               className="font-semibold hover:underline cursor-pointer text-text-primary"

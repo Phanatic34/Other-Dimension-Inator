@@ -6,6 +6,7 @@ import { sortWithOthersLast } from '../../utils/sorting';
 interface ReviewPostComposerProps {
   avatarUrl?: string;
   onCreateReviewPost?: (values: ReviewPostFormValues) => void;
+  initialExpanded?: boolean; // Optional: start expanded (useful for modal)
 }
 
 interface LocationData {
@@ -84,9 +85,10 @@ const MAX_PHOTOS = 9;
 export const ReviewPostComposer: React.FC<ReviewPostComposerProps> = ({
   avatarUrl,
   onCreateReviewPost,
+  initialExpanded = false,
 }) => {
   // UI State
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(initialExpanded);
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [hasTriedSubmit, setHasTriedSubmit] = useState(false);
 

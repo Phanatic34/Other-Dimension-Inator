@@ -31,6 +31,8 @@ export const RendezvousHome: React.FC = () => {
   const [feedFilter, setFeedFilter] = useState<'all' | 'following'>('all');
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [isMeetupComposerOpen, setIsMeetupComposerOpen] = useState(false);
+  type PostType = 'review' | 'meetup';
+  const [postType, setPostType] = useState<PostType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // Centralized filter state
@@ -376,24 +378,9 @@ export const RendezvousHome: React.FC = () => {
             searchQuery={filters.searchQuery}
             onSearchChange={updateSearchQuery}
             onPostClick={() => {
-              if (activeTab === 'meetups') {
-                setIsMeetupComposerOpen(true);
-              } else if (activeTab === 'reviews') {
-                // Scroll to review composer and let it expand on click
-                const feedTop = document.getElementById('review-feed-top');
-                if (feedTop) {
-                  feedTop.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                  // Trigger click on the composer to expand it
-                  setTimeout(() => {
-                    const composer = document.querySelector('[data-review-composer]') as HTMLElement;
-                    if (composer) {
-                      composer.click();
-                    }
-                  }, 300);
-                }
-              } else {
-                setIsPostModalOpen(true);
-              }
+              const type: PostType = activeTab === 'reviews' ? 'review' : 'meetup';
+              setPostType(type);
+              setIsPostModalOpen(true);
             }}
           />
 
@@ -490,14 +477,77 @@ export const RendezvousHome: React.FC = () => {
         </div>
       </div>
 
-      {/* Post Type Modal */}
+      {/* Unified Post Composer Modal */}
+      {isPostModalOpen && postType && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] backdrop-blur-sm"
+          onClick={() => {
+            setIsPostModalOpen(false);
+            setPostType(null);
+          }}
+        >
+          <div
+            className="bg-bg-card rounded-3xl shadow-2xl border border-border-color max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {postType === 'review' ? (
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-2xl font-bold text-text-primary">Create Review Post</h2>
+                  <button
+                    onClick={() => {
+                      setIsPostModalOpen(false);
+                      setPostType(null);
+                    }}
+                    className="text-text-secondary hover:text-text-primary transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18"></line>
+                      <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                  </button>
+                </div>
+                <ReviewPostComposer 
+                  initialExpanded={true}
+                  onCreateReviewPost={(values) => {
+                    handleCreateReviewPost(values);
+                    setIsPostModalOpen(false);
+                    setPostType(null);
+                  }} 
+                />
+              </div>
+            ) : (
+              <DiningMeetupComposer
+                isOpen={true}
+                onClose={() => {
+                  setIsPostModalOpen(false);
+                  setPostType(null);
+                }}
+                onCreateMeetupPost={(values) => {
+                  handleCreateMeetupPost(values);
+                  setIsPostModalOpen(false);
+                  setPostType(null);
+                }}
+              />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Post Type Modal (fallback for other cases) */}
       <PostTypeModal
-        isOpen={isPostModalOpen}
-        onClose={() => setIsPostModalOpen(false)}
-        onSelectType={handlePostTypeSelect}
+        isOpen={isPostModalOpen && postType === null}
+        onClose={() => {
+          setIsPostModalOpen(false);
+          setPostType(null);
+        }}
+        onSelectType={(type) => {
+          setPostType(type);
+          // Keep modal open, will show the composer
+        }}
       />
 
-      {/* Dining Meetup Composer Modal */}
+      {/* Legacy Dining Meetup Composer Modal (keep for backward compatibility) */}
       <DiningMeetupComposer
         isOpen={isMeetupComposerOpen}
         onClose={() => setIsMeetupComposerOpen(false)}
