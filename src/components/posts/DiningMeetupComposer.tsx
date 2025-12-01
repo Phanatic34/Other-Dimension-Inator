@@ -8,6 +8,7 @@ interface DiningMeetupComposerProps {
   onCreateMeetupPost?: (values: DiningMeetupFormValues) => void;
   isOpen?: boolean;
   onClose?: () => void;
+  renderModal?: boolean; // If false, render only the form content without modal overlay
 }
 
 interface LocationData {
@@ -79,6 +80,7 @@ export const DiningMeetupComposer: React.FC<DiningMeetupComposerProps> = ({
   onCreateMeetupPost,
   isOpen = false,
   onClose,
+  renderModal = true, // Default to true for backward compatibility
 }) => {
   // UI State
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
@@ -283,22 +285,12 @@ export const DiningMeetupComposer: React.FC<DiningMeetupComposerProps> = ({
     setPhotoPreview(null);
   };
 
-  if (!isOpen) return null;
+  // If renderModal is false, skip the isOpen check and modal overlay
+  if (renderModal && !isOpen) return null;
 
-  return (
-    <>
-      {/* Modal Overlay */}
-      <div
-        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] backdrop-blur-sm"
-        onClick={handleCancel}
-      >
-        {/* Modal Content */}
-        <div
-          ref={modalRef}
-          className="bg-bg-card rounded-3xl shadow-2xl border border-border-color max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <section className="px-6 py-5">
+  // Form content (used both with and without modal)
+  const formContent = (
+    <section className="px-6 py-5">
             {/* Header */}
             <div className="flex gap-3 mb-5">
               <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-[#f2e4d0]">
@@ -647,6 +639,40 @@ export const DiningMeetupComposer: React.FC<DiningMeetupComposerProps> = ({
               </button>
             </div>
           </section>
+  );
+
+  // If renderModal is false, return just the form content (for use inside another modal)
+  if (!renderModal) {
+    return (
+      <>
+        {formContent}
+        {/* Location Search Modal */}
+        {isLocationModalOpen && (
+          <LocationSearchModal
+            isOpen={isLocationModalOpen}
+            onClose={() => setIsLocationModalOpen(false)}
+            onSelectLocation={handleLocationSelect}
+          />
+        )}
+      </>
+    );
+  }
+
+  // Otherwise, render with modal overlay
+  return (
+    <>
+      {/* Modal Overlay */}
+      <div
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] backdrop-blur-sm"
+        onClick={handleCancel}
+      >
+        {/* Modal Content */}
+        <div
+          ref={modalRef}
+          className="bg-bg-card rounded-3xl shadow-2xl border border-border-color max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {formContent}
         </div>
       </div>
 

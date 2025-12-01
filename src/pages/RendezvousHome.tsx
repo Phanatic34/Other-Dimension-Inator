@@ -379,6 +379,7 @@ export const RendezvousHome: React.FC = () => {
             onSearchChange={updateSearchQuery}
             onPostClick={() => {
               const type: PostType = activeTab === 'reviews' ? 'review' : 'meetup';
+              console.log('Post clicked', { activeTab, postTypeNext: type });
               setPostType(type);
               setIsPostModalOpen(true);
             }}
@@ -423,6 +424,37 @@ export const RendezvousHome: React.FC = () => {
               {/* Create Post Composer - Different for each tab */}
               {activeTab === 'reviews' ? (
                 <ReviewPostComposer onCreateReviewPost={handleCreateReviewPost} />
+              ) : activeTab === 'meetups' ? (
+                <section
+                  onClick={() => {
+                    const type: PostType = 'meetup';
+                    console.log('Meetup composer placeholder clicked', { activeTab, postTypeNext: type });
+                    setPostType(type);
+                    setIsPostModalOpen(true);
+                  }}
+                  className="mt-4 md:mt-6 mb-4 rounded-3xl border border-border-color bg-bg-card px-5 py-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                >
+                  <div className="flex gap-3">
+                    {/* Avatar */}
+                    <div className="mt-1 h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-[#f2e4d0]">
+                      <img
+                        src={
+                          currentUser.avatarUrl ||
+                          'https://images.squarespace-cdn.com/content/v1/5c34403aaa49a1c60b7e6c7e/1548979956856-ZSK82JV8UYCWVECAKEAS/person.png'
+                        }
+                        alt="Your avatar"
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+
+                    {/* Placeholder Text */}
+                    <div className="flex-1 flex items-center">
+                      <p className="text-[15px] text-text-secondary">
+                        想找一起吃飯的夥伴？分享你的用餐計畫吧…
+                      </p>
+                    </div>
+                  </div>
+                </section>
               ) : null}
 
               {filteredPosts.length === 0 ? (
@@ -451,6 +483,7 @@ export const RendezvousHome: React.FC = () => {
                         post={post}
                         onClick={() => handlePostClick(post)}
                         onTagClick={handleSearchFromTag}
+                        isOwnPost={post.author.id === currentUser.id}
                       />
                     );
                   }
@@ -517,18 +550,35 @@ export const RendezvousHome: React.FC = () => {
                 />
               </div>
             ) : (
-              <DiningMeetupComposer
-                isOpen={true}
-                onClose={() => {
-                  setIsPostModalOpen(false);
-                  setPostType(null);
-                }}
-                onCreateMeetupPost={(values) => {
-                  handleCreateMeetupPost(values);
-                  setIsPostModalOpen(false);
-                  setPostType(null);
-                }}
-              />
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-2xl font-bold text-text-primary">Create Dining Meetup Post</h2>
+                  <button
+                    onClick={() => {
+                      setIsPostModalOpen(false);
+                      setPostType(null);
+                    }}
+                    className="text-text-secondary hover:text-text-primary transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18"></line>
+                      <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                  </button>
+                </div>
+                <DiningMeetupComposer
+                  renderModal={false}
+                  onClose={() => {
+                    setIsPostModalOpen(false);
+                    setPostType(null);
+                  }}
+                  onCreateMeetupPost={(values) => {
+                    handleCreateMeetupPost(values);
+                    setIsPostModalOpen(false);
+                    setPostType(null);
+                  }}
+                />
+              </div>
             )}
           </div>
         </div>

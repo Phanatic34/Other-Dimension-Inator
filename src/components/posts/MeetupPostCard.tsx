@@ -1,12 +1,39 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { MeetupPost } from '../../types/models';
 import { PostActions } from './PostActions';
+import { Edit3, Archive, Trash2, Bookmark, Flag } from 'lucide-react';
 
 interface MeetupPostCardProps {
   post: MeetupPost;
   onClick?: () => void;
   onTagClick?: (tag: string) => void;
+  isOwnPost?: boolean;
 }
+
+interface MenuActionItemProps {
+  icon: React.ReactNode;
+  label: string;
+  destructive?: boolean;
+  onClick?: () => void;
+}
+
+const MenuActionItem: React.FC<MenuActionItemProps> = ({
+  icon,
+  label,
+  destructive,
+  onClick,
+}) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={`flex w-full items-center gap-3 px-4 py-2 text-sm ${
+      destructive ? 'text-red-600 hover:bg-red-50' : 'text-gray-800 hover:bg-gray-50'
+    }`}
+  >
+    <span className="text-lg">{icon}</span>
+    <span>{label}</span>
+  </button>
+);
 
 // Helper to format ISO datetime string to readable format
 const formatMeetupTime = (isoString: string): string => {
@@ -105,17 +132,46 @@ const parseBudget = (budgetDescription: string): {
   };
 };
 
-export const MeetupPostCard: React.FC<MeetupPostCardProps> = ({ post, onClick, onTagClick }) => {
+export const MeetupPostCard: React.FC<MeetupPostCardProps> = ({ post, onClick, onTagClick, isOwnPost = false }) => {
   const isFull = post.currentHeadcount >= post.maxHeadcount;
   const isClosed = post.status === 'CLOSED' || isFull;
   const budgetInfo = parseBudget(post.budgetDescription);
+  
+  // Menu state
+  const [menuOpen, setMenuOpen] = useState(false);
+  
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuOpen) {
+        setMenuOpen(false);
+      }
+    };
+    
+    if (menuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [menuOpen]);
 
-  // Build full detailed address (big → small): city, district, street, building, restaurant
+  // Build full detailed address (big → small): city, district, street, building (no restaurant name)
   // Priority: use address if it's already detailed, otherwise build from available fields
-  const fullAddress = post.address || 
-    (post.locationText && post.restaurantName 
-      ? `${post.locationText} ${post.restaurantName}`.trim()
-      : post.locationText || post.restaurantName || '');
+  // Remove restaurant name from address if it's included
+  let fullAddress = post.address || post.locationText || '';
+  
+  // Remove restaurant name from the end of address if it exists
+  if (fullAddress && post.restaurantName) {
+    const restaurantName = post.restaurantName.trim();
+    // Check if address ends with restaurant name and remove it
+    if (fullAddress.endsWith(restaurantName)) {
+      fullAddress = fullAddress.slice(0, -restaurantName.length).trim();
+    }
+  }
+  
+  // Fallback: if no address, use locationText (without restaurant name)
+  if (!fullAddress) {
+    fullAddress = post.locationText || '';
+  }
   
   // Use the same fullAddress for Google Maps search
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress)}`;
@@ -126,7 +182,7 @@ export const MeetupPostCard: React.FC<MeetupPostCardProps> = ({ post, onClick, o
   // Handler for opening Google Maps
   const handleOpenGoogleMaps = (e?: React.MouseEvent) => {
     if (e) {
-      e.stopPropagation();
+    e.stopPropagation();
     }
     window.open(mapsUrl, "_blank", "noopener,noreferrer");
   };
@@ -197,19 +253,79 @@ export const MeetupPostCard: React.FC<MeetupPostCardProps> = ({ post, onClick, o
         </div>
 
         {/* More options button */}
-        <button 
-          className="p-1 rounded-full hover:bg-neutral-100 cursor-pointer text-text-secondary flex-shrink-0"
-          onClick={(e) => {
-            e.stopPropagation();
-            console.log('More options clicked');
-          }}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="1"></circle>
-            <circle cx="19" cy="12" r="1"></circle>
-            <circle cx="5" cy="12" r="1"></circle>
-          </svg>
-        </button>
+        <div className="relative flex-shrink-0">
+          <button 
+            className="p-1 rounded-full hover:bg-neutral-100 cursor-pointer text-text-secondary"
+            onClick={(e) => {
+              e.stopPropagation();
+              setMenuOpen((v) => !v);
+            }}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="1"></circle>
+              <circle cx="19" cy="12" r="1"></circle>
+              <circle cx="5" cy="12" r="1"></circle>
+            </svg>
+          </button>
+          
+          {/* Dropdown menu */}
+          {menuOpen && (
+            <div 
+              className="absolute right-0 mt-2 w-48 rounded-lg bg-white shadow-lg border border-neutral-200 z-20 overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {isOwnPost ? (
+                <>
+                  <MenuActionItem
+                    icon={<Edit3 className="w-4 h-4" />}
+                    label="Edit this post"
+                    onClick={() => {
+                      console.log('Edit post', post.id);
+                      setMenuOpen(false);
+                    }}
+                  />
+                  <MenuActionItem
+                    icon={<Archive className="w-4 h-4" />}
+                    label="Archive this post"
+                    onClick={() => {
+                      console.log('Archive post', post.id);
+                      setMenuOpen(false);
+                    }}
+                  />
+                  <MenuActionItem
+                    icon={<Trash2 className="w-4 h-4" />}
+                    label="Delete this post"
+                    destructive
+                    onClick={() => {
+                      console.log('Delete post', post.id);
+                      setMenuOpen(false);
+                    }}
+                  />
+                </>
+              ) : (
+                <>
+                  <MenuActionItem
+                    icon={<Bookmark className="w-4 h-4" />}
+                    label="Save this post"
+                    onClick={() => {
+                      console.log('Save post', post.id);
+                      setMenuOpen(false);
+                    }}
+                  />
+                  <MenuActionItem
+                    icon={<Flag className="w-4 h-4" />}
+                    label="Report this post"
+                    destructive
+                    onClick={() => {
+                      console.log('Report post', post.id);
+                      setMenuOpen(false);
+                    }}
+                  />
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Post Content */}
@@ -248,7 +364,7 @@ export const MeetupPostCard: React.FC<MeetupPostCardProps> = ({ post, onClick, o
             >
               <span className="font-medium text-text-primary">
                 {tag}
-              </span>
+          </span>
             </button>
           ))}
         </div>
@@ -278,8 +394,8 @@ export const MeetupPostCard: React.FC<MeetupPostCardProps> = ({ post, onClick, o
             <span className="text-text-secondary">Reservation</span>
             <span className="font-semibold text-text-primary">{post.hasReservation ? 'Yes' : 'No'}</span>
           </div>
-        </div>
-
+          </div>
+          
         {/* Icons Row - Larger with labels */}
         <div className="flex items-start gap-4 mb-3 px-3 py-3 bg-bg-secondary rounded-lg">
           {/* Icon A: Wine glass / Event type */}
@@ -299,7 +415,7 @@ export const MeetupPostCard: React.FC<MeetupPostCardProps> = ({ post, onClick, o
             </svg>
             <span className="text-xs text-text-secondary font-medium">付款方式</span>
             <span className="text-sm text-text-primary font-semibold">{budgetInfo.isTreating ? '我請客' : 'AA制'}</span>
-          </div>
+        </div>
 
           {/* Icon C: Coin / Price */}
           <div className="flex-1 flex flex-col items-center gap-1.5">
@@ -332,7 +448,7 @@ export const MeetupPostCard: React.FC<MeetupPostCardProps> = ({ post, onClick, o
             Closed
           </div>
         ) : (
-          <button
+          <button 
             onClick={(e) => {
               e.stopPropagation();
               // TODO: Implement join functionality
