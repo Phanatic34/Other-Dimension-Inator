@@ -327,6 +327,7 @@ export const ReviewPostComposer: React.FC<ReviewPostComposerProps> = ({
         <section
           ref={compactComposerRef}
           onClick={handleExpand}
+          data-review-composer
           className="mt-4 md:mt-6 mb-4 rounded-3xl border border-border-color bg-bg-card px-5 py-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
         >
           <div className="flex gap-3">
@@ -734,7 +735,7 @@ export const ReviewPostComposer: React.FC<ReviewPostComposerProps> = ({
         {/* Visibility Section - NOW REQUIRED */}
         <div className="mb-5">
           <label className="block text-sm font-semibold text-text-primary mb-2">
-            可見範圍 *
+            是否公開 *
           </label>
           <div className="flex gap-2">
             <button
@@ -761,7 +762,7 @@ export const ReviewPostComposer: React.FC<ReviewPostComposerProps> = ({
           {/* Validation message for Visibility */}
           {hasTriedSubmit && !isVisibilityValid && (
             <p className="text-xs text-red-500 mt-2">
-              請選擇貼文的可見範圍
+              請選擇是否公開
             </p>
           )}
         </div>

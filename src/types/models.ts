@@ -38,23 +38,34 @@ export interface ReviewPost {
   isFromFollowedUser?: boolean;
 }
 
+export type Visibility = 'PUBLIC' | 'FOLLOWERS';
+
 export interface MeetupPost {
   id: string;
   type: 'meetup';
-  host: User;
-  restaurantName?: string;
-  board: Board;
-  title: string;
-  description: string;
-  meetupTime: string;      // datetime text
-  locationArea: string;
+  author: User;              // Changed from 'host' to 'author' for consistency
+  restaurantName: string;    // Required field
+  locationText: string;      // Free-text address/area, e.g. "信義區, 台北" or "Xinyi"
+  address?: string;          // Optional full address for Google Maps
+  meetupTime: string;        // ISO datetime string
+  foodTags: string[];       // e.g. ["Hotpot", "Taiwanese"], can be board labels or custom tags
+  maxHeadcount: number;     // Total seats host wants
+  currentHeadcount: number;  // Start at 1 (host), can be extended later
+  budgetDescription: string; // Free text like "預計 500–700 / 1 人", "我請客"
   hasReservation: boolean;
-  expectedHeadcount: number;
-  currentHeadcount: number;
-  budgetRange: '$' | '$$' | '$$$';
-  deadline: string;        // sign-up close time
+  description: string;      // Main text body of the post
+  visibility: Visibility;    // 'PUBLIC' | 'FOLLOWERS'
+  imageUrl?: string | null; // Optional restaurant/meetup image
+  status: 'OPEN' | 'CLOSED'; // Default "OPEN"; show "Closed" style
+  createdAt: string;        // ISO or human-friendly string
+  updatedAt?: string;       // ISO or human-friendly string
+  likeCount: number;        // Number of likes
+  commentCount: number;     // Number of comments
+  shareCount?: number;      // Number of shares
   isFromFollowedUser?: boolean;
-  createdAt: string;
+  // Legacy fields for backward compatibility (can be derived from new fields)
+  board?: Board;            // Optional: can derive from foodTags
+  locationArea?: string;    // Optional: can derive from locationText
 }
 
 export type Post = ReviewPost | MeetupPost;

@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Board, Post, ReviewPost, MeetupPost, User } from '../types/models';
-import { fetchBoards, fetchPosts } from '../api/mock';
+import { fetchBoards, fetchPosts, createMeetupPost } from '../api/mock';
 import { TopNavBar } from '../components/layout/TopNavBar';
 import { Sidebar } from '../components/layout/Sidebar';
 import { MobileBoardChips } from '../components/layout/MobileBoardChips';
 import { TabSwitcher } from '../components/layout/TabSwitcher';
 import { ReviewPostCard } from '../components/posts/ReviewPostCard';
 import { MeetupPostCard } from '../components/posts/MeetupPostCard';
-import { CreatePostCard } from '../components/posts/CreatePostCard';
 import { ReviewPostComposer, ReviewPostFormValues } from '../components/posts/ReviewPostComposer';
+import { DiningMeetupComposer, DiningMeetupFormValues } from '../components/posts/DiningMeetupComposer';
 import { PostTypeModal } from '../components/modals/PostTypeModal';
 
 // Active Filters Type (single-select per group)
@@ -30,6 +30,7 @@ export const RendezvousHome: React.FC = () => {
   const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null);
   const [feedFilter, setFeedFilter] = useState<'all' | 'following'>('all');
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
+  const [isMeetupComposerOpen, setIsMeetupComposerOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   // Centralized filter state
@@ -90,7 +91,7 @@ export const RendezvousHome: React.FC = () => {
     loadData();
   }, []);
 
-  // Helper: Check if text matches search query
+  // Helper: Check if text matches search query (for review posts)
   const matchesText = React.useCallback((post: ReviewPost, q: string): boolean => {
     if (!q) return true;
     const text = q.toLowerCase();
@@ -101,6 +102,22 @@ export const RendezvousHome: React.FC = () => {
     if (post.contentSnippet?.toLowerCase().includes(text)) return true;
     if (post.styleType?.toLowerCase().includes(text)) return true;
     if (post.foodType?.toLowerCase().includes(text)) return true;
+    if (post.author?.displayName?.toLowerCase().includes(text)) return true;
+    if (post.author?.handle?.toLowerCase().includes(text)) return true;
+
+    return false;
+  }, []);
+
+  // Helper: Check if meetup post text matches search query
+  const matchesMeetupText = React.useCallback((post: MeetupPost, q: string): boolean => {
+    if (!q) return true;
+    const text = q.toLowerCase();
+
+    // Include restaurant, location, description, tags, and author
+    if (post.restaurantName?.toLowerCase().includes(text)) return true;
+    if (post.locationText?.toLowerCase().includes(text)) return true;
+    if (post.description?.toLowerCase().includes(text)) return true;
+    if (post.foodTags?.some(tag => tag.toLowerCase().includes(text))) return true;
     if (post.author?.displayName?.toLowerCase().includes(text)) return true;
     if (post.author?.handle?.toLowerCase().includes(text)) return true;
 
@@ -160,9 +177,16 @@ export const RendezvousHome: React.FC = () => {
       filtered = filtered.filter((post): post is MeetupPost => post.type === 'meetup');
     }
 
-    // Filter by board
+    // Filter by board (only if board exists on post)
     if (selectedBoardId !== null) {
-      filtered = filtered.filter(post => post.board.id === selectedBoardId);
+      filtered = filtered.filter(post => {
+        if (post.type === 'review') {
+          return post.board.id === selectedBoardId;
+        } else {
+          // For meetup posts, board is optional, so check if it exists and matches
+          return post.board?.id === selectedBoardId;
+        }
+      });
     }
 
     // Filter by following
@@ -170,13 +194,18 @@ export const RendezvousHome: React.FC = () => {
       filtered = filtered.filter(post => post.isFromFollowedUser === true);
     }
 
-    // Apply comprehensive filters (only for review posts)
+    // Apply comprehensive filters
     if (activeTab === 'reviews') {
       filtered = filtered.filter((post) => passesFilters(post as ReviewPost, filters));
+    } else {
+      // For meetup posts, apply basic search filter
+      if (filters.searchQuery) {
+        filtered = filtered.filter((post) => matchesMeetupText(post as MeetupPost, filters.searchQuery));
+      }
     }
 
     return filtered;
-  }, [posts, activeTab, selectedBoardId, feedFilter, filters, passesFilters]);
+  }, [posts, activeTab, selectedBoardId, feedFilter, filters, passesFilters, matchesMeetupText]);
 
   const handlePostClick = (post: Post) => {
     console.log('Post clicked:', post.id);
@@ -276,6 +305,56 @@ export const RendezvousHome: React.FC = () => {
     }
   };
 
+  // Handler to create a new meetup post from form values
+  const handleCreateMeetupPost = async (values: DiningMeetupFormValues) => {
+    try {
+      // Call the API to create the post
+      const createdPost = await createMeetupPost(values);
+      
+      // Convert API response to MeetupPost format
+      const now = new Date();
+      // Build address from locationText and restaurantName
+      const address = `${values.locationText} ${values.restaurantName}`.trim();
+      
+      const newPost: MeetupPost = {
+        id: createdPost.id,
+        type: 'meetup',
+        author: currentUser,
+        restaurantName: values.restaurantName,
+        locationText: values.locationText,
+        address,
+        meetupTime: values.meetupTime,
+        foodTags: values.foodTags,
+        maxHeadcount: values.maxHeadcount,
+        currentHeadcount: 1, // Host only initially
+        budgetDescription: values.budgetDescription,
+        hasReservation: values.hasReservation,
+        description: values.description,
+        visibility: values.visibility,
+        imageUrl: values.imageUrl || null,
+        status: 'OPEN',
+        createdAt: now.toISOString(),
+        updatedAt: now.toISOString(),
+        likeCount: 0,
+        commentCount: 0,
+        shareCount: 0,
+        isFromFollowedUser: feedFilter === 'following',
+      };
+
+      // Add the new post to the beginning of the posts array
+      setPosts((prev) => [newPost, ...prev]);
+
+      // Scroll to the top of the feed smoothly after posting
+      const feedTop = document.getElementById('review-feed-top');
+      if (feedTop) {
+        feedTop.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    } catch (error) {
+      console.error('Error creating meetup post:', error);
+      // TODO: Show error message to user
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-bg-primary transition-colors duration-300">
@@ -292,7 +371,26 @@ export const RendezvousHome: React.FC = () => {
           <TopNavBar
             searchQuery={filters.searchQuery}
             onSearchChange={updateSearchQuery}
-            onPostClick={() => setIsPostModalOpen(true)}
+            onPostClick={() => {
+              if (activeTab === 'meetups') {
+                setIsMeetupComposerOpen(true);
+              } else if (activeTab === 'reviews') {
+                // Scroll to review composer and let it expand on click
+                const feedTop = document.getElementById('review-feed-top');
+                if (feedTop) {
+                  feedTop.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  // Trigger click on the composer to expand it
+                  setTimeout(() => {
+                    const composer = document.querySelector('[data-review-composer]') as HTMLElement;
+                    if (composer) {
+                      composer.click();
+                    }
+                  }, 300);
+                }
+              } else {
+                setIsPostModalOpen(true);
+              }
+            }}
           />
 
           <div className="max-w-7xl mx-auto">
@@ -334,9 +432,14 @@ export const RendezvousHome: React.FC = () => {
               {/* Create Post Composer - Different for each tab */}
               {activeTab === 'reviews' ? (
                 <ReviewPostComposer onCreateReviewPost={handleCreateReviewPost} />
-              ) : (
-                <CreatePostCard />
-              )}
+              ) : null}
+              
+              {/* Meetup Composer Modal */}
+              <DiningMeetupComposer
+                isOpen={isMeetupComposerOpen}
+                onClose={() => setIsMeetupComposerOpen(false)}
+                onCreateMeetupPost={handleCreateMeetupPost}
+              />
 
               {filteredPosts.length === 0 ? (
                 <div className="text-center py-16">
@@ -363,6 +466,7 @@ export const RendezvousHome: React.FC = () => {
                         key={post.id}
                         post={post}
                         onClick={() => handlePostClick(post)}
+                        onTagClick={handleSearchFromTag}
                       />
                     );
                   }

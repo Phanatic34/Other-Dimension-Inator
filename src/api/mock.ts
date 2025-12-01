@@ -212,74 +212,106 @@ const mockMeetupPosts: MeetupPost[] = [
   {
     id: 'meetup1',
     type: 'meetup',
-    host: mockUsers[0],
-    restaurantName: '無老鍋',
-    board: mockBoards[3], // Taiwanese
-    title: '週末揪團吃火鍋！',
-    description: '想找3-4個人一起來吃無老鍋，可以點更多種類的食材，分攤下來也比較划算。',
-    meetupTime: '2024-11-30 19:00',
-    locationArea: 'Xinyi',
-    hasReservation: true,
-    expectedHeadcount: 4,
+    author: mockUsers[0],
+    restaurantName: '無老鍋 台北信義店',
+    locationText: 'Xinyi',
+    address: '信義區 無老鍋 台北信義店',
+    meetupTime: '2024-11-30T19:00:00+08:00',
+    foodTags: ['台菜 Taiwanese', '火鍋 Hotpot'],
+    maxHeadcount: 4,
     currentHeadcount: 2,
-    budgetRange: '$$',
-    deadline: '2024-11-29 18:00',
-    isFromFollowedUser: true,
+    budgetDescription: '預計 500–700 / 1 人',
+    hasReservation: true,
+    description: '想找3-4個人一起來吃無老鍋，可以點更多種類的食材，分攤下來也比較划算。',
+    visibility: 'PUBLIC',
+    imageUrl: null,
+    status: 'OPEN',
     createdAt: '3小時前',
+    updatedAt: '3小時前',
+    likeCount: 15,
+    commentCount: 3,
+    shareCount: 2,
+    isFromFollowedUser: true,
+    board: mockBoards[3], // Taiwanese (for backward compatibility)
+    locationArea: 'Xinyi', // for backward compatibility
   },
   {
     id: 'meetup2',
     type: 'meetup',
-    host: mockUsers[2],
-    restaurantName: undefined,
-    board: mockBoards[1], // Japanese
-    title: '尋找拉麵同好一起探店',
-    description: '想找喜歡拉麵的朋友一起探索台北的拉麵店，每週末去一家，分享心得。',
-    meetupTime: '2024-12-01 12:00',
-    locationArea: 'Gongguan',
-    hasReservation: false,
-    expectedHeadcount: 3,
+    author: mockUsers[2],
+    restaurantName: '拉麵店探索',
+    locationText: 'Gongguan',
+    address: '公館 拉麵店探索',
+    meetupTime: '2024-12-01T12:00:00+08:00',
+    foodTags: ['日式 Japanese', '拉麵 Ramen'],
+    maxHeadcount: 3,
     currentHeadcount: 1,
-    budgetRange: '$$',
-    deadline: '2024-11-30 20:00',
-    isFromFollowedUser: true,
+    budgetDescription: '預計 500–700 / 1 人',
+    hasReservation: false,
+    description: '想找喜歡拉麵的朋友一起探索台北的拉麵店，每週末去一家，分享心得。',
+    visibility: 'PUBLIC',
+    imageUrl: null,
+    status: 'OPEN',
     createdAt: '6小時前',
+    updatedAt: '6小時前',
+    likeCount: 8,
+    commentCount: 1,
+    shareCount: 0,
+    isFromFollowedUser: true,
+    board: mockBoards[1], // Japanese
+    locationArea: 'Gongguan',
   },
   {
     id: 'meetup3',
     type: 'meetup',
-    host: mockUsers[1],
-    restaurantName: 'Lady M',
-    board: mockBoards[12], // Desserts
-    title: '下午茶甜點時光',
-    description: '想找人一起分享Lady M的千層蛋糕，可以點不同口味一起品嚐。',
-    meetupTime: '2024-11-28 15:00',
-    locationArea: 'Xinyi',
-    hasReservation: true,
-    expectedHeadcount: 3,
+    author: mockUsers[1],
+    restaurantName: 'Lady M 信義店',
+    locationText: 'Xinyi',
+    address: '信義區 Lady M 信義店',
+    meetupTime: '2024-11-28T15:00:00+08:00',
+    foodTags: ['甜點 Desserts', '法式 French'],
+    maxHeadcount: 3,
     currentHeadcount: 3,
-    budgetRange: '$$$',
-    deadline: '2024-11-27 12:00', // Past deadline
-    isFromFollowedUser: false,
+    budgetDescription: '預計 800–1000 / 1 人',
+    hasReservation: true,
+    description: '想找人一起分享Lady M的千層蛋糕，可以點不同口味一起品嚐。',
+    visibility: 'PUBLIC',
+    imageUrl: null,
+    status: 'CLOSED', // Closed because full
     createdAt: '2天前',
+    updatedAt: '2天前',
+    likeCount: 22,
+    commentCount: 5,
+    shareCount: 4,
+    isFromFollowedUser: false,
+    board: mockBoards[12], // Desserts
+    locationArea: 'Xinyi',
   },
   {
     id: 'meetup4',
     type: 'meetup',
-    host: mockUsers[4],
-    restaurantName: undefined,
-    board: mockBoards[15], // Street Food
-    title: '夜市美食探索',
-    description: '週五晚上逛夜市，尋找隱藏版美食，歡迎一起來！',
-    meetupTime: '2024-12-02 18:00',
-    locationArea: 'Gongguan',
-    hasReservation: false,
-    expectedHeadcount: 5,
+    author: mockUsers[4],
+    restaurantName: '公館夜市',
+    locationText: 'Gongguan',
+    address: '公館 公館夜市',
+    meetupTime: '2024-12-02T18:00:00+08:00',
+    foodTags: ['街頭小吃 Street Food'],
+    maxHeadcount: 5,
     currentHeadcount: 2,
-    budgetRange: '$',
-    deadline: '2024-12-01 18:00',
-    isFromFollowedUser: true,
+    budgetDescription: '預計 200–300 / 1 人',
+    hasReservation: false,
+    description: '週五晚上逛夜市，尋找隱藏版美食，歡迎一起來！',
+    visibility: 'PUBLIC',
+    imageUrl: null,
+    status: 'OPEN',
     createdAt: '1天前',
+    updatedAt: '1天前',
+    likeCount: 12,
+    commentCount: 2,
+    shareCount: 1,
+    isFromFollowedUser: true,
+    board: mockBoards[15], // Street Food
+    locationArea: 'Gongguan',
   },
 ];
 
@@ -295,5 +327,71 @@ export async function fetchBoards(): Promise<Board[]> {
 export async function fetchPosts(): Promise<Post[]> {
   await delay(500);
   return [...mockReviewPosts, ...mockMeetupPosts];
+}
+
+// API functions for meetup posts
+export async function fetchMeetupPosts(visibility?: 'PUBLIC' | 'FOLLOWERS'): Promise<MeetupPost[]> {
+  await delay(300);
+  let posts = [...mockMeetupPosts];
+  
+  // Filter by visibility if provided (in real app, this would be based on current user)
+  if (visibility) {
+    posts = posts.filter(post => post.visibility === visibility);
+  }
+  
+  // Sort by createdAt DESC (newest first)
+  return posts.sort((a, b) => {
+    // Simple comparison - in real app, parse ISO dates properly
+    return b.createdAt.localeCompare(a.createdAt);
+  });
+}
+
+export interface CreateMeetupPostRequest {
+  restaurantName: string;
+  locationText: string;
+  meetupTime: string; // ISO datetime string
+  foodTags: string[];
+  maxHeadcount: number;
+  budgetDescription: string;
+  hasReservation: boolean;
+  description: string;
+  visibility: 'PUBLIC' | 'FOLLOWERS';
+  imageUrl?: string | null;
+}
+
+export async function createMeetupPost(data: CreateMeetupPostRequest): Promise<MeetupPost> {
+  await delay(500);
+  
+  // In real app, this would call the backend API
+  // For now, create a mock post
+  const now = new Date();
+  const newPost: MeetupPost = {
+    id: `meetup-${now.getTime()}`,
+    type: 'meetup',
+    author: mockUsers[0], // In real app, get from auth context
+    restaurantName: data.restaurantName,
+    locationText: data.locationText,
+    meetupTime: data.meetupTime,
+    foodTags: data.foodTags,
+    maxHeadcount: data.maxHeadcount,
+    currentHeadcount: 1, // Host only initially
+    budgetDescription: data.budgetDescription,
+    hasReservation: data.hasReservation,
+    description: data.description,
+    visibility: data.visibility,
+    imageUrl: data.imageUrl || null,
+    status: 'OPEN',
+    createdAt: now.toISOString(),
+    updatedAt: now.toISOString(),
+    likeCount: 0,
+    commentCount: 0,
+    shareCount: 0,
+    isFromFollowedUser: false,
+  };
+  
+  // In real app, add to database
+  mockMeetupPosts.unshift(newPost);
+  
+  return newPost;
 }
 
