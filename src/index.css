@@ -71,3 +71,14 @@ code {
     monospace;
 }
 
+/* Hidden scrollbar utility class */
+.scrollbar-hidden {
+  overflow-y: auto;          /* keep scroll */
+  -ms-overflow-style: none;  /* IE/Edge */
+  scrollbar-width: none;     /* Firefox */
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;             /* Chrome/Safari */
+}
+

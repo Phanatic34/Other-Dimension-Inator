@@ -9,6 +9,7 @@ interface DiningMeetupComposerProps {
   isOpen?: boolean;
   onClose?: () => void;
   renderModal?: boolean; // If false, render only the form content without modal overlay
+  currentUser?: { displayName: string; handle: string; avatarUrl?: string };
 }
 
 interface LocationData {
@@ -81,6 +82,7 @@ export const DiningMeetupComposer: React.FC<DiningMeetupComposerProps> = ({
   isOpen = false,
   onClose,
   renderModal = true, // Default to true for backward compatibility
+  currentUser,
 }) => {
   // UI State
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
@@ -93,13 +95,15 @@ export const DiningMeetupComposer: React.FC<DiningMeetupComposerProps> = ({
   const [meetupDate, setMeetupDate] = useState<string>('');
   const [meetupTime, setMeetupTime] = useState<string>('');
   const [maxHeadcount, setMaxHeadcount] = useState<string>('');
-  const [budgetNumeric, setBudgetNumeric] = useState<string>('');
+  const [budgetMin, setBudgetMin] = useState<string>('');
+  const [budgetMax, setBudgetMax] = useState<string>('');
   const [isTreating, setIsTreating] = useState<boolean>(false);
   const [hasReservation, setHasReservation] = useState<boolean>(false);
   const [description, setDescription] = useState<string>('');
   const [visibility, setVisibility] = useState<Visibility | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [timeError, setTimeError] = useState<string | null>(null);
 
   // Refs
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -134,23 +138,71 @@ export const DiningMeetupComposer: React.FC<DiningMeetupComposerProps> = ({
   const isCategoryValid = selectedCategory !== null;
   const isMeetupTimeValid = meetupDate !== '' && meetupTime !== '';
   
+  // Helper to combine date and time into a Date object
+  const combineDateAndTime = (dateStr: string, timeStr: string): Date | null => {
+    if (!dateStr || !timeStr) return null;
+    try {
+      // Normalize date format (handle both YYYY/MM/DD and YYYY-MM-DD)
+      const normalized = dateStr.replace(/\//g, '-');
+      const dateTimeString = `${normalized}T${timeStr}:00+08:00`;
+      const d = new Date(dateTimeString);
+      return isNaN(d.getTime()) ? null : d;
+    } catch {
+      return null;
+    }
+  };
+
   // Validate meetup time is in the future
   const isMeetupTimeFuture = (): boolean => {
     if (!meetupDate || !meetupTime) return false;
-    try {
-      const dateTimeString = `${meetupDate}T${meetupTime}:00+08:00`;
-      const meetupDateTime = new Date(dateTimeString);
-      const now = new Date();
-      return meetupDateTime > now;
-    } catch {
-      return false;
-    }
+    const selected = combineDateAndTime(meetupDate, meetupTime);
+    if (!selected) return false;
+    const now = new Date();
+    return selected > now;
+  };
+
+  // Get today's date in YYYY-MM-DD format for min date constraint
+  const getTodayISO = (): string => {
+    return new Date().toISOString().slice(0, 10);
   };
   
   const isMaxHeadcountValid = maxHeadcount !== '' && parseInt(maxHeadcount) >= 2;
-  const isBudgetValid = isTreating || (budgetNumeric !== '' && !isNaN(parseInt(budgetNumeric)) && parseInt(budgetNumeric) > 0);
+  
+  // Budget range validation
+  const validateBudgetRange = (min: string, max: string) => {
+    const minNum = min === '' ? null : Number(min);
+    const maxNum = max === '' ? null : Number(max);
+    
+    if (minNum !== null && maxNum !== null && maxNum < minNum) {
+      return false;
+    }
+    return true;
+  };
+  
+  const hasInvalidBudgetRange =
+    budgetMin !== '' &&
+    budgetMax !== '' &&
+    !validateBudgetRange(budgetMin, budgetMax);
+  
+  const isBudgetValid = isTreating || (
+    (budgetMin !== '' && !isNaN(parseInt(budgetMin)) && parseInt(budgetMin) > 0) ||
+    (budgetMax !== '' && !isNaN(parseInt(budgetMax)) && parseInt(budgetMax) > 0)
+  ) && !hasInvalidBudgetRange;
+  
   const isDescriptionValid = description.trim().length > 0;
   const isVisibilityValid = visibility !== null;
+
+  // Combined validation
+  const isValid =
+    isLocationValid &&
+    isStyleValid &&
+    isCategoryValid &&
+    isMeetupTimeValid &&
+    isMeetupTimeFuture() &&
+    isMaxHeadcountValid &&
+    isBudgetValid &&
+    isDescriptionValid &&
+    isVisibilityValid;
 
   const handleCancel = () => {
     // Reset form
@@ -159,8 +211,10 @@ export const DiningMeetupComposer: React.FC<DiningMeetupComposerProps> = ({
     setSelectedCategory(null);
     setMeetupDate('');
     setMeetupTime('');
+    setTimeError(null);
     setMaxHeadcount('');
-    setBudgetNumeric('');
+    setBudgetMin('');
+    setBudgetMax('');
     setIsTreating(false);
     setHasReservation(false);
     setDescription('');
@@ -193,6 +247,15 @@ export const DiningMeetupComposer: React.FC<DiningMeetupComposerProps> = ({
       return;
     }
 
+    // Final validation: ensure datetime is in the future
+    const selected = combineDateAndTime(meetupDate, meetupTime);
+    const now = new Date();
+    if (!selected || selected <= now) {
+      setHasTriedSubmit(true);
+      // Error message will be shown by the existing validation display
+      return;
+    }
+
     // Build ISO datetime string
     const dateTimeString = `${meetupDate}T${meetupTime}:00+08:00`;
 
@@ -214,8 +277,17 @@ export const DiningMeetupComposer: React.FC<DiningMeetupComposerProps> = ({
     let budgetDescription = '';
     if (isTreating) {
       budgetDescription = '我請客';
-    } else if (budgetNumeric) {
-      budgetDescription = `預計 ${budgetNumeric} / 1 人`;
+    } else {
+      const minNum = budgetMin ? parseInt(budgetMin) : null;
+      const maxNum = budgetMax ? parseInt(budgetMax) : null;
+      
+      if (minNum !== null && maxNum !== null) {
+        budgetDescription = `預計 ${minNum}–${maxNum} / 1 人`;
+      } else if (minNum !== null) {
+        budgetDescription = `預計 ${minNum} / 1 人`;
+      } else if (maxNum !== null) {
+        budgetDescription = `預計 ${maxNum} / 1 人`;
+      }
     }
 
     // Convert photo file to URL (for now, use object URL; in production, upload to cloud storage)
@@ -296,6 +368,7 @@ export const DiningMeetupComposer: React.FC<DiningMeetupComposerProps> = ({
               <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-[#f2e4d0]">
                 <img
                   src={
+                    currentUser?.avatarUrl ||
                     avatarUrl ||
                     'https://images.squarespace-cdn.com/content/v1/5c34403aaa49a1c60b7e6c7e/1548979956856-ZSK82JV8UYCWVECAKEAS/person.png'
                   }
@@ -304,25 +377,24 @@ export const DiningMeetupComposer: React.FC<DiningMeetupComposerProps> = ({
                 />
               </div>
               <div className="flex-1">
-                <h3 className="text-lg font-bold text-text-primary">揪吃飯貼文</h3>
-                <p className="text-sm text-text-secondary">尋找一起用餐的夥伴</p>
+                {currentUser ? (
+                  <>
+                    <h3 className="text-lg font-bold text-text-primary">{currentUser.displayName}</h3>
+                    <p className="text-sm text-text-secondary">{currentUser.handle}</p>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="text-lg font-bold text-text-primary">揪吃飯貼文</h3>
+                    <p className="text-sm text-text-secondary">尋找一起用餐的夥伴</p>
+                  </>
+                )}
               </div>
-              <button
-                type="button"
-                onClick={handleCancel}
-                className="flex-shrink-0 h-8 w-8 flex items-center justify-center rounded-full text-text-secondary hover:text-text-primary hover:bg-gray-100 transition-colors"
-                aria-label="關閉"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
             </div>
 
             {/* Restaurant / Location Section */}
             <div className="mb-5">
               <label className="block text-sm font-semibold text-text-primary mb-2">
-                餐廳名稱與地點 *
+                餐廳與地點 *
               </label>
               {!location ? (
                 <button
@@ -427,7 +499,20 @@ export const DiningMeetupComposer: React.FC<DiningMeetupComposerProps> = ({
                 <input
                   type="date"
                   value={meetupDate}
-                  onChange={(e) => setMeetupDate(e.target.value)}
+                  min={getTodayISO()}
+                  onChange={(e) => {
+                    const newDate = e.target.value;
+                    setMeetupDate(newDate);
+                    // If date changed to today, validate time is not in the past
+                    if (newDate === getTodayISO() && meetupTime) {
+                      const selected = combineDateAndTime(newDate, meetupTime);
+                      const now = new Date();
+                      if (selected && selected <= now) {
+                        // Clear time if it's in the past for today's date
+                        setMeetupTime('');
+                      }
+                    }
+                  }}
                   className={`flex-1 px-4 py-2 border rounded-lg bg-bg-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary ${
                     hasTriedSubmit && (!isMeetupTimeValid || !isMeetupTimeFuture()) ? 'border-red-500' : 'border-border-color'
                   }`}
@@ -435,16 +520,33 @@ export const DiningMeetupComposer: React.FC<DiningMeetupComposerProps> = ({
                 <input
                   type="time"
                   value={meetupTime}
-                  onChange={(e) => setMeetupTime(e.target.value)}
+                  onChange={(e) => {
+                    const newTime = e.target.value;
+                    const now = new Date();
+                    const selected = combineDateAndTime(meetupDate, newTime);
+                    
+                    // If the selected datetime is in the past, reject the change and show error
+                    if (selected && selected <= now) {
+                      setTimeError('用餐時間必須是未來的時間');
+                      // Don't update the time, keep the previous value
+                      return;
+                    }
+                    
+                    setTimeError(null);
+                    setMeetupTime(newTime);
+                  }}
                   className={`flex-1 px-4 py-2 border rounded-lg bg-bg-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary ${
-                    hasTriedSubmit && (!isMeetupTimeValid || !isMeetupTimeFuture()) ? 'border-red-500' : 'border-border-color'
+                    (hasTriedSubmit && (!isMeetupTimeValid || !isMeetupTimeFuture())) || timeError ? 'border-red-500' : 'border-border-color'
                   }`}
                 />
               </div>
-              {hasTriedSubmit && !isMeetupTimeValid && (
+              {timeError && (
+                <p className="text-xs text-red-500 mt-2">{timeError}</p>
+              )}
+              {!timeError && hasTriedSubmit && !isMeetupTimeValid && (
                 <p className="text-xs text-red-500 mt-2">請選擇用餐日期與時間</p>
               )}
-              {hasTriedSubmit && isMeetupTimeValid && !isMeetupTimeFuture() && (
+              {!timeError && hasTriedSubmit && isMeetupTimeValid && !isMeetupTimeFuture() && (
                 <p className="text-xs text-red-500 mt-2">用餐時間必須晚於現在</p>
               )}
             </div>
@@ -467,29 +569,53 @@ export const DiningMeetupComposer: React.FC<DiningMeetupComposerProps> = ({
               )}
             </div>
 
-            {/* Budget Section - Numeric input or "我請客" */}
+            {/* Budget Section - Range inputs or "我請客" */}
             <div className="mb-5">
               <label className="block text-sm font-semibold text-text-primary mb-2">
                 預算說明 *
               </label>
-              <div className="flex gap-3 items-start">
+              <div className="flex items-center gap-3">
                 <div className="flex-1">
                   <input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    value={budgetNumeric}
+                    type="number"
+                    min="0"
+                    step="50"
+                    value={budgetMin}
                     onChange={(e) => {
-                      const value = e.target.value.replace(/\D/g, ''); // Only allow digits
-                      setBudgetNumeric(value);
+                      const value = e.target.value;
+                      setBudgetMin(value);
+                      validateBudgetRange(value, budgetMax);
                     }}
-                    placeholder="例如: 500"
+                    placeholder="最小值"
                     disabled={isTreating}
-                    className={`w-full px-4 py-2 border rounded-lg bg-bg-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary ${
-                      isTreating ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : ''
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-gold focus:border-transparent ${
+                      isTreating ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-bg-primary text-text-primary'
                     } ${
-                      hasTriedSubmit && !isBudgetValid ? 'border-red-500' : 'border-border-color'
+                      hasInvalidBudgetRange ? 'border-red-500' : 'border-gray-300'
                     }`}
+                    aria-invalid={hasInvalidBudgetRange}
+                  />
+                </div>
+                <span className="text-text-secondary">—</span>
+                <div className="flex-1">
+                  <input
+                    type="number"
+                    min="0"
+                    step="50"
+                    value={budgetMax}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setBudgetMax(value);
+                      validateBudgetRange(budgetMin, value);
+                    }}
+                    placeholder="最大值"
+                    disabled={isTreating}
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-gold focus:border-transparent ${
+                      isTreating ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-bg-primary text-text-primary'
+                    } ${
+                      hasInvalidBudgetRange ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    aria-invalid={hasInvalidBudgetRange}
                   />
                 </div>
                 <button
@@ -497,7 +623,8 @@ export const DiningMeetupComposer: React.FC<DiningMeetupComposerProps> = ({
                   onClick={() => {
                     setIsTreating(!isTreating);
                     if (!isTreating) {
-                      setBudgetNumeric('');
+                      setBudgetMin('');
+                      setBudgetMax('');
                     }
                   }}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-all border ${
@@ -509,8 +636,16 @@ export const DiningMeetupComposer: React.FC<DiningMeetupComposerProps> = ({
                   我請客
                 </button>
               </div>
-              {hasTriedSubmit && !isBudgetValid && (
+              {hasInvalidBudgetRange ? (
+                <p className="mt-1 text-xs text-red-500">
+                  請確認預算範圍：最大值必須大於或等於最小值
+                </p>
+              ) : hasTriedSubmit && !isBudgetValid ? (
                 <p className="text-xs text-red-500 mt-2">請輸入預算或選擇「我請客」</p>
+              ) : (
+                <p className="text-xs text-text-secondary mt-2">
+                  範例：NT$ 300 – 800
+                </p>
               )}
             </div>
 
@@ -529,9 +664,11 @@ export const DiningMeetupComposer: React.FC<DiningMeetupComposerProps> = ({
 
             {/* Image Upload Section - Above description */}
             <div className="mb-5">
-              <label className="block text-sm font-semibold text-text-primary mb-2">
-                圖片 (選填)
-              </label>
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-sm font-semibold text-text-primary">
+                  圖片 (選填)
+                </label>
+              </div>
               {!photoPreview ? (
                 <button
                   type="button"
@@ -579,41 +716,45 @@ export const DiningMeetupComposer: React.FC<DiningMeetupComposerProps> = ({
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="想找 3–4 個人一起吃無老鍋，可以點更多種類的食材，分攤下來也比較划算。"
-                rows={4}
-                className="w-full px-4 py-2 border border-border-color rounded-lg bg-bg-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary resize-none"
+                rows={5}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-gold focus:border-transparent resize-none text-base text-text-primary placeholder:text-text-secondary/50"
+                style={{ maxHeight: '200px' }}
               />
+              <p className="text-xs text-text-secondary mt-1 text-right">
+                {description.length} 字
+              </p>
               {hasTriedSubmit && !isDescriptionValid && (
                 <p className="text-xs text-red-500 mt-2">請輸入文案</p>
               )}
             </div>
 
-            {/* Visibility */}
+            {/* Visibility Section */}
             <div className="mb-5">
-              <label className="block text-sm font-semibold text-text-primary mb-3">
+              <label className="block text-sm font-semibold text-text-primary mb-2">
                 是否公開 *
               </label>
-              <div className="flex gap-3">
+              <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={() => handleVisibilityClick('PUBLIC')}
-                  className={`flex-1 px-4 py-3 rounded-lg text-sm font-medium transition-all ${
+                  className={`flex-1 px-4 py-2 rounded-lg border-2 transition-all font-medium ${
                     visibility === 'PUBLIC'
-                      ? 'bg-accent-primary text-white shadow-sm'
-                      : 'bg-bg-secondary text-text-secondary hover:bg-bg-hover border border-border-color'
+                      ? 'bg-accent-gold border-accent-gold text-text-primary shadow-sm'
+                      : 'bg-white border-gray-300 text-text-secondary hover:border-accent-gold'
                   }`}
                 >
-                  公開
+                  公開 Public
                 </button>
                 <button
                   type="button"
                   onClick={() => handleVisibilityClick('FOLLOWERS')}
-                  className={`flex-1 px-4 py-3 rounded-lg text-sm font-medium transition-all ${
+                  className={`flex-1 px-4 py-2 rounded-lg border-2 transition-all font-medium ${
                     visibility === 'FOLLOWERS'
-                      ? 'bg-accent-primary text-white shadow-sm'
-                      : 'bg-bg-secondary text-text-secondary hover:bg-bg-hover border border-border-color'
+                      ? 'bg-accent-gold border-accent-gold text-text-primary shadow-sm'
+                      : 'bg-white border-gray-300 text-text-secondary hover:border-accent-gold'
                   }`}
                 >
-                  僅限追蹤者
+                  僅限追蹤者 Followers
                 </button>
               </div>
               {hasTriedSubmit && !isVisibilityValid && (
@@ -621,19 +762,27 @@ export const DiningMeetupComposer: React.FC<DiningMeetupComposerProps> = ({
               )}
             </div>
 
+            {/* Divider */}
+            <div className="h-px w-full bg-border-color opacity-50 mb-4" />
+
             {/* Action Buttons */}
-            <div className="flex gap-3 pt-4 border-t border-border-color">
+            <div className="flex items-center justify-between">
               <button
                 type="button"
                 onClick={handleCancel}
-                className="flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold text-text-secondary bg-bg-secondary hover:bg-bg-hover transition-colors"
+                className="text-text-secondary hover:text-text-primary font-medium transition-colors"
               >
                 取消
               </button>
               <button
                 type="button"
                 onClick={handleSubmit}
-                className="flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold text-white bg-accent-primary hover:bg-opacity-90 transition-colors shadow-sm"
+                disabled={!isValid}
+                className={`px-8 py-2.5 rounded-full font-semibold text-white transition-all ${
+                  isValid
+                    ? 'bg-[#b63a2f] hover:brightness-110 shadow-md hover:shadow-lg'
+                    : 'bg-[#d3c6b8] cursor-not-allowed'
+                }`}
               >
                 發佈
               </button>
@@ -669,7 +818,7 @@ export const DiningMeetupComposer: React.FC<DiningMeetupComposerProps> = ({
         {/* Modal Content */}
         <div
           ref={modalRef}
-          className="bg-bg-card rounded-3xl shadow-2xl border border-border-color max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+          className="bg-bg-card rounded-3xl shadow-2xl border border-border-color max-w-2xl w-full mx-4 max-h-[90vh] scrollbar-hidden"
           onClick={(e) => e.stopPropagation()}
         >
           {formContent}

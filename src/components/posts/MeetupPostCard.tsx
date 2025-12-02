@@ -254,25 +254,25 @@ export const MeetupPostCard: React.FC<MeetupPostCardProps> = ({ post, onClick, o
 
         {/* More options button */}
         <div className="relative flex-shrink-0">
-          <button 
+        <button 
             className="p-1 rounded-full hover:bg-neutral-100 cursor-pointer text-text-secondary"
-            onClick={(e) => {
-              e.stopPropagation();
+          onClick={(e) => {
+            e.stopPropagation();
               setMenuOpen((v) => !v);
-            }}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="1"></circle>
-              <circle cx="19" cy="12" r="1"></circle>
-              <circle cx="5" cy="12" r="1"></circle>
-            </svg>
-          </button>
+          }}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="1"></circle>
+            <circle cx="19" cy="12" r="1"></circle>
+            <circle cx="5" cy="12" r="1"></circle>
+          </svg>
+        </button>
           
           {/* Dropdown menu */}
           {menuOpen && (
             <div 
               className="absolute right-0 mt-2 w-48 rounded-lg bg-white shadow-lg border border-neutral-200 z-20 overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
             >
               {isOwnPost ? (
                 <>
@@ -377,37 +377,34 @@ export const MeetupPostCard: React.FC<MeetupPostCardProps> = ({ post, onClick, o
         {/* Meetup Info Card - Styled like Eatogether */}
         <div className="bg-bg-card border border-border-color rounded-lg p-3 mb-3 space-y-2">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-text-secondary">Meetup Time</span>
+            <span className="text-text-secondary">時間</span>
             <span className="font-semibold text-text-primary">{formatMeetupTime(post.meetupTime)}</span>
           </div>
           <div className="flex items-center justify-between text-sm">
-            <span className="text-text-secondary">Headcount</span>
+            <span className="text-text-secondary">人數</span>
             <span className="font-semibold text-text-primary">
-              {post.currentHeadcount} / {post.maxHeadcount} joined
+              {post.currentHeadcount} / {post.maxHeadcount} 已加入
             </span>
           </div>
           <div className="flex items-center justify-between text-sm">
-            <span className="text-text-secondary">Budget</span>
-            <span className="font-semibold text-text-primary">{budgetInfo.displayText}</span>
+            <span className="text-text-secondary">預計</span>
+            <span className="font-semibold text-text-primary">
+              {(() => {
+                const rawBudgetDesc = post.budgetDescription ?? "";
+                const budgetValue = rawBudgetDesc.replace(/^預計\s*/, "") || "--";
+                return budgetValue;
+              })()}
+            </span>
           </div>
           <div className="flex items-center justify-between text-sm">
-            <span className="text-text-secondary">Reservation</span>
-            <span className="font-semibold text-text-primary">{post.hasReservation ? 'Yes' : 'No'}</span>
+            <span className="text-text-secondary">已訂位</span>
+            <span className="font-semibold text-text-primary">{post.hasReservation ? '是' : '否'}</span>
           </div>
-          </div>
-          
-        {/* Icons Row - Larger with labels */}
-        <div className="flex items-start gap-4 mb-3 px-3 py-3 bg-bg-secondary rounded-lg">
-          {/* Icon A: Wine glass / Event type */}
-          <div className="flex-1 flex flex-col items-center gap-1.5">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-text-secondary">
-              <path d="M8 21h8M12 21v-8M8 13l-4-4a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4l-4 4"></path>
-            </svg>
-            <span className="text-xs text-text-secondary font-medium">聚會</span>
-            <span className="text-sm text-text-primary font-semibold">50</span>
-          </div>
+        </div>
 
-          {/* Icon B: Credit card / Payment method */}
+        {/* Icons Row - Three columns: Payment, Budget, Headcount */}
+        <div className="flex items-start gap-4 mb-3 px-3 py-3 bg-bg-secondary rounded-lg">
+          {/* Icon 1: Credit card / Payment method */}
           <div className="flex-1 flex flex-col items-center gap-1.5">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-text-secondary">
               <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
@@ -415,21 +412,21 @@ export const MeetupPostCard: React.FC<MeetupPostCardProps> = ({ post, onClick, o
             </svg>
             <span className="text-xs text-text-secondary font-medium">付款方式</span>
             <span className="text-sm text-text-primary font-semibold">{budgetInfo.isTreating ? '我請客' : 'AA制'}</span>
-        </div>
+          </div>
 
-          {/* Icon C: Coin / Price */}
+          {/* Icon 2: Coin / Price */}
           <div className="flex-1 flex flex-col items-center gap-1.5">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-text-secondary">
               <circle cx="12" cy="12" r="10"></circle>
               <path d="M12 6v12M6 12h12"></path>
             </svg>
-            <span className="text-xs text-text-secondary font-medium">預算</span>
+            <span className="text-xs text-text-secondary font-medium">價位</span>
             <span className="text-sm text-text-primary font-semibold">
               {budgetInfo.priceSymbol || '--'}
             </span>
           </div>
 
-          {/* Icon D: People / Headcount */}
+          {/* Icon 3: People / Headcount */}
           <div className="flex-1 flex flex-col items-center gap-1.5">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-text-secondary">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
@@ -438,7 +435,7 @@ export const MeetupPostCard: React.FC<MeetupPostCardProps> = ({ post, onClick, o
               <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
             </svg>
             <span className="text-xs text-text-secondary font-medium">人數</span>
-            <span className="text-sm text-text-primary font-semibold">{post.currentHeadcount}人</span>
+            <span className="text-sm text-text-primary font-semibold">{post.maxHeadcount}人</span>
           </div>
         </div>
 

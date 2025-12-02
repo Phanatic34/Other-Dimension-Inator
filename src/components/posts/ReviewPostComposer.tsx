@@ -7,6 +7,8 @@ interface ReviewPostComposerProps {
   avatarUrl?: string;
   onCreateReviewPost?: (values: ReviewPostFormValues) => void;
   initialExpanded?: boolean; // Optional: start expanded (useful for modal)
+  currentUser?: { displayName: string; handle: string; avatarUrl?: string };
+  hideCollapseButton?: boolean; // Optional: hide collapse button (useful for modal)
 }
 
 interface LocationData {
@@ -86,6 +88,8 @@ export const ReviewPostComposer: React.FC<ReviewPostComposerProps> = ({
   avatarUrl,
   onCreateReviewPost,
   initialExpanded = false,
+  currentUser,
+  hideCollapseButton = false,
 }) => {
   // UI State
   const [isExpanded, setIsExpanded] = useState(initialExpanded);
@@ -368,13 +372,14 @@ export const ReviewPostComposer: React.FC<ReviewPostComposerProps> = ({
     <>
       <section 
         ref={expandedComposerRef}
-        className="mt-4 md:mt-6 mb-4 rounded-3xl border border-border-color bg-bg-card px-6 py-5 shadow-lg"
+        className={hideCollapseButton ? "px-6 py-5" : "mt-4 md:mt-6 mb-4 rounded-3xl border border-border-color bg-bg-card px-6 py-5 shadow-lg"}
       >
         {/* Header with Avatar and Collapse Button */}
         <div className="flex gap-3 mb-5">
           <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-[#f2e4d0]">
             <img
               src={
+                currentUser?.avatarUrl ||
                 avatarUrl ||
                 'https://images.squarespace-cdn.com/content/v1/5c34403aaa49a1c60b7e6c7e/1548979956856-ZSK82JV8UYCWVECAKEAS/person.png'
               }
@@ -383,34 +388,49 @@ export const ReviewPostComposer: React.FC<ReviewPostComposerProps> = ({
             />
           </div>
           <div className="flex-1">
-            <h3 className="text-lg font-bold text-text-primary">
-              新增餐廳評價
-            </h3>
-            <p className="text-sm text-text-secondary">
-              分享你的用餐體驗
-            </p>
+            {currentUser ? (
+              <>
+                <h3 className="text-lg font-bold text-text-primary">
+                  {currentUser.displayName}
+                </h3>
+                <p className="text-sm text-text-secondary">
+                  {currentUser.handle}
+                </p>
+              </>
+            ) : (
+              <>
+                <h3 className="text-lg font-bold text-text-primary">
+                  新增餐廳評價
+                </h3>
+                <p className="text-sm text-text-secondary">
+                  分享你的用餐體驗
+                </p>
+              </>
+            )}
           </div>
-          {/* Collapse Button */}
-          <button
-            type="button"
-            onClick={handleCollapse}
-            className="flex-shrink-0 h-8 w-8 flex items-center justify-center rounded-full text-text-secondary hover:text-text-primary hover:bg-gray-100 transition-colors"
-            aria-label="收起編輯區"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+          {/* Collapse Button - Hidden in modal mode */}
+          {!hideCollapseButton && (
+            <button
+              type="button"
+              onClick={handleCollapse}
+              className="flex-shrink-0 h-8 w-8 flex items-center justify-center rounded-full text-text-secondary hover:text-text-primary hover:bg-gray-100 transition-colors"
+              aria-label="收起編輯區"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M5 15l7-7 7 7"
-              />
-            </svg>
-          </button>
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 15l7-7 7 7"
+                />
+              </svg>
+            </button>
+          )}
         </div>
 
         {/* Restaurant / Location Section */}

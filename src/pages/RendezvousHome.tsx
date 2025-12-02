@@ -10,6 +10,7 @@ import { MeetupPostCard } from '../components/posts/MeetupPostCard';
 import { ReviewPostComposer, ReviewPostFormValues } from '../components/posts/ReviewPostComposer';
 import { DiningMeetupComposer, DiningMeetupFormValues } from '../components/posts/DiningMeetupComposer';
 import { PostTypeModal } from '../components/modals/PostTypeModal';
+import { PostModal } from '../components/modals/PostModal';
 
 // Active Filters Type (single-select per group)
 type ActiveFilters = {
@@ -31,6 +32,7 @@ export const RendezvousHome: React.FC = () => {
   const [feedFilter, setFeedFilter] = useState<'all' | 'following'>('all');
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [isMeetupComposerOpen, setIsMeetupComposerOpen] = useState(false);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   type PostType = 'review' | 'meetup';
   const [postType, setPostType] = useState<PostType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -92,6 +94,24 @@ export const RendezvousHome: React.FC = () => {
 
     loadData();
   }, []);
+
+  // Lock body scroll when any post modal is open
+  // Note: PostModal component handles its own scroll lock, but we keep this for legacy modals
+  useEffect(() => {
+    const isAnyModalOpen = isPostModalOpen || isMeetupComposerOpen || isReviewModalOpen;
+    
+    if (isAnyModalOpen) {
+      // Save original overflow value
+      const originalOverflow = document.body.style.overflow;
+      // Disable body scroll
+      document.body.style.overflow = 'hidden';
+      
+      // Restore original overflow when modal closes
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isPostModalOpen, isMeetupComposerOpen, isReviewModalOpen]);
 
   // Helper: Check if text matches search query (for review posts)
   const matchesText = React.useCallback((post: ReviewPost, q: string): boolean => {
@@ -423,7 +443,33 @@ export const RendezvousHome: React.FC = () => {
               
               {/* Create Post Composer - Different for each tab */}
               {activeTab === 'reviews' ? (
-                <ReviewPostComposer onCreateReviewPost={handleCreateReviewPost} />
+                <section
+                  onClick={() => {
+                    setIsReviewModalOpen(true);
+                  }}
+                  className="mt-4 md:mt-6 mb-4 rounded-3xl border border-border-color bg-bg-card px-5 py-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                >
+                  <div className="flex gap-3">
+                    {/* Avatar */}
+                    <div className="mt-1 h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-[#f2e4d0]">
+                      <img
+                        src={
+                          currentUser.avatarUrl ||
+                          'https://images.squarespace-cdn.com/content/v1/5c34403aaa49a1c60b7e6c7e/1548979956856-ZSK82JV8UYCWVECAKEAS/person.png'
+                        }
+                        alt="Your avatar"
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+
+                    {/* Placeholder Text */}
+                    <div className="flex-1 flex items-center">
+                      <p className="text-[15px] text-text-secondary">
+                        今天吃了什麼好東西？分享一下用餐心得吧…
+                      </p>
+                    </div>
+                  </div>
+                </section>
               ) : activeTab === 'meetups' ? (
                 <section
                   onClick={() => {
@@ -520,7 +566,7 @@ export const RendezvousHome: React.FC = () => {
           }}
         >
           <div
-            className="bg-bg-card rounded-3xl shadow-2xl border border-border-color max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+            className="bg-bg-card rounded-3xl shadow-2xl border border-border-color max-w-2xl w-full mx-4 max-h-[90vh] scrollbar-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {postType === 'review' ? (
@@ -542,17 +588,19 @@ export const RendezvousHome: React.FC = () => {
                 </div>
                 <ReviewPostComposer 
                   initialExpanded={true}
+                  currentUser={currentUser}
                   onCreateReviewPost={(values) => {
                     handleCreateReviewPost(values);
                     setIsPostModalOpen(false);
                     setPostType(null);
-                  }} 
+                  }}
                 />
+                </div>
               </div>
             ) : (
               <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-2xl font-bold text-text-primary">Create Dining Meetup Post</h2>
+                <div className="flex items-center justify-between p-6 pb-4 border-b border-border-color -m-6 mb-0">
+                  <h2 className="text-2xl font-bold text-text-primary">發揪吃飯文</h2>
                   <button
                     onClick={() => {
                       setIsPostModalOpen(false);
@@ -563,11 +611,13 @@ export const RendezvousHome: React.FC = () => {
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <line x1="18" y1="6" x2="6" y2="18"></line>
                       <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
+                      </svg>
                   </button>
                 </div>
+                <div className="pt-4">
                 <DiningMeetupComposer
                   renderModal={false}
+                  currentUser={currentUser}
                   onClose={() => {
                     setIsPostModalOpen(false);
                     setPostType(null);
@@ -578,6 +628,7 @@ export const RendezvousHome: React.FC = () => {
                     setPostType(null);
                   }}
                 />
+                </div>
               </div>
             )}
           </div>
@@ -603,6 +654,23 @@ export const RendezvousHome: React.FC = () => {
         onClose={() => setIsMeetupComposerOpen(false)}
         onCreateMeetupPost={handleCreateMeetupPost}
       />
+
+      {/* Review Post Composer Modal */}
+      <PostModal
+        isOpen={isReviewModalOpen}
+        onClose={() => setIsReviewModalOpen(false)}
+        title="新增餐廳評價"
+      >
+        <ReviewPostComposer
+          initialExpanded={true}
+          hideCollapseButton={true}
+          currentUser={currentUser}
+          onCreateReviewPost={(values) => {
+            handleCreateReviewPost(values);
+            setIsReviewModalOpen(false);
+          }}
+        />
+      </PostModal>
     </div>
   );
 };
