@@ -14,8 +14,8 @@ export const TabSwitcher: React.FC<TabSwitcherProps> = ({
   onFeedFilterChange,
 }) => {
   return (
-    <div className="border-b border-stone-200 bg-bg-secondary sticky top-16 z-40 transition-colors duration-300 shadow-sm backdrop-blur-sm">
-      <div className="flex items-center justify-between px-5 py-4 bg-bg-secondary">
+    <div className="border-b border-stone-200 bg-bg-secondary sticky top-0 z-30 transition-colors duration-300 shadow-sm">
+      <div className="flex items-center justify-between px-5 py-4">
         {/* Tabs */}
         <div className="flex space-x-2">
           <button

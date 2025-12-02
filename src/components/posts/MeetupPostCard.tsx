@@ -391,7 +391,10 @@ export const MeetupPostCard: React.FC<MeetupPostCardProps> = ({ post, onClick, o
             <span className="font-semibold text-text-primary">
               {(() => {
                 const rawBudgetDesc = post.budgetDescription ?? "";
-                const budgetValue = rawBudgetDesc.replace(/^預計\s*/, "") || "--";
+                let budgetValue = rawBudgetDesc.replace(/^預計\s*/, "") || "--";
+                // Format: "500–700 / 1 人" to "500$ ~ 700$ / 1 人"
+                // Replace en dash or hyphen with " ~ " and add $ after numbers
+                budgetValue = budgetValue.replace(/(\d+)[–-](\d+)/g, "$1$ ~ $2$");
                 return budgetValue;
               })()}
             </span>

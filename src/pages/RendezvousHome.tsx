@@ -365,7 +365,7 @@ export const RendezvousHome: React.FC = () => {
         meetupTime: values.meetupTime,
         foodTags: values.foodTags,
         maxHeadcount: values.maxHeadcount,
-        currentHeadcount: 1, // Host only initially
+        currentHeadcount: values.baseParticipantCount || 1, // Base participants are already "joined"
         budgetDescription: values.budgetDescription,
         hasReservation: values.hasReservation,
         description: values.description,
@@ -410,7 +410,7 @@ export const RendezvousHome: React.FC = () => {
   }
 
       return (
-        <div className="min-h-screen bg-bg-primary transition-colors duration-300">
+        <div className="h-screen flex flex-col bg-bg-primary transition-colors duration-300">
           <TopNavBar
             searchQuery={filters.searchQuery}
             onSearchChange={updateSearchQuery}
@@ -422,8 +422,8 @@ export const RendezvousHome: React.FC = () => {
             }}
           />
 
-          <div className="max-w-7xl mx-auto w-full">
-            <div className="flex items-stretch">
+          <div className="flex flex-1 max-w-7xl mx-auto w-full overflow-hidden">
+            <div className="flex items-stretch w-full">
               {/* Left Sidebar (Desktop) */}
               <aside className="hidden md:block w-64 bg-bg-tertiary border-r border-border-color transition-colors duration-300 self-stretch">
                 <Sidebar
@@ -448,7 +448,8 @@ export const RendezvousHome: React.FC = () => {
               />
 
               {/* Center Feed */}
-              <div className="flex-1 min-w-0 bg-bg-secondary">
+              <main className="flex-1 min-w-0 bg-bg-secondary overflow-y-auto scrollbar-hidden">
+                {/* Tabs row at the very top of the center column, just under the navbar */}
                 <TabSwitcher
                   activeTab={activeTab}
                   onTabChange={setActiveTab}
@@ -457,10 +458,10 @@ export const RendezvousHome: React.FC = () => {
                 />
 
                 <div className="px-4" style={{ background: 'linear-gradient(to bottom, var(--bg-secondary), var(--bg-primary))' }}>
-              {/* Feed top anchor for scrolling */}
-              <div id="review-feed-top" />
-              
-              {/* Create Post Composer - Different for each tab */}
+                  {/* Feed top anchor for scrolling */}
+                  <div id="review-feed-top" />
+                  
+                  {/* Create Post Composer - Different for each tab */}
               {activeTab === 'reviews' ? (
                 <section
                   onClick={() => {
@@ -554,8 +555,8 @@ export const RendezvousHome: React.FC = () => {
                   }
                 })
               )}
-            </div>
-          </div>
+                </div>
+              </main>
 
               {/* Right Column (Placeholder) */}
               <aside className="hidden lg:block w-80 bg-bg-sidebar-right border-l border-border-color transition-colors duration-300 self-stretch">
@@ -574,9 +575,8 @@ export const RendezvousHome: React.FC = () => {
               </aside>
             </div>
           </div>
-      </div>
 
-      {/* Unified Post Composer Modal */}
+          {/* Unified Post Composer Modal */}
       {isPostModalOpen && postType && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] backdrop-blur-sm"
@@ -690,7 +690,7 @@ export const RendezvousHome: React.FC = () => {
           }}
         />
       </PostModal>
-    </div>
-  );
-};
+      </div>
+    );
+  };
 

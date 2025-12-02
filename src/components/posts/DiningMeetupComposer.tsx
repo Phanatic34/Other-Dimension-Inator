@@ -26,7 +26,9 @@ export interface DiningMeetupFormValues {
   locationText: string;
   meetupTime: string; // ISO datetime string
   foodTags: string[];
-  maxHeadcount: number;
+  maxHeadcount: number; // Total capacity (baseParticipantCount + expectedInviteCount)
+  baseParticipantCount: number; // Number of people already in the group (host + friends)
+  expectedInviteCount: number; // Number of additional people to recruit
   budgetDescription: string;
   hasReservation: boolean;
   description: string;
@@ -94,7 +96,8 @@ export const DiningMeetupComposer: React.FC<DiningMeetupComposerProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null); // Single-select per group
   const [meetupDate, setMeetupDate] = useState<string>('');
   const [meetupTime, setMeetupTime] = useState<string>('');
-  const [maxHeadcount, setMaxHeadcount] = useState<string>('');
+  const [baseParticipantCount, setBaseParticipantCount] = useState<string>('1');
+  const [expectedInviteCount, setExpectedInviteCount] = useState<string>('');
   const [budgetMin, setBudgetMin] = useState<string>('');
   const [budgetMax, setBudgetMax] = useState<string>('');
   const [isTreating, setIsTreating] = useState<boolean>(false);
@@ -166,7 +169,8 @@ export const DiningMeetupComposer: React.FC<DiningMeetupComposerProps> = ({
     return new Date().toISOString().slice(0, 10);
   };
   
-  const isMaxHeadcountValid = maxHeadcount !== '' && parseInt(maxHeadcount) >= 2;
+  const isBaseParticipantCountValid = baseParticipantCount !== '' && parseInt(baseParticipantCount) >= 1;
+  const isExpectedInviteCountValid = expectedInviteCount !== '' && parseInt(expectedInviteCount) >= 2;
   
   // Budget range validation
   const validateBudgetRange = (min: string, max: string) => {
@@ -199,7 +203,8 @@ export const DiningMeetupComposer: React.FC<DiningMeetupComposerProps> = ({
     isCategoryValid &&
     isMeetupTimeValid &&
     isMeetupTimeFuture() &&
-    isMaxHeadcountValid &&
+    isBaseParticipantCountValid &&
+    isExpectedInviteCountValid &&
     isBudgetValid &&
     isDescriptionValid &&
     isVisibilityValid;
@@ -212,7 +217,8 @@ export const DiningMeetupComposer: React.FC<DiningMeetupComposerProps> = ({
     setMeetupDate('');
     setMeetupTime('');
     setTimeError(null);
-    setMaxHeadcount('');
+    setBaseParticipantCount('1');
+    setExpectedInviteCount('');
     setBudgetMin('');
     setBudgetMax('');
     setIsTreating(false);
@@ -238,7 +244,8 @@ export const DiningMeetupComposer: React.FC<DiningMeetupComposerProps> = ({
       !isCategoryValid ||
       !isMeetupTimeValid ||
       !isMeetupTimeFuture() ||
-      !isMaxHeadcountValid ||
+      !isBaseParticipantCountValid ||
+      !isExpectedInviteCountValid ||
       !isBudgetValid ||
       !isDescriptionValid ||
       !isVisibilityValid;
@@ -293,12 +300,19 @@ export const DiningMeetupComposer: React.FC<DiningMeetupComposerProps> = ({
     // Convert photo file to URL (for now, use object URL; in production, upload to cloud storage)
     const imageUrl = photoPreview || null;
 
+    // Calculate total headcount
+    const baseCount = parseInt(baseParticipantCount);
+    const expectedCount = parseInt(expectedInviteCount);
+    const totalHeadcount = baseCount + expectedCount;
+
     const formValues: DiningMeetupFormValues = {
       restaurantName: location!.restaurantName,
       locationText,
       meetupTime: dateTimeString,
       foodTags: tagLabels,
-      maxHeadcount: parseInt(maxHeadcount),
+      maxHeadcount: totalHeadcount, // Total capacity
+      baseParticipantCount: baseCount,
+      expectedInviteCount: expectedCount,
       budgetDescription,
       hasReservation,
       description: description.trim(),
@@ -551,21 +565,39 @@ export const DiningMeetupComposer: React.FC<DiningMeetupComposerProps> = ({
               )}
             </div>
 
-            {/* Max Headcount */}
+            {/* Base Participant Count */}
             <div className="mb-5">
               <label className="block text-sm font-semibold text-text-primary mb-2">
-                預計人數 * (至少2人)
+                內建人數 *（至少1人）
+              </label>
+              <input
+                type="number"
+                min="1"
+                value={baseParticipantCount}
+                onChange={(e) => setBaseParticipantCount(e.target.value)}
+                placeholder="例如: 2"
+                className="w-full px-4 py-2 border border-border-color rounded-lg bg-bg-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary"
+              />
+              {hasTriedSubmit && !isBaseParticipantCountValid && (
+                <p className="text-xs text-red-500 mt-2">請輸入至少1人的內建人數</p>
+              )}
+            </div>
+
+            {/* Expected Invite Count */}
+            <div className="mb-5">
+              <label className="block text-sm font-semibold text-text-primary mb-2">
+                預計邀請人數 * (至少2人)
               </label>
               <input
                 type="number"
                 min="2"
-                value={maxHeadcount}
-                onChange={(e) => setMaxHeadcount(e.target.value)}
-                placeholder="例如: 4"
+                value={expectedInviteCount}
+                onChange={(e) => setExpectedInviteCount(e.target.value)}
+                placeholder="例如: 3"
                 className="w-full px-4 py-2 border border-border-color rounded-lg bg-bg-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary"
               />
-              {hasTriedSubmit && !isMaxHeadcountValid && (
-                <p className="text-xs text-red-500 mt-2">請輸入至少2人的預計人數</p>
+              {hasTriedSubmit && !isExpectedInviteCountValid && (
+                <p className="text-xs text-red-500 mt-2">請輸入至少2人的預計邀請人數</p>
               )}
             </div>
 

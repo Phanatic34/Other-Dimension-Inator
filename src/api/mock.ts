@@ -351,7 +351,9 @@ export interface CreateMeetupPostRequest {
   locationText: string;
   meetupTime: string; // ISO datetime string
   foodTags: string[];
-  maxHeadcount: number;
+  maxHeadcount: number; // Total capacity (baseParticipantCount + expectedInviteCount)
+  baseParticipantCount?: number; // Number of people already in the group
+  expectedInviteCount?: number; // Number of additional people to recruit
   budgetDescription: string;
   hasReservation: boolean;
   description: string;
@@ -374,7 +376,7 @@ export async function createMeetupPost(data: CreateMeetupPostRequest): Promise<M
     meetupTime: data.meetupTime,
     foodTags: data.foodTags,
     maxHeadcount: data.maxHeadcount,
-    currentHeadcount: 1, // Host only initially
+    currentHeadcount: data.baseParticipantCount || 1, // Base participants are already "joined"
     budgetDescription: data.budgetDescription,
     hasReservation: data.hasReservation,
     description: data.description,
