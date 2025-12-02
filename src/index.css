@@ -38,6 +38,11 @@
   --brand-orange: #FF6B35;
 }
 
+html {
+  height: auto;
+  overflow-y: auto;
+}
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -47,6 +52,8 @@ body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
   transition: background-color 0.3s ease, color 0.3s ease;
+  height: auto;
+  overflow-y: auto;
 }
 
 * {

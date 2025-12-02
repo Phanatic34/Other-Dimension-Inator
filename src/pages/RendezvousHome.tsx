@@ -101,15 +101,32 @@ export const RendezvousHome: React.FC = () => {
     const isAnyModalOpen = isPostModalOpen || isMeetupComposerOpen || isReviewModalOpen;
     
     if (isAnyModalOpen) {
-      // Save original overflow value
-      const originalOverflow = document.body.style.overflow;
-      // Disable body scroll
+      // Save original overflow values
+      const originalBodyOverflow = document.body.style.overflow;
+      const originalBodyOverflowY = document.body.style.overflowY;
+      const originalHtmlOverflow = document.documentElement.style.overflow;
+      const originalHtmlOverflowY = document.documentElement.style.overflowY;
+      
+      // Disable scroll on both body and html
       document.body.style.overflow = 'hidden';
+      document.body.style.overflowY = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+      document.documentElement.style.overflowY = 'hidden';
       
       // Restore original overflow when modal closes
       return () => {
-        document.body.style.overflow = originalOverflow;
+        // Restore original values (empty string restores default scrolling behavior)
+        document.body.style.overflow = originalBodyOverflow || '';
+        document.body.style.overflowY = originalBodyOverflowY || '';
+        document.documentElement.style.overflow = originalHtmlOverflow || '';
+        document.documentElement.style.overflowY = originalHtmlOverflowY || '';
       };
+    } else {
+      // Ensure scrolling is enabled when no modals are open
+      document.body.style.overflow = '';
+      document.body.style.overflowY = '';
+      document.documentElement.style.overflow = '';
+      document.documentElement.style.overflowY = '';
     }
   }, [isPostModalOpen, isMeetupComposerOpen, isReviewModalOpen]);
 
@@ -405,8 +422,8 @@ export const RendezvousHome: React.FC = () => {
             }}
           />
 
-          <div className="max-w-7xl mx-auto">
-            <div className="flex">
+          <div className="max-w-7xl mx-auto w-full">
+            <div className="flex items-start">
               {/* Left Sidebar (Desktop) */}
               <Sidebar
                 boards={boards}
@@ -539,8 +556,8 @@ export const RendezvousHome: React.FC = () => {
           </div>
 
               {/* Right Column (Placeholder) */}
-              <div className="hidden lg:block w-80 bg-bg-sidebar-right border-l border-border-color p-5 transition-colors duration-300">
-            <div className="sticky top-20">
+              <div className="hidden lg:block w-80 bg-bg-sidebar-right border-l border-border-color transition-colors duration-300">
+            <div className="sticky top-16 p-5">
               <h3 className="text-xl text-text-primary mb-4 tracking-tight" style={{ fontFamily: 'Garamond, Baskerville, Georgia, Times New Roman, serif', fontWeight: 900 }}>Coming Soon</h3>
               <p className="text-base text-text-secondary leading-relaxed" style={{ fontFamily: 'Garamond, Baskerville, Georgia, Times New Roman, serif', fontWeight: 900 }}>
                 Map view and restaurant recommendations will appear here.
@@ -595,7 +612,6 @@ export const RendezvousHome: React.FC = () => {
                     setPostType(null);
                   }}
                 />
-                </div>
               </div>
             ) : (
               <div className="p-6">

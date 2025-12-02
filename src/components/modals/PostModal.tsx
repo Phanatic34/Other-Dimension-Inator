@@ -12,11 +12,24 @@ export const PostModal: React.FC<PostModalProps> = ({ isOpen, onClose, title, ch
   useEffect(() => {
     if (!isOpen) return;
 
-    const originalOverflow = document.body.style.overflow;
+    // Save original overflow values
+    const originalBodyOverflow = document.body.style.overflow;
+    const originalBodyOverflowY = document.body.style.overflowY;
+    const originalHtmlOverflow = document.documentElement.style.overflow;
+    const originalHtmlOverflowY = document.documentElement.style.overflowY;
+    
+    // Disable scroll on both body and html
     document.body.style.overflow = 'hidden';
+    document.body.style.overflowY = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    document.documentElement.style.overflowY = 'hidden';
 
     return () => {
-      document.body.style.overflow = originalOverflow;
+      // Restore original values (empty string restores default scrolling behavior)
+      document.body.style.overflow = originalBodyOverflow || '';
+      document.body.style.overflowY = originalBodyOverflowY || '';
+      document.documentElement.style.overflow = originalHtmlOverflow || '';
+      document.documentElement.style.overflowY = originalHtmlOverflowY || '';
     };
   }, [isOpen]);
 
