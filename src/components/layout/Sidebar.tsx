@@ -132,9 +132,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   return (
-    <div className="hidden md:block w-64 bg-bg-tertiary border-r border-border-color transition-colors duration-300">
-      <div className="sticky top-16 max-h-[calc(100vh-4rem)] overflow-y-auto scrollbar-hidden">
-        <div className="p-4 pb-6">
+    <div className="sticky top-16 max-h-[calc(100vh-4rem)] overflow-y-auto scrollbar-hidden">
+      <div className="p-4 pb-6">
         {/* Main title */}
         <h2 className="text-lg font-serif font-extrabold text-text-primary mb-4 leading-tight">
           看板 (Board)
@@ -367,7 +366,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             </div>
           </FilterSectionBody>
-        </div>
         </div>
       </div>
     </div>

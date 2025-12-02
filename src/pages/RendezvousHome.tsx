@@ -423,20 +423,22 @@ export const RendezvousHome: React.FC = () => {
           />
 
           <div className="max-w-7xl mx-auto w-full">
-            <div className="flex items-start">
+            <div className="flex items-stretch">
               {/* Left Sidebar (Desktop) */}
-              <Sidebar
-                boards={boards}
-                selectedBoardId={selectedBoardId}
-                onBoardSelect={setSelectedBoardId}
-                filters={filters}
-                onChangeStyle={updateStyle}
-                onChangeCategory={updateCategory}
-                onChangePrice={updatePrice}
-                onApplyPrice={applyPrice}
-                onChangeRating={updateRating}
-                onChangeNearMe={updateDistance}
-              />
+              <aside className="hidden md:block w-64 bg-bg-tertiary border-r border-border-color transition-colors duration-300 self-stretch">
+                <Sidebar
+                  boards={boards}
+                  selectedBoardId={selectedBoardId}
+                  onBoardSelect={setSelectedBoardId}
+                  filters={filters}
+                  onChangeStyle={updateStyle}
+                  onChangeCategory={updateCategory}
+                  onChangePrice={updatePrice}
+                  onApplyPrice={applyPrice}
+                  onChangeRating={updateRating}
+                  onChangeNearMe={updateDistance}
+                />
+              </aside>
 
               {/* Mobile Board Chips */}
               <MobileBoardChips
@@ -556,21 +558,22 @@ export const RendezvousHome: React.FC = () => {
           </div>
 
               {/* Right Column (Placeholder) */}
-              <div className="hidden lg:block w-80 bg-bg-sidebar-right border-l border-border-color transition-colors duration-300">
-            <div className="sticky top-16 p-5">
-              <h3 className="text-xl text-text-primary mb-4 tracking-tight" style={{ fontFamily: 'Garamond, Baskerville, Georgia, Times New Roman, serif', fontWeight: 900 }}>Coming Soon</h3>
-              <p className="text-base text-text-secondary leading-relaxed" style={{ fontFamily: 'Garamond, Baskerville, Georgia, Times New Roman, serif', fontWeight: 900 }}>
-                Map view and restaurant recommendations will appear here.
-              </p>
-              {/* TODO: In the future, this will show:
-                  - Interactive map with restaurant locations
-                  - Restaurant detail pages
-                  - Personalized recommendations based on user preferences
-                  - Nearby restaurants based on location
-              */}
+              <aside className="hidden lg:block w-80 bg-bg-sidebar-right border-l border-border-color transition-colors duration-300 self-stretch">
+                <div className="sticky top-16 p-5">
+                  <h3 className="text-xl text-text-primary mb-4 tracking-tight" style={{ fontFamily: 'Garamond, Baskerville, Georgia, Times New Roman, serif', fontWeight: 900 }}>Coming Soon</h3>
+                  <p className="text-base text-text-secondary leading-relaxed" style={{ fontFamily: 'Garamond, Baskerville, Georgia, Times New Roman, serif', fontWeight: 900 }}>
+                    Map view and restaurant recommendations will appear here.
+                  </p>
+                  {/* TODO: In the future, this will show:
+                      - Interactive map with restaurant locations
+                      - Restaurant detail pages
+                      - Personalized recommendations based on user preferences
+                      - Nearby restaurants based on location
+                  */}
+                </div>
+              </aside>
             </div>
           </div>
-        </div>
       </div>
 
       {/* Unified Post Composer Modal */}
