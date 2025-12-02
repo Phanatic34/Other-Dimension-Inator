@@ -28,7 +28,7 @@ export interface DiningMeetupFormValues {
   foodTags: string[];
   maxHeadcount: number; // Total capacity (baseParticipantCount + expectedInviteCount)
   baseParticipantCount: number; // Number of people already in the group (host + friends)
-  expectedInviteCount: number; // Number of additional people to recruit
+  expectedInviteCount: number; // Total headcount for the meetup
   budgetDescription: string;
   hasReservation: boolean;
   description: string;
@@ -170,7 +170,9 @@ export const DiningMeetupComposer: React.FC<DiningMeetupComposerProps> = ({
   };
   
   const isBaseParticipantCountValid = baseParticipantCount !== '' && parseInt(baseParticipantCount) >= 1;
-  const isExpectedInviteCountValid = expectedInviteCount !== '' && parseInt(expectedInviteCount) >= 2;
+  const expectedTotalCount = expectedInviteCount !== '' ? parseInt(expectedInviteCount) : 0;
+  const baseCount = baseParticipantCount !== '' ? parseInt(baseParticipantCount) : 0;
+  const isExpectedInviteCountValid = expectedInviteCount !== '' && expectedTotalCount >= 2 && expectedTotalCount >= baseCount;
   
   // Budget range validation
   const validateBudgetRange = (min: string, max: string) => {
@@ -302,17 +304,16 @@ export const DiningMeetupComposer: React.FC<DiningMeetupComposerProps> = ({
 
     // Calculate total headcount
     const baseCount = parseInt(baseParticipantCount);
-    const expectedCount = parseInt(expectedInviteCount);
-    const totalHeadcount = baseCount + expectedCount;
+    const totalCount = parseInt(expectedInviteCount); // This is now the total headcount (預計總人數)
 
     const formValues: DiningMeetupFormValues = {
       restaurantName: location!.restaurantName,
       locationText,
       meetupTime: dateTimeString,
       foodTags: tagLabels,
-      maxHeadcount: totalHeadcount, // Total capacity
+      maxHeadcount: totalCount, // Total capacity (預計總人數)
       baseParticipantCount: baseCount,
-      expectedInviteCount: expectedCount,
+      expectedInviteCount: totalCount, // Total headcount for the meetup
       budgetDescription,
       hasReservation,
       description: description.trim(),
@@ -583,10 +584,10 @@ export const DiningMeetupComposer: React.FC<DiningMeetupComposerProps> = ({
               )}
             </div>
 
-            {/* Expected Invite Count */}
+            {/* Expected Total Count */}
             <div className="mb-5">
               <label className="block text-sm font-semibold text-text-primary mb-2">
-                預計邀請人數 * (至少2人)
+                預計總人數 * (至少2人)
               </label>
               <input
                 type="number"
@@ -597,7 +598,11 @@ export const DiningMeetupComposer: React.FC<DiningMeetupComposerProps> = ({
                 className="w-full px-4 py-2 border border-border-color rounded-lg bg-bg-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary"
               />
               {hasTriedSubmit && !isExpectedInviteCountValid && (
-                <p className="text-xs text-red-500 mt-2">請輸入至少2人的預計邀請人數</p>
+                <p className="text-xs text-red-500 mt-2">
+                  {expectedInviteCount !== '' && parseInt(expectedInviteCount) < (baseParticipantCount !== '' ? parseInt(baseParticipantCount) : 0)
+                    ? '預計總人數必須大於或等於內建人數'
+                    : '請輸入至少2人的預計總人數'}
+                </p>
               )}
             </div>
 

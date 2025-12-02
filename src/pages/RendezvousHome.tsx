@@ -560,7 +560,7 @@ export const RendezvousHome: React.FC = () => {
 
               {/* Right Column (Placeholder) */}
               <aside className="hidden lg:block w-80 bg-bg-sidebar-right border-l border-border-color transition-colors duration-300 self-stretch">
-                <div className="sticky top-16 p-5">
+                <div className="sticky top-0 p-5">
                   <h3 className="text-xl text-text-primary mb-4 tracking-tight" style={{ fontFamily: 'Garamond, Baskerville, Georgia, Times New Roman, serif', fontWeight: 900 }}>Coming Soon</h3>
                   <p className="text-base text-text-secondary leading-relaxed" style={{ fontFamily: 'Garamond, Baskerville, Georgia, Times New Roman, serif', fontWeight: 900 }}>
                     Map view and restaurant recommendations will appear here.

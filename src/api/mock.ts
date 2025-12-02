@@ -353,7 +353,7 @@ export interface CreateMeetupPostRequest {
   foodTags: string[];
   maxHeadcount: number; // Total capacity (baseParticipantCount + expectedInviteCount)
   baseParticipantCount?: number; // Number of people already in the group
-  expectedInviteCount?: number; // Number of additional people to recruit
+  expectedInviteCount?: number; // Total headcount for the meetup
   budgetDescription: string;
   hasReservation: boolean;
   description: string;

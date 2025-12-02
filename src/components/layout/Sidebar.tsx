@@ -132,7 +132,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   return (
-    <div className="sticky top-16 pb-6">
+    <div className="sticky top-0 pb-6">
       <div className="p-4">
         {/* Main title */}
         <h2 className="text-lg font-serif font-extrabold text-text-primary mb-4 leading-tight">
