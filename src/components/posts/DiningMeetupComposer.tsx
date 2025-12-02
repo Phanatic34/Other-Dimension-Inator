@@ -527,7 +527,7 @@ export const DiningMeetupComposer: React.FC<DiningMeetupComposerProps> = ({
                     
                     // If the selected datetime is in the past, reject the change and show error
                     if (selected && selected <= now) {
-                      setTimeError('用餐時間必須是未來的時間');
+                      setTimeError('請選擇有效的時間。');
                       // Don't update the time, keep the previous value
                       return;
                     }
