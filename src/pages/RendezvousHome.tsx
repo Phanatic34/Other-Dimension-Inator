@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Board, Post, ReviewPost, MeetupPost, User } from '../types/models';
 import { fetchBoards, fetchPosts, createMeetupPost } from '../api/mock';
+import { fetchRecommendedUsers } from '../api/mockProfile';
+import { RestaurantLocation } from '../types/location';
 import { TopNavBar } from '../components/layout/TopNavBar';
 import { Sidebar } from '../components/layout/Sidebar';
 import { MobileBoardChips } from '../components/layout/MobileBoardChips';
@@ -11,6 +13,8 @@ import { ReviewPostComposer, ReviewPostFormValues } from '../components/posts/Re
 import { DiningMeetupComposer, DiningMeetupFormValues } from '../components/posts/DiningMeetupComposer';
 import { PostTypeModal } from '../components/modals/PostTypeModal';
 import { PostModal } from '../components/modals/PostModal';
+import { YouMightLike } from '../components/profile/YouMightLike';
+import { SmallMap } from '../components/homepage/SmallMap';
 
 // Active Filters Type (single-select per group)
 type ActiveFilters = {
@@ -36,6 +40,8 @@ export const RendezvousHome: React.FC = () => {
   type PostType = 'review' | 'meetup';
   const [postType, setPostType] = useState<PostType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [recommendedUsers, setRecommendedUsers] = useState<any[]>([]);
+  const [selectedLocation, setSelectedLocation] = useState<RestaurantLocation | null>(null);
 
   // Centralized filter state
   const [filters, setFilters] = useState<ActiveFilters>({
@@ -79,12 +85,14 @@ export const RendezvousHome: React.FC = () => {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        const [boardsData, postsData] = await Promise.all([
+        const [boardsData, postsData, recommended] = await Promise.all([
           fetchBoards(),
           fetchPosts(),
+          fetchRecommendedUsers(),
         ]);
         setBoards(boardsData);
         setPosts(postsData);
+        setRecommendedUsers(recommended);
       } catch (error) {
         console.error('Error loading data:', error);
       } finally {
@@ -94,6 +102,16 @@ export const RendezvousHome: React.FC = () => {
 
     loadData();
   }, []);
+
+  // Handle location selection from post cards
+  const handleLocationSelect = (location: { name: string; address?: string; lat: number; lng: number }) => {
+    setSelectedLocation({
+      name: location.name,
+      address: location.address,
+      lat: location.lat,
+      lng: location.lng,
+    });
+  };
 
   // Lock body scroll when any post modal is open
   // Note: PostModal component handles its own scroll lock, but we keep this for legacy modals
@@ -422,10 +440,10 @@ export const RendezvousHome: React.FC = () => {
             }}
           />
 
-          <div className="flex flex-1 max-w-7xl mx-auto w-full overflow-hidden">
+          <div className="flex flex-1 w-full overflow-hidden">
             <div className="flex items-stretch w-full">
               {/* Left Sidebar (Desktop) */}
-              <aside className="hidden md:block w-64 bg-bg-tertiary border-r border-border-color transition-colors duration-300 self-stretch">
+              <aside className="hidden md:block w-64 bg-bg-tertiary border-r border-border-color transition-colors duration-300 self-stretch overflow-y-auto scrollbar-hidden">
                 <Sidebar
                   boards={boards}
                   selectedBoardId={selectedBoardId}
@@ -539,6 +557,7 @@ export const RendezvousHome: React.FC = () => {
                         post={post}
                         onClick={() => handlePostClick(post)}
                         onTagClick={handleSearchFromTag}
+                        onLocationClick={handleLocationSelect}
                         isOwnPost={post.author.id === currentUser.id}
                       />
                     );
@@ -558,19 +577,16 @@ export const RendezvousHome: React.FC = () => {
                 </div>
               </main>
 
-              {/* Right Column (Placeholder) */}
-              <aside className="hidden lg:block w-80 bg-bg-sidebar-right border-l border-border-color transition-colors duration-300 self-stretch">
-                <div className="sticky top-0 p-5">
-                  <h3 className="text-xl text-text-primary mb-4 tracking-tight" style={{ fontFamily: 'Garamond, Baskerville, Georgia, Times New Roman, serif', fontWeight: 900 }}>Coming Soon</h3>
-                  <p className="text-base text-text-secondary leading-relaxed" style={{ fontFamily: 'Garamond, Baskerville, Georgia, Times New Roman, serif', fontWeight: 900 }}>
-                    Map view and restaurant recommendations will appear here.
-                  </p>
-                  {/* TODO: In the future, this will show:
-                      - Interactive map with restaurant locations
-                      - Restaurant detail pages
-                      - Personalized recommendations based on user preferences
-                      - Nearby restaurants based on location
-                  */}
+              {/* Right Sidebar */}
+              <aside className="hidden lg:block w-80 bg-bg-sidebar-right border-l border-border-color transition-colors duration-300 self-stretch overflow-y-auto scrollbar-hidden">
+                <div className="sticky top-0 p-5 space-y-5">
+                  {/* You Might Like */}
+                  {recommendedUsers.length > 0 && (
+                    <YouMightLike recommendedUsers={recommendedUsers} />
+                  )}
+                  
+                  {/* Small Map */}
+                  <SmallMap selectedLocation={selectedLocation} />
                 </div>
               </aside>
             </div>

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { SearchInput } from '../common/SearchInput';
 import { Logo } from '../common/Logo';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -7,14 +8,17 @@ interface TopNavBarProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
   onPostClick: () => void;
+  showSearch?: boolean; // Optional prop to show/hide search box
 }
 
 export const TopNavBar: React.FC<TopNavBarProps> = ({
   searchQuery,
   onSearchChange,
   onPostClick,
+  showSearch = true, // Default to true for backward compatibility
 }) => {
   const { theme, toggleTheme } = useTheme();
+  const navigate = useNavigate();
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -39,9 +43,11 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
           </div>
 
           {/* Center: Search */}
-          <div className="hidden md:flex flex-1 justify-center px-4">
-            <SearchInput value={searchQuery} onChange={onSearchChange} />
-          </div>
+          {showSearch && (
+            <div className="hidden md:flex flex-1 justify-center px-4">
+              <SearchInput value={searchQuery} onChange={onSearchChange} />
+            </div>
+          )}
 
           {/* Right: Actions */}
           <div className="flex items-center justify-end space-x-4" style={{ width: '240px' }}>
@@ -86,13 +92,24 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
                 <div className="absolute right-0 mt-2 w-48 bg-bg-card rounded-lg shadow-elegant-lg border border-border-color py-1 z-50 backdrop-blur-sm transition-colors duration-300">
                   <button
                     onClick={() => {
-                      console.log('View Profile clicked');
+                      // TODO: Replace with actual logged-in user's username from auth context
+                      navigate('/user/lorry930811');
                       setIsProfileDropdownOpen(false);
                     }}
                     className="block w-full text-left px-4 py-2.5 text-base text-text-primary hover:bg-bg-hover transition-all duration-150"
                     style={{ fontFamily: 'Garamond, Baskerville, Georgia, Times New Roman, serif', fontWeight: 900 }}
                   >
                     View Profile
+                  </button>
+                  <button
+                    onClick={() => {
+                      navigate('/saved-restaurants');
+                      setIsProfileDropdownOpen(false);
+                    }}
+                    className="block w-full text-left px-4 py-2.5 text-base text-text-primary hover:bg-bg-hover transition-all duration-150"
+                    style={{ fontFamily: 'Garamond, Baskerville, Georgia, Times New Roman, serif', fontWeight: 900 }}
+                  >
+                    Saved Restaurants
                   </button>
                   <button
                     onClick={() => {
@@ -121,9 +138,11 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
         </div>
 
         {/* Mobile Search */}
-        <div className="md:hidden pb-4">
-          <SearchInput value={searchQuery} onChange={onSearchChange} />
-        </div>
+        {showSearch && (
+          <div className="md:hidden pb-4">
+            <SearchInput value={searchQuery} onChange={onSearchChange} />
+          </div>
+        )}
       </div>
     </nav>
   );

@@ -29,6 +29,9 @@ export interface ReviewPost {
   priceLevel: '$' | '$$' | '$$$';
   priceMax?: number;    // Maximum price per person in NTD (for detailed range)
   locationArea: string; // e.g. "Gongguan", "Xinyi"
+  restaurantAddress?: string; // Full address
+  restaurantLat?: number; // Latitude
+  restaurantLng?: number; // Longitude
   createdAt: string;    // ISO or human-friendly string
   likeCount: number;
   commentCount: number;

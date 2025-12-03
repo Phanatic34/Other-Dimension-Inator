@@ -7,6 +7,7 @@ interface ReviewPostCardProps {
   post: ReviewPost;
   onClick?: () => void;
   onTagClick?: (tag: string) => void;
+  onLocationClick?: (location: { name: string; address?: string; lat: number; lng: number }) => void;
   isOwnPost?: boolean;
 }
 
@@ -57,7 +58,7 @@ function getPriceInfo(maxPrice: number | null | undefined) {
   return { symbols: "$$$$$", label: "NT$5000+" };
 }
 
-export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick, onTagClick, isOwnPost = false }) => {
+export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick, onTagClick, onLocationClick, isOwnPost = false }) => {
   // Lightbox state
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -68,14 +69,47 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick, o
   // Compute price info from priceMax
   const priceInfo = getPriceInfo(post.priceMax);
 
-  // Handler for opening Google Maps
-  const handleOpenGoogleMaps = (e: React.MouseEvent) => {
+  // Handler for selecting location (updates sidebar map instead of opening Google Maps)
+  const handleLocationClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const query = `${post.restaurantName ?? ""} ${post.locationArea ?? ""}`.trim();
-    window.open(
-      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`,
-      "_blank"
-    );
+    e.preventDefault();
+    
+    // If location click handler is provided, always use it (even without coordinates)
+    if (onLocationClick) {
+      // If we have coordinates, use them
+      if (post.restaurantLat && post.restaurantLng) {
+        onLocationClick({
+          name: post.restaurantName,
+          address: post.restaurantAddress,
+          lat: post.restaurantLat,
+          lng: post.restaurantLng,
+        });
+      } else {
+        // If no coordinates, still call handler but with null coordinates
+        // The handler can decide what to do (e.g., show a message or use geocoding)
+        // For now, we'll try to use a default location based on locationArea
+        const defaultCoords = getDefaultCoordinates(post.locationArea);
+        if (defaultCoords) {
+          onLocationClick({
+            name: post.restaurantName,
+            address: post.restaurantAddress || post.locationArea,
+            lat: defaultCoords.lat,
+            lng: defaultCoords.lng,
+          });
+        }
+      }
+    }
+  };
+
+  // Helper to get default coordinates for common areas
+  const getDefaultCoordinates = (locationArea?: string): { lat: number; lng: number } | null => {
+    const areaMap: Record<string, { lat: number; lng: number }> = {
+      'Tianmu': { lat: 25.1185, lng: 121.5274 },
+      'Xinyi': { lat: 25.0330, lng: 121.5654 },
+      'Gongguan': { lat: 25.0167, lng: 121.5333 },
+      'Da\'an': { lat: 25.0260, lng: 121.5430 },
+    };
+    return locationArea ? areaMap[locationArea] || null : null;
   };
 
   // Helper function to parse and style hashtags
@@ -259,7 +293,7 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick, o
             {/* Chip 1: Restaurant + Location */}
             <button
               className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-gray-200 text-sm shadow-sm cursor-pointer group-hover:bg-neutral-50 transition-colors"
-              onClick={handleOpenGoogleMaps}
+              onClick={handleLocationClick}
             >
               {(post.locationArea || (post as any).region) && (
                 <>
