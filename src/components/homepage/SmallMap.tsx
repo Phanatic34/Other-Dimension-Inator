@@ -1,35 +1,73 @@
 import React, { useEffect, useRef } from 'react';
 import { useGoogleMaps } from '../../hooks/useGoogleMaps';
-import { RestaurantLocation } from '../../types/location';
+import { useLocationPreview } from '../../contexts/LocationPreviewContext';
 
-interface SmallMapProps {
-  selectedLocation: RestaurantLocation | null;
-}
-
-export const SmallMap: React.FC<SmallMapProps> = ({ selectedLocation }) => {
+export const SmallMap: React.FC = () => {
+  const { selectedLocation } = useLocationPreview();
   const { isLoaded, loadError } = useGoogleMaps();
-  const mapRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const markerRef = useRef<google.maps.Marker | null>(null);
 
   // Initialize map
   useEffect(() => {
-    if (!isLoaded || !mapRef.current || mapInstanceRef.current) return;
+    // Guard: Google SDK not loaded or container not ready
+    if (!isLoaded || !window.google || !containerRef.current) return;
 
-    // Default center: Taipei
-    const defaultCenter = { lat: 25.0330, lng: 121.5654 };
+    // Only create the map once
+    if (!mapInstanceRef.current) {
+      // Ensure the container is a valid DOM element
+      const containerElement = containerRef.current;
+      if (!(containerElement instanceof HTMLElement)) {
+        console.warn('Container ref is not a valid HTMLElement');
+        return;
+      }
 
-    mapInstanceRef.current = new google.maps.Map(mapRef.current, {
-      center: defaultCenter,
-      zoom: 13,
-      mapTypeControl: false,
-      streetViewControl: false,
-      fullscreenControl: false,
-      zoomControl: true,
-      zoomControlOptions: {
-        position: google.maps.ControlPosition.RIGHT_CENTER,
-      },
-    });
+      // Ensure the element is in the document
+      if (!document.contains(containerElement)) {
+        // Wait for next frame to ensure element is mounted
+        requestAnimationFrame(() => {
+          if (!containerRef.current || !document.contains(containerRef.current) || mapInstanceRef.current) return;
+          
+          const defaultCenter = { lat: 25.0330, lng: 121.5654 };
+          try {
+            mapInstanceRef.current = new google.maps.Map(containerRef.current, {
+              center: defaultCenter,
+              zoom: 13,
+              mapTypeControl: false,
+              streetViewControl: false,
+              fullscreenControl: false,
+              zoomControl: true,
+              zoomControlOptions: {
+                position: google.maps.ControlPosition.RIGHT_CENTER,
+              },
+            });
+          } catch (error) {
+            console.error('Error initializing Google Maps:', error);
+          }
+        });
+        return;
+      }
+
+      // Default center: Taipei
+      const defaultCenter = { lat: 25.0330, lng: 121.5654 };
+
+      try {
+        mapInstanceRef.current = new google.maps.Map(containerElement, {
+          center: defaultCenter,
+          zoom: 13,
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: false,
+          zoomControl: true,
+          zoomControlOptions: {
+            position: google.maps.ControlPosition.RIGHT_CENTER,
+          },
+        });
+      } catch (error) {
+        console.error('Error initializing Google Maps:', error);
+      }
+    }
   }, [isLoaded]);
 
   // Update map when location is selected
@@ -70,18 +108,28 @@ export const SmallMap: React.FC<SmallMapProps> = ({ selectedLocation }) => {
 
   if (loadError) {
     return (
-      <div className="w-full h-64 bg-gray-100 rounded-lg flex items-center justify-center">
-        <p className="text-text-secondary text-sm">無法載入地圖：{loadError.message}</p>
+      <div className="w-full rounded-3xl bg-bg-card shadow-md p-5">
+        <h3 className="text-lg font-bold text-text-primary mb-3" style={{ fontFamily: 'Garamond, Baskerville, Georgia, Times New Roman, serif', fontWeight: 900 }}>
+          Location Preview
+        </h3>
+        <div className="mt-3 w-full h-[260px] bg-gray-100 rounded-2xl flex items-center justify-center">
+          <p className="text-text-secondary text-sm">無法載入地圖：{loadError.message}</p>
+        </div>
       </div>
     );
   }
 
   if (!isLoaded) {
     return (
-      <div className="w-full h-64 bg-gray-100 rounded-lg flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-primary mx-auto mb-2"></div>
-          <p className="text-text-secondary text-xs">載入地圖中...</p>
+      <div className="w-full rounded-3xl bg-bg-card shadow-md p-5">
+        <h3 className="text-lg font-bold text-text-primary mb-3" style={{ fontFamily: 'Garamond, Baskerville, Georgia, Times New Roman, serif', fontWeight: 900 }}>
+          Location Preview
+        </h3>
+        <div className="mt-3 w-full h-[260px] bg-gray-100 rounded-2xl flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-primary mx-auto mb-2"></div>
+            <p className="text-text-secondary text-xs">載入地圖中...</p>
+          </div>
         </div>
       </div>
     );
@@ -99,12 +147,12 @@ export const SmallMap: React.FC<SmallMapProps> = ({ selectedLocation }) => {
   };
 
   return (
-    <div className="bg-bg-card rounded-2xl border border-border-color p-4 shadow-sm">
+    <div id="location-preview-panel" className="w-full max-w-full rounded-3xl bg-bg-card shadow-md p-5">
       <h3 className="text-lg font-bold text-text-primary mb-3" style={{ fontFamily: 'Garamond, Baskerville, Georgia, Times New Roman, serif', fontWeight: 900 }}>
         Location Preview
       </h3>
       {selectedLocation ? (
-        <div className="mb-2">
+        <div className="mb-3">
           <p className="text-sm font-semibold text-text-primary">{selectedLocation.name}</p>
           {selectedLocation.address && (
             <p className="text-xs text-text-secondary mt-1">{selectedLocation.address}</p>
@@ -117,9 +165,11 @@ export const SmallMap: React.FC<SmallMapProps> = ({ selectedLocation }) => {
           </button>
         </div>
       ) : (
-        <p className="text-sm text-text-secondary mb-2">Select a restaurant location to preview it here</p>
+        <p className="text-sm text-text-secondary mb-3">Select a restaurant location to preview it here</p>
       )}
-      <div ref={mapRef} className="w-full h-64 rounded-lg overflow-hidden" />
+      <div className="mt-3 w-full max-w-full overflow-hidden rounded-2xl">
+        <div ref={containerRef} className="w-full h-[260px]" />
+      </div>
     </div>
   );
 };

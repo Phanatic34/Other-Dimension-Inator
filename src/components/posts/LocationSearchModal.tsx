@@ -47,7 +47,7 @@ export const LocationSearchModal: React.FC<LocationSearchModalProps> = ({
   const [manualLng, setManualLng] = useState<number | null>(null);
   const [manualRegion, setManualRegion] = useState<string>('');
 
-  const mapRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const markerRef = useRef<google.maps.Marker | null>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout>();
@@ -231,16 +231,29 @@ export const LocationSearchModal: React.FC<LocationSearchModalProps> = ({
 
   // Show map preview with marker
   const showMapPreview = useCallback((lat: number, lng: number) => {
-    if (!mapRef.current || !isLoaded) return;
+    // Guard: Google SDK not loaded or container not ready
+    if (!isLoaded || !window.google || !containerRef.current) return;
+
+    // Ensure the container is a valid DOM element
+    const containerElement = containerRef.current;
+    if (!(containerElement instanceof HTMLElement) || !document.contains(containerElement)) {
+      console.warn('Container ref is not a valid HTMLElement or not in document');
+      return;
+    }
 
     // Initialize map if not already
     if (!mapInstanceRef.current) {
-      mapInstanceRef.current = new google.maps.Map(mapRef.current, {
-        center: { lat, lng },
-        zoom: 15,
-        disableDefaultUI: true,
-        zoomControl: true,
-      });
+      try {
+        mapInstanceRef.current = new google.maps.Map(containerElement, {
+          center: { lat, lng },
+          zoom: 15,
+          disableDefaultUI: true,
+          zoomControl: true,
+        });
+      } catch (error) {
+        console.error('Error initializing Google Maps:', error);
+        return;
+      }
     } else {
       mapInstanceRef.current.setCenter({ lat, lng });
     }
@@ -416,16 +429,29 @@ export const LocationSearchModal: React.FC<LocationSearchModalProps> = ({
 
   // Show map preview for manual entry
   const showMapPreviewManual = useCallback((lat: number, lng: number, handleManualMapClick: (e: google.maps.MapMouseEvent) => void) => {
-    if (!mapRef.current || !isLoaded) return;
+    // Guard: Google SDK not loaded or container not ready
+    if (!isLoaded || !window.google || !containerRef.current) return;
+
+    // Ensure the container is a valid DOM element
+    const containerElement = containerRef.current;
+    if (!(containerElement instanceof HTMLElement) || !document.contains(containerElement)) {
+      console.warn('Container ref is not a valid HTMLElement or not in document');
+      return;
+    }
 
     if (!mapInstanceRef.current) {
-      mapInstanceRef.current = new google.maps.Map(mapRef.current, {
-        center: { lat, lng },
-        zoom: 15,
-        disableDefaultUI: true,
-        zoomControl: true,
-      });
-      mapInstanceRef.current.addListener('click', handleManualMapClick);
+      try {
+        mapInstanceRef.current = new google.maps.Map(containerElement, {
+          center: { lat, lng },
+          zoom: 15,
+          disableDefaultUI: true,
+          zoomControl: true,
+        });
+        mapInstanceRef.current.addListener('click', handleManualMapClick);
+      } catch (error) {
+        console.error('Error initializing Google Maps:', error);
+        return;
+      }
     } else {
       mapInstanceRef.current.setCenter({ lat, lng });
     }
@@ -491,7 +517,7 @@ export const LocationSearchModal: React.FC<LocationSearchModalProps> = ({
 
   // Initialize manual entry map with default location (Taipei)
   useEffect(() => {
-    if (showManualEntry && isLoaded && mapRef.current) {
+    if (showManualEntry && isLoaded && containerRef.current) {
       const defaultLat = 25.0330;
       const defaultLng = 121.5654;
       updateManualLocation(defaultLat, defaultLng);
@@ -651,7 +677,7 @@ export const LocationSearchModal: React.FC<LocationSearchModalProps> = ({
             {selectedPlace && selectedPlace.lat && selectedPlace.lng && (
               <div className="border-t border-gray-200 flex-shrink-0">
                 <div
-                  ref={mapRef}
+                  ref={containerRef}
                   className="w-full h-48"
                   style={{ minHeight: '192px' }}
                 />
@@ -719,7 +745,7 @@ export const LocationSearchModal: React.FC<LocationSearchModalProps> = ({
                   點擊地圖或拖動標記來設定餐廳位置
                 </p>
                 <div
-                  ref={mapRef}
+                  ref={containerRef}
                   className="w-full h-64 rounded-lg border border-gray-300"
                 />
                 {manualLat !== null && manualLng !== null && (

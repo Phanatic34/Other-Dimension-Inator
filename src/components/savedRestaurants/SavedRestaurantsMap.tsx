@@ -18,25 +18,62 @@ export const SavedRestaurantsMap: React.FC<SavedRestaurantsMapProps> = ({
   centerZoom = 16,
 }) => {
   const { isLoaded, loadError } = useGoogleMaps();
-  const mapRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<Map<string, google.maps.Marker>>(new Map());
   const searchMarkerRef = useRef<google.maps.Marker | null>(null); // Marker for search results
 
   // Initialize map
   useEffect(() => {
-    if (!isLoaded || !mapRef.current || mapInstanceRef.current) return;
+    // Guard: Google SDK not loaded or container not ready
+    if (!isLoaded || !window.google || !containerRef.current) return;
 
-    // Default center: Taipei
-    const defaultCenter = { lat: 25.0330, lng: 121.5654 };
+    // Only create the map once
+    if (!mapInstanceRef.current) {
+      // Ensure the container is a valid DOM element
+      const containerElement = containerRef.current;
+      if (!(containerElement instanceof HTMLElement)) {
+        console.warn('Container ref is not a valid HTMLElement');
+        return;
+      }
 
-    mapInstanceRef.current = new google.maps.Map(mapRef.current, {
-      center: defaultCenter,
-      zoom: 12,
-      mapTypeControl: false,
-      streetViewControl: false,
-      fullscreenControl: true,
-    });
+      // Ensure the element is in the document
+      if (!document.contains(containerElement)) {
+        // Wait for next frame to ensure element is mounted
+        requestAnimationFrame(() => {
+          if (!containerRef.current || !document.contains(containerRef.current) || mapInstanceRef.current) return;
+          
+          const defaultCenter = { lat: 25.0330, lng: 121.5654 };
+          try {
+            mapInstanceRef.current = new google.maps.Map(containerRef.current, {
+              center: defaultCenter,
+              zoom: 12,
+              mapTypeControl: false,
+              streetViewControl: false,
+              fullscreenControl: true,
+            });
+          } catch (error) {
+            console.error('Error initializing Google Maps:', error);
+          }
+        });
+        return;
+      }
+
+      // Default center: Taipei
+      const defaultCenter = { lat: 25.0330, lng: 121.5654 };
+
+      try {
+        mapInstanceRef.current = new google.maps.Map(containerElement, {
+          center: defaultCenter,
+          zoom: 12,
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: true,
+        });
+      } catch (error) {
+        console.error('Error initializing Google Maps:', error);
+      }
+    }
   }, [isLoaded]);
 
   // Update markers when restaurants change
@@ -169,6 +206,6 @@ export const SavedRestaurantsMap: React.FC<SavedRestaurantsMapProps> = ({
     );
   }
 
-  return <div ref={mapRef} className="w-full h-full rounded-lg" />;
+  return <div ref={containerRef} className="w-full h-full rounded-lg" />;
 };
 

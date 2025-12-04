@@ -15,6 +15,8 @@ import { PostTypeModal } from '../components/modals/PostTypeModal';
 import { PostModal } from '../components/modals/PostModal';
 import { YouMightLike } from '../components/profile/YouMightLike';
 import { SmallMap } from '../components/homepage/SmallMap';
+import { LocationPreviewProvider, useLocationPreview } from '../contexts/LocationPreviewContext';
+import { LocationSavePrompt } from '../components/LocationSavePrompt';
 
 // Active Filters Type (single-select per group)
 type ActiveFilters = {
@@ -27,7 +29,7 @@ type ActiveFilters = {
   distanceKm: number | null;
 };
 
-export const RendezvousHome: React.FC = () => {
+const RendezvousHomeContent: React.FC = () => {
   // State
   const [boards, setBoards] = useState<Board[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -41,7 +43,9 @@ export const RendezvousHome: React.FC = () => {
   const [postType, setPostType] = useState<PostType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [recommendedUsers, setRecommendedUsers] = useState<any[]>([]);
-  const [selectedLocation, setSelectedLocation] = useState<RestaurantLocation | null>(null);
+  
+  // Use context for location preview
+  const { setSelectedLocation } = useLocationPreview();
 
   // Centralized filter state
   const [filters, setFilters] = useState<ActiveFilters>({
@@ -103,9 +107,10 @@ export const RendezvousHome: React.FC = () => {
     loadData();
   }, []);
 
-  // Handle location selection from post cards
+  // Handle location selection from post cards (legacy handler for onLocationClick prop)
   const handleLocationSelect = (location: { name: string; address?: string; lat: number; lng: number }) => {
     setSelectedLocation({
+      id: `${location.name}-${location.address || ''}`,
       name: location.name,
       address: location.address,
       lat: location.lat,
@@ -254,7 +259,7 @@ export const RendezvousHome: React.FC = () => {
     // Apply comprehensive filters
     if (activeTab === 'reviews') {
       filtered = filtered.filter((post) => passesFilters(post as ReviewPost, filters));
-    } else {
+        } else {
       // For meetup posts, apply basic search filter
       if (filters.searchQuery) {
         filtered = filtered.filter((post) => matchesMeetupText(post as MeetupPost, filters.searchQuery));
@@ -428,7 +433,8 @@ export const RendezvousHome: React.FC = () => {
   }
 
       return (
-        <div className="h-screen flex flex-col bg-bg-primary transition-colors duration-300">
+        <div className="flex flex-col h-screen bg-[#FDF6EE]">
+          {/* Top nav bar */}
           <TopNavBar
             searchQuery={filters.searchQuery}
             onSearchChange={updateSearchQuery}
@@ -440,24 +446,26 @@ export const RendezvousHome: React.FC = () => {
             }}
           />
 
-          <div className="flex flex-1 w-full overflow-hidden">
-            <div className="flex items-stretch w-full">
-              {/* Left Sidebar (Desktop) */}
-              <aside className="hidden md:block w-80 bg-bg-tertiary border-r border-border-color transition-colors duration-300 self-stretch overflow-y-auto scrollbar-hidden">
-                <Sidebar
-                  boards={boards}
-                  selectedBoardId={selectedBoardId}
-                  onBoardSelect={setSelectedBoardId}
-                  filters={filters}
-                  onChangeStyle={updateStyle}
-                  onChangeCategory={updateCategory}
-                  onChangePrice={updatePrice}
-                  onApplyPrice={applyPrice}
-                  onChangeRating={updateRating}
-                  onChangeNearMe={updateDistance}
-                />
-              </aside>
+          {/* 3-column area under the nav */}
+          <div className="flex flex-1 w-full overflow-hidden bg-[#FDF6EE]">
+            {/* LEFT SIDEBAR */}
+            <aside className="hidden lg:flex flex-shrink-0 w-[320px] h-full bg-[#F2E4D0] border-r border-[#E0C9AB] overflow-y-auto overflow-x-hidden px-6 py-5">
+              <Sidebar
+                boards={boards}
+                selectedBoardId={selectedBoardId}
+                onBoardSelect={setSelectedBoardId}
+                filters={filters}
+                onChangeStyle={updateStyle}
+                onChangeCategory={updateCategory}
+                onChangePrice={updatePrice}
+                onApplyPrice={applyPrice}
+                onChangeRating={updateRating}
+                onChangeNearMe={updateDistance}
+              />
+            </aside>
 
+            {/* CENTER POSTS COLUMN (ONLY MAIN SCROLL AREA) */}
+            <main className="flex-1 min-w-0 h-full overflow-y-auto overflow-x-hidden bg-[#FFF4E7] px-8 py-4">
               {/* Mobile Board Chips */}
               <MobileBoardChips
                 boards={boards}
@@ -465,131 +473,131 @@ export const RendezvousHome: React.FC = () => {
                 onBoardSelect={setSelectedBoardId}
               />
 
-              {/* Center Feed */}
-              <main className="flex-1 min-w-0 max-w-2xl mx-auto bg-bg-secondary overflow-y-auto scrollbar-hidden">
-                {/* Tabs row at the very top of the center column, just under the navbar */}
-                <TabSwitcher
-                  activeTab={activeTab}
-                  onTabChange={setActiveTab}
-                  feedFilter={feedFilter}
-                  onFeedFilterChange={setFeedFilter}
-                />
+              {/* Tab bar 評價貼文串 / 揪吃飯貼文串 + All/Following */}
+              <TabSwitcher
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+                feedFilter={feedFilter}
+                onFeedFilterChange={setFeedFilter}
+              />
 
-                <div className="px-4" style={{ background: 'linear-gradient(to bottom, var(--bg-secondary), var(--bg-primary))' }}>
-                  {/* Feed top anchor for scrolling */}
-                  <div id="review-feed-top" />
-                  
-                  {/* Create Post Composer - Different for each tab */}
-              {activeTab === 'reviews' ? (
-                <section
-                  onClick={() => {
-                    setIsReviewModalOpen(true);
-                  }}
-                  className="mt-4 md:mt-6 mb-4 rounded-3xl border border-border-color bg-bg-card px-5 py-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
-                >
-                  <div className="flex gap-3">
-                    {/* Avatar */}
-                    <div className="mt-1 h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-[#f2e4d0]">
-                      <img
-                        src={
-                          currentUser.avatarUrl ||
-                          'https://images.squarespace-cdn.com/content/v1/5c34403aaa49a1c60b7e6c7e/1548979956856-ZSK82JV8UYCWVECAKEAS/person.png'
-                        }
-                        alt="Your avatar"
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
+              {/* Feed top anchor for scrolling */}
+              <div id="review-feed-top" />
 
-                    {/* Placeholder Text */}
-                    <div className="flex-1 flex items-center">
-                      <p className="text-[15px] text-text-secondary">
-                        今天吃了什麼好東西？分享一下用餐心得吧…
+              {/* Posts feed – constrain width */}
+              <div className="max-w-[720px] mx-auto space-y-4">
+                  {/* "今天吃了什麼好東西？" input card */}
+                  {activeTab === 'reviews' ? (
+                    <section
+                      onClick={() => {
+                        setIsReviewModalOpen(true);
+                      }}
+                      className="rounded-3xl border border-border-color bg-bg-card px-5 py-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex gap-3">
+                        {/* Avatar */}
+                        <div className="mt-1 h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-[#f2e4d0]">
+                          <img
+                            src={
+                              currentUser.avatarUrl ||
+                              'https://images.squarespace-cdn.com/content/v1/5c34403aaa49a1c60b7e6c7e/1548979956856-ZSK82JV8UYCWVECAKEAS/person.png'
+                            }
+                            alt="Your avatar"
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+
+                        {/* Placeholder Text */}
+                        <div className="flex-1 flex items-center">
+                          <p className="text-[15px] text-text-secondary">
+                            今天吃了什麼好東西？分享一下用餐心得吧…
+                          </p>
+                        </div>
+                      </div>
+                    </section>
+                  ) : activeTab === 'meetups' ? (
+                    <section
+                      onClick={() => {
+                        const type: PostType = 'meetup';
+                        console.log('Meetup composer placeholder clicked', { activeTab, postTypeNext: type });
+                        setPostType(type);
+                        setIsPostModalOpen(true);
+                      }}
+                      className="rounded-3xl border border-border-color bg-bg-card px-5 py-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex gap-3">
+                        {/* Avatar */}
+                        <div className="mt-1 h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-[#f2e4d0]">
+                          <img
+                            src={
+                              currentUser.avatarUrl ||
+                              'https://images.squarespace-cdn.com/content/v1/5c34403aaa49a1c60b7e6c7e/1548979956856-ZSK82JV8UYCWVECAKEAS/person.png'
+                            }
+                            alt="Your avatar"
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+
+                        {/* Placeholder Text */}
+                        <div className="flex-1 flex items-center">
+                          <p className="text-[15px] text-text-secondary">
+                            想找一起吃飯的夥伴？分享你的用餐計畫吧…
+                          </p>
+                        </div>
+                      </div>
+                    </section>
+                  ) : null}
+
+                  {/* posts feed */}
+                  {filteredPosts.length === 0 ? (
+                    <div className="text-center py-16">
+                      <p className="text-text-secondary text-xl mb-2">No posts found</p>
+                      <p className="text-text-secondary text-base opacity-70">
+                        Try adjusting your filters or search query
                       </p>
                     </div>
-                  </div>
-                </section>
-              ) : activeTab === 'meetups' ? (
-                <section
-                  onClick={() => {
-                    const type: PostType = 'meetup';
-                    console.log('Meetup composer placeholder clicked', { activeTab, postTypeNext: type });
-                    setPostType(type);
-                    setIsPostModalOpen(true);
-                  }}
-                  className="mt-4 md:mt-6 mb-4 rounded-3xl border border-border-color bg-bg-card px-5 py-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
-                >
-                  <div className="flex gap-3">
-                    {/* Avatar */}
-                    <div className="mt-1 h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-[#f2e4d0]">
-                      <img
-                        src={
-                          currentUser.avatarUrl ||
-                          'https://images.squarespace-cdn.com/content/v1/5c34403aaa49a1c60b7e6c7e/1548979956856-ZSK82JV8UYCWVECAKEAS/person.png'
-                        }
-                        alt="Your avatar"
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
-
-                    {/* Placeholder Text */}
-                    <div className="flex-1 flex items-center">
-                      <p className="text-[15px] text-text-secondary">
-                        想找一起吃飯的夥伴？分享你的用餐計畫吧…
-                      </p>
-                    </div>
-                  </div>
-                </section>
-              ) : null}
-
-              {filteredPosts.length === 0 ? (
-                <div className="text-center py-16">
-                  <p className="text-text-secondary text-xl mb-2">No posts found</p>
-                  <p className="text-text-secondary text-base opacity-70">
-                    Try adjusting your filters or search query
-                  </p>
-                </div>
-              ) : (
-                filteredPosts.map(post => {
-                  if (post.type === 'review') {
-                    return (
-                      <ReviewPostCard
-                        key={post.id}
-                        post={post}
-                        onClick={() => handlePostClick(post)}
-                        onTagClick={handleSearchFromTag}
-                        onLocationClick={handleLocationSelect}
-                        isOwnPost={post.author.id === currentUser.id}
-                      />
-                    );
-                  } else {
-                    return (
-                      <MeetupPostCard
-                        key={post.id}
-                        post={post}
-                        onClick={() => handlePostClick(post)}
-                        onTagClick={handleSearchFromTag}
-                        isOwnPost={post.author.id === currentUser.id}
-                      />
-                    );
-                  }
-                })
-              )}
-                </div>
-              </main>
-
-              {/* Right Sidebar */}
-              <aside className="hidden lg:block w-96 bg-bg-sidebar-right border-l border-border-color transition-colors duration-300 self-stretch overflow-y-auto scrollbar-hidden">
-                <div className="sticky top-0 p-5 space-y-5">
-                  {/* Small Map - 移到上面 */}
-                  <SmallMap selectedLocation={selectedLocation} />
-                  
-                  {/* You Might Like - 移到下面 */}
-                  {recommendedUsers.length > 0 && (
-                    <YouMightLike recommendedUsers={recommendedUsers} />
+                  ) : (
+                    filteredPosts.map(post => {
+                      if (post.type === 'review') {
+                        return (
+                          <ReviewPostCard
+                            key={post.id}
+                            post={post}
+                            onClick={() => handlePostClick(post)}
+                            onTagClick={handleSearchFromTag}
+                            onLocationClick={handleLocationSelect}
+                            isOwnPost={post.author.id === currentUser.id}
+                          />
+                        );
+                      } else {
+                        return (
+                          <MeetupPostCard
+                            key={post.id}
+                            post={post}
+                            onClick={() => handlePostClick(post)}
+                            onTagClick={handleSearchFromTag}
+                            isOwnPost={post.author.id === currentUser.id}
+                          />
+                        );
+                      }
+                    })
                   )}
-                </div>
-              </aside>
-            </div>
+              </div>
+            </main>
+
+            {/* RIGHT SIDEBAR */}
+            <aside className="hidden xl:flex flex-shrink-0 w-[360px] h-full bg-[#F2E4D0] border-l border-[#E0C9AB] overflow-y-auto overflow-x-hidden px-5 py-4">
+              {/* Right sidebar content = two stacked cards */}
+              <div className="flex flex-col gap-4 h-full w-full">
+                {/* 1. Location preview / map card on top */}
+                <SmallMap />
+                
+                {/* 2. You might like card below */}
+                {recommendedUsers.length > 0 && (
+                  <YouMightLike recommendedUsers={recommendedUsers} />
+                )}
+              </div>
+            </aside>
           </div>
 
           {/* Unified Post Composer Modal */}
@@ -706,7 +714,19 @@ export const RendezvousHome: React.FC = () => {
           }}
         />
       </PostModal>
-      </div>
-    );
-  };
+      
+      {/* Location Save Prompt */}
+      <LocationSavePrompt />
+    </div>
+  );
+};
+
+// Wrapper component with LocationPreviewProvider
+export const RendezvousHome: React.FC = () => {
+  return (
+    <LocationPreviewProvider>
+      <RendezvousHomeContent />
+    </LocationPreviewProvider>
+  );
+};
 

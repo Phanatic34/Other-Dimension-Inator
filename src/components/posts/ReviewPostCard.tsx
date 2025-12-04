@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ReviewPost } from '../../types/models';
 import { Edit3, Archive, Trash2, Bookmark, Flag } from 'lucide-react';
 import { PostActions } from './PostActions';
+import { useLocationPreview } from '../../contexts/LocationPreviewContext';
 
 interface ReviewPostCardProps {
   post: ReviewPost;
@@ -69,6 +70,9 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick, o
   // Like state
   const [isLiked, setIsLiked] = useState(false);
   const [currentLikeCount, setCurrentLikeCount] = useState(post.likeCount);
+
+  // Location preview context (optional - only available in RendezvousHome)
+  const { setSelectedLocation, setPendingSaveLocation, isProviderAvailable } = useLocationPreview();
 
   // Compute price info from priceMax
   const priceInfo = getPriceInfo(post.priceMax);
@@ -367,7 +371,7 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick, o
                 <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
               </svg>
             ))}
-          </div>
+      </div>
 
           {/* Numeric rating */}
           <span className="ml-2 font-semibold text-text-primary">
@@ -412,13 +416,15 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick, o
                   style={{
                     width: post.images!.length === 1 ? 'calc(100% - 2rem)' : '85%',
                     height: '300px',
+                    maxWidth: '100%',
+                    maxHeight: '420px',
                   }}
                   onClick={(e) => openLightbox(index, e)}
                 >
                   <img
                     src={imageUrl}
                     alt={`${post.restaurantName} - ${index + 1}`}
-                    className="w-full h-full object-cover hover:opacity-90 transition-opacity"
+                    className="w-full h-full max-w-full object-cover hover:opacity-90 transition-opacity"
                   />
                   {/* Image counter badge - HOVER ONLY */}
                   {post.images!.length > 1 && (
@@ -445,7 +451,7 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick, o
             <img 
               src={post.imageUrl} 
               alt={post.restaurantName}
-              className="w-full h-[300px] object-cover hover:opacity-90 transition-opacity"
+              className="w-full max-w-full h-[300px] max-h-[420px] object-cover hover:opacity-90 transition-opacity"
             />
           </div>
         ) : null}
@@ -468,16 +474,70 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick, o
           
           {/* Save restaurant location (map pin) - Review posts only */}
           <button 
-            className="flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity"
+            type="button"
+            className="flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={(e) => {
               e.stopPropagation();
-              console.log('save restaurant location', post.id);
+              
+              // Only work if context is available
+              if (!isProviderAvailable) {
+                console.warn('Location preview context not available');
+                return;
+              }
+              
+              // Check if we have coordinates
+              if (post.restaurantLat && post.restaurantLng) {
+                const loc = {
+                  id: post.id,
+                  name: post.restaurantName,
+                  address: post.restaurantAddress,
+                  lat: post.restaurantLat,
+                  lng: post.restaurantLng,
+                };
+                
+                setSelectedLocation(loc);
+                setPendingSaveLocation(loc);
+                
+                // Smooth scroll to the right sidebar location preview panel
+                setTimeout(() => {
+                  const panel = document.getElementById("location-preview-panel");
+                  if (panel) {
+                    panel.scrollIntoView({ behavior: "smooth", block: "start", inline: "nearest" });
+                  }
+                }, 100);
+              } else {
+                // Fallback: try to use default coordinates from locationArea
+                const defaultCoords = getDefaultCoordinates(post.locationArea);
+                if (defaultCoords) {
+                  const loc = {
+                    id: post.id,
+                    name: post.restaurantName,
+                    address: post.restaurantAddress || post.locationArea,
+                    lat: defaultCoords.lat,
+                    lng: defaultCoords.lng,
+                  };
+                  
+                  setSelectedLocation(loc);
+                  setPendingSaveLocation(loc);
+                  
+                  setTimeout(() => {
+                    const panel = document.getElementById("location-preview-panel");
+                    if (panel) {
+                      panel.scrollIntoView({ behavior: "smooth", block: "start", inline: "nearest" });
+                    }
+                  }, 100);
+                } else {
+                  console.warn('No coordinates available for restaurant:', post.restaurantName);
+                }
+              }
             }}
+            disabled={!isProviderAvailable}
+            aria-label="在右側預覽這間餐廳的位置"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
               <circle cx="12" cy="10" r="3"></circle>
-            </svg>
+          </svg>
           </button>
         </div>
       </div>

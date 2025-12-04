@@ -53,6 +53,8 @@ export function useGoogleMaps(): UseGoogleMapsReturn {
 
     script.addEventListener('load', () => {
       setIsLoaded(true);
+      // Note: You may see "ERR_BLOCKED_BY_CLIENT" errors for Google's gen_204 endpoint
+      // This is caused by ad blockers and is harmless - Maps will still work correctly
     });
 
     script.addEventListener('error', () => {

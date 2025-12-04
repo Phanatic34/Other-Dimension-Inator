@@ -27,7 +27,7 @@ export const YouMightLike: React.FC<YouMightLikeProps> = ({ recommendedUsers }) 
   }
 
   return (
-    <div className="bg-bg-card rounded-2xl border border-border-color p-5 shadow-sm">
+    <div className="w-full max-w-full rounded-3xl bg-bg-card shadow-md p-5">
       <h3 className="text-xl font-bold text-text-primary mb-4" style={{ fontFamily: 'Garamond, Baskerville, Georgia, Times New Roman, serif', fontWeight: 900 }}>
         You might like
       </h3>
