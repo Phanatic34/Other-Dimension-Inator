@@ -465,7 +465,7 @@ const RendezvousHomeContent: React.FC = () => {
             </aside>
 
             {/* CENTER POSTS COLUMN (ONLY MAIN SCROLL AREA) */}
-            <main className="flex-1 min-w-0 h-full overflow-y-auto overflow-x-hidden bg-[#FFF4E7] px-8 py-4">
+            <main className="flex-1 min-w-0 h-full overflow-y-auto overflow-x-hidden bg-[#FFF4E7] px-8 pt-0 pb-4">
               {/* Mobile Board Chips */}
               <MobileBoardChips
                 boards={boards}
