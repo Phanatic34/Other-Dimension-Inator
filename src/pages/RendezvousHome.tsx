@@ -473,13 +473,15 @@ const RendezvousHomeContent: React.FC = () => {
                 onBoardSelect={setSelectedBoardId}
               />
 
-              {/* Tab bar 評價貼文串 / 揪吃飯貼文串 + All/Following */}
-              <TabSwitcher
-                activeTab={activeTab}
-                onTabChange={setActiveTab}
-                feedFilter={feedFilter}
-                onFeedFilterChange={setFeedFilter}
-              />
+              {/* Tab bar 評價貼文串 / 揪吃飯貼文串 + All/Following - Full width */}
+              <div className="-mx-8 mb-4">
+                <TabSwitcher
+                  activeTab={activeTab}
+                  onTabChange={setActiveTab}
+                  feedFilter={feedFilter}
+                  onFeedFilterChange={setFeedFilter}
+                />
+              </div>
 
               {/* Feed top anchor for scrolling */}
               <div id="review-feed-top" />
