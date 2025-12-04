@@ -66,6 +66,10 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick, o
   // Menu state
   const [menuOpen, setMenuOpen] = useState(false);
 
+  // Like state
+  const [isLiked, setIsLiked] = useState(false);
+  const [currentLikeCount, setCurrentLikeCount] = useState(post.likeCount);
+
   // Compute price info from priceMax
   const priceInfo = getPriceInfo(post.priceMax);
 
@@ -450,10 +454,14 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick, o
         <div className="flex items-center gap-6 text-text-secondary text-sm pt-2">
           <PostActions
             postId={post.id}
-            likeCount={post.likeCount}
+            isLiked={isLiked}
+            likeCount={currentLikeCount}
             commentCount={post.commentCount}
             shareCount={post.shareCount}
-            onLike={(id) => console.log('like post', id)}
+            onLike={(id) => {
+              setIsLiked(!isLiked);
+              setCurrentLikeCount(prev => isLiked ? prev - 1 : prev + 1);
+            }}
             onComment={(id) => console.log('comment post', id)}
             onShare={(id) => console.log('share post', id)}
           />

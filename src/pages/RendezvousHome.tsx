@@ -443,7 +443,7 @@ export const RendezvousHome: React.FC = () => {
           <div className="flex flex-1 w-full overflow-hidden">
             <div className="flex items-stretch w-full">
               {/* Left Sidebar (Desktop) */}
-              <aside className="hidden md:block w-64 bg-bg-tertiary border-r border-border-color transition-colors duration-300 self-stretch overflow-y-auto scrollbar-hidden">
+              <aside className="hidden md:block w-80 bg-bg-tertiary border-r border-border-color transition-colors duration-300 self-stretch overflow-y-auto scrollbar-hidden">
                 <Sidebar
                   boards={boards}
                   selectedBoardId={selectedBoardId}
@@ -466,7 +466,7 @@ export const RendezvousHome: React.FC = () => {
               />
 
               {/* Center Feed */}
-              <main className="flex-1 min-w-0 bg-bg-secondary overflow-y-auto scrollbar-hidden">
+              <main className="flex-1 min-w-0 max-w-2xl mx-auto bg-bg-secondary overflow-y-auto scrollbar-hidden">
                 {/* Tabs row at the very top of the center column, just under the navbar */}
                 <TabSwitcher
                   activeTab={activeTab}
@@ -578,15 +578,15 @@ export const RendezvousHome: React.FC = () => {
               </main>
 
               {/* Right Sidebar */}
-              <aside className="hidden lg:block w-80 bg-bg-sidebar-right border-l border-border-color transition-colors duration-300 self-stretch overflow-y-auto scrollbar-hidden">
+              <aside className="hidden lg:block w-96 bg-bg-sidebar-right border-l border-border-color transition-colors duration-300 self-stretch overflow-y-auto scrollbar-hidden">
                 <div className="sticky top-0 p-5 space-y-5">
-                  {/* You Might Like */}
+                  {/* Small Map - 移到上面 */}
+                  <SmallMap selectedLocation={selectedLocation} />
+                  
+                  {/* You Might Like - 移到下面 */}
                   {recommendedUsers.length > 0 && (
                     <YouMightLike recommendedUsers={recommendedUsers} />
                   )}
-                  
-                  {/* Small Map */}
-                  <SmallMap selectedLocation={selectedLocation} />
                 </div>
               </aside>
             </div>
