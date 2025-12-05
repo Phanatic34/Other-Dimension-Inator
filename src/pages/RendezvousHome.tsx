@@ -433,7 +433,7 @@ const RendezvousHomeContent: React.FC = () => {
   }
 
       return (
-        <div className="flex flex-col h-screen bg-[#FDF6EE]">
+        <div className="flex flex-col h-screen bg-bg-primary transition-colors duration-300">
           {/* Top nav bar */}
           <TopNavBar
             searchQuery={filters.searchQuery}
@@ -447,9 +447,9 @@ const RendezvousHomeContent: React.FC = () => {
           />
 
           {/* 3-column area under the nav */}
-          <div className="flex flex-1 w-full overflow-hidden bg-[#FDF6EE]">
+          <div className="flex flex-1 w-full overflow-hidden bg-bg-primary transition-colors duration-300">
             {/* LEFT SIDEBAR */}
-            <aside className="hidden lg:flex flex-shrink-0 w-[320px] h-full bg-[#F2E4D0] border-r border-[#E0C9AB] overflow-y-auto overflow-x-hidden px-6 py-5">
+            <aside className="hidden lg:flex flex-shrink-0 w-[320px] h-full bg-bg-tertiary border-r border-border-color transition-colors duration-300 overflow-y-auto overflow-x-hidden px-6 py-5">
               <Sidebar
                 boards={boards}
                 selectedBoardId={selectedBoardId}
@@ -465,7 +465,7 @@ const RendezvousHomeContent: React.FC = () => {
             </aside>
 
             {/* CENTER POSTS COLUMN (ONLY MAIN SCROLL AREA) */}
-            <main className="flex-1 min-w-0 h-full overflow-y-auto overflow-x-hidden bg-[#FFF4E7] px-8 pt-0 pb-4">
+            <main className="flex-1 min-w-0 h-full overflow-y-auto overflow-x-hidden bg-bg-secondary transition-colors duration-300 px-8 pt-0 pb-4">
               {/* Mobile Board Chips */}
               <MobileBoardChips
                 boards={boards}
@@ -498,7 +498,7 @@ const RendezvousHomeContent: React.FC = () => {
                     >
                       <div className="flex gap-3">
                         {/* Avatar */}
-                        <div className="mt-1 h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-[#f2e4d0]">
+                        <div className="mt-1 h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-bg-tertiary">
                           <img
                             src={
                               currentUser.avatarUrl ||
@@ -529,7 +529,7 @@ const RendezvousHomeContent: React.FC = () => {
                     >
                       <div className="flex gap-3">
                         {/* Avatar */}
-                        <div className="mt-1 h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-[#f2e4d0]">
+                        <div className="mt-1 h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-bg-tertiary">
                           <img
                             src={
                               currentUser.avatarUrl ||
@@ -588,7 +588,7 @@ const RendezvousHomeContent: React.FC = () => {
             </main>
 
             {/* RIGHT SIDEBAR */}
-            <aside className="hidden xl:flex flex-shrink-0 w-[360px] h-full bg-[#F2E4D0] border-l border-[#E0C9AB] overflow-y-auto overflow-x-hidden px-5 py-4">
+            <aside className="hidden xl:flex flex-shrink-0 w-[360px] h-full bg-bg-sidebar-right border-l border-border-color transition-colors duration-300 overflow-y-auto overflow-x-hidden px-5 py-4">
               {/* Right sidebar content = two stacked cards */}
               <div className="flex flex-col gap-4 h-full w-full">
                 {/* 1. Location preview / map card on top */}

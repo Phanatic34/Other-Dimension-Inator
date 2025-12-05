@@ -10,18 +10,21 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [theme, setTheme] = useState<Theme>(() => {
-    const savedTheme = localStorage.getItem('theme') as Theme;
-    return savedTheme || 'dark';
-  });
+  // Force light theme only - no theme switching for now
+  const [theme] = useState<Theme>('light');
 
   useEffect(() => {
-    localStorage.setItem('theme', theme);
-    document.documentElement.setAttribute('data-theme', theme);
-  }, [theme]);
+    // Always set to light theme
+    document.documentElement.setAttribute('data-theme', 'light');
+    // Clear any saved dark theme preference
+    if (localStorage.getItem('theme') === 'dark') {
+      localStorage.removeItem('theme');
+    }
+  }, []);
 
   const toggleTheme = () => {
-    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+    // Disabled - theme switching not available yet
+    console.log('Theme switching is currently disabled');
   };
 
   return (

@@ -19,7 +19,7 @@ export const LocationSavePrompt: React.FC = () => {
   return (
     <div className="fixed inset-0 z-40 flex items-start justify-center pointer-events-none pt-[94px]">
       {/* top toast-style card - larger, positioned below top bar with pop-out animation */}
-      <div className="w-full max-w-md rounded-2xl bg-white shadow-xl border border-[#F0D3B0] px-6 py-4 pointer-events-auto animate-pop-in">
+      <div className="w-full max-w-md rounded-2xl bg-bg-card shadow-xl border border-border-color transition-colors duration-300 px-6 py-4 pointer-events-auto animate-pop-in">
         <div className="text-base font-semibold mb-2 text-text-primary">
           加入蒐藏清單？
         </div>

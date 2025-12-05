@@ -202,6 +202,11 @@ export const UserProfilePage: React.FC = () => {
                 ) : (
                   <div>
                     {currentPosts.map((post) => {
+                      // Only show "Edit" and "Archive" options for posts in the "Posts" tab
+                      // For reposts, likes, replies, and bookmarks, treat all posts as external
+                      // (show "Save" and "Report" options instead)
+                      const isOwnPost = activeTab === 'posts' && post.author.id === currentUserId;
+                      
                       if (post.type === 'review') {
                         return (
                           <ReviewPostCard
@@ -209,7 +214,7 @@ export const UserProfilePage: React.FC = () => {
                             post={post as ReviewPost}
                             onClick={() => handlePostClick(post)}
                             onTagClick={handleTagClick}
-                            isOwnPost={post.author.id === currentUserId}
+                            isOwnPost={isOwnPost}
                           />
                         );
                       } else {
@@ -219,7 +224,7 @@ export const UserProfilePage: React.FC = () => {
                             post={post as MeetupPost}
                             onClick={() => handlePostClick(post)}
                             onTagClick={handleTagClick}
-                            isOwnPost={post.author.id === currentUserId}
+                            isOwnPost={isOwnPost}
                           />
                         );
                       }

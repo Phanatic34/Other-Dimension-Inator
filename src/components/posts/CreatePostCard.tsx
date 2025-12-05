@@ -50,7 +50,7 @@ export function CreatePostCard({ avatarUrl }: CreatePostCardProps) {
       {/* Top row: Avatar + Textarea */}
       <div className="flex gap-3">
         {/* Avatar */}
-        <div className="mt-1 h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-[#f2e4d0]">
+        <div className="mt-1 h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-bg-tertiary">
           <img 
             src={avatarUrl || "https://images.squarespace-cdn.com/content/v1/5c34403aaa49a1c60b7e6c7e/1548979956856-ZSK82JV8UYCWVECAKEAS/person.png"} 
             alt="Your avatar" 
@@ -129,8 +129,8 @@ export function CreatePostCard({ avatarUrl }: CreatePostCardProps) {
           className={
             "rounded-full px-5 py-1.5 text-sm font-semibold transition-colors " +
             (isEmpty
-              ? "bg-[#d3c6b8] text-white cursor-not-allowed"
-              : "bg-[#b63a2f] text-white hover:brightness-110")
+              ? "bg-border-color text-white cursor-not-allowed opacity-50"
+              : "bg-accent-primary text-white hover:bg-accent-hover")
           }
         >
           發佈

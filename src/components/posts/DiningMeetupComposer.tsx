@@ -380,7 +380,7 @@ export const DiningMeetupComposer: React.FC<DiningMeetupComposerProps> = ({
     <section className="px-6 py-5">
             {/* Header */}
             <div className="flex gap-3 mb-5">
-              <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-[#f2e4d0]">
+              <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-bg-tertiary">
                 <img
                   src={
                     currentUser?.avatarUrl ||
@@ -817,8 +817,8 @@ export const DiningMeetupComposer: React.FC<DiningMeetupComposerProps> = ({
                 disabled={!isValid}
                 className={`px-8 py-2.5 rounded-full font-semibold text-white transition-all ${
                   isValid
-                    ? 'bg-[#b63a2f] hover:brightness-110 shadow-md hover:shadow-lg'
-                    : 'bg-[#d3c6b8] cursor-not-allowed'
+                    ? 'bg-accent-primary hover:bg-accent-hover shadow-md hover:shadow-lg'
+                    : 'bg-border-color cursor-not-allowed opacity-50'
                 }`}
               >
                 發佈
