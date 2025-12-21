@@ -92,3 +92,61 @@ export function selectWinner(
   return candidates[randomIndex];
 }
 
+/**
+ * Calculate weight from score using bounded function
+ * @param score - The style's score (can be negative)
+ * @returns Weight clamped between 0.3 and 2.5
+ */
+export function calculateWeight(score: number): number {
+  const weight = 1 + score * 0.15;
+  return Math.max(0.3, Math.min(2.5, weight));
+}
+
+/**
+ * Select a winner using weighted random selection
+ * @param availableItems - Items that can be selected
+ * @param lastPickedId - ID of the last picked item (to avoid repeats)
+ * @param scores - Record of styleId -> score
+ * @returns The selected item
+ */
+export function selectWinnerWeighted(
+  availableItems: Array<{ id: string; label: string }>,
+  lastPickedId: string | null,
+  scores: Record<string, number>
+): { id: string; label: string } {
+  if (availableItems.length === 0) {
+    throw new Error('No available items to select from');
+  }
+  
+  // If we have at least 3 items and a last picked, exclude it
+  let candidates = availableItems;
+  if (availableItems.length >= 3 && lastPickedId) {
+    candidates = availableItems.filter(item => item.id !== lastPickedId);
+    // If filtering left us with nothing, use all items
+    if (candidates.length === 0) {
+      candidates = availableItems;
+    }
+  }
+  
+  // Calculate weights for candidates
+  const weights = candidates.map(item => {
+    const score = scores[item.id] || 0;
+    return calculateWeight(score);
+  });
+  
+  // Calculate total weight
+  const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+  
+  // Weighted random selection
+  let random = Math.random() * totalWeight;
+  for (let i = 0; i < candidates.length; i++) {
+    random -= weights[i];
+    if (random <= 0) {
+      return candidates[i];
+    }
+  }
+  
+  // Fallback (shouldn't happen)
+  return candidates[candidates.length - 1];
+}
+

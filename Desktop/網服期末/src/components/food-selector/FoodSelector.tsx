@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { STYLE_OPTIONS } from '../../utils/tagOptions';
-import { calculateSegments, calculateTargetRotation, selectWinner, WheelSegment } from '../../utils/wheelMath';
+import { calculateSegments, calculateTargetRotation, selectWinnerWeighted, WheelSegment } from '../../utils/wheelMath';
 
 type MealTime = 'breakfast' | 'lunch' | 'dinner' | 'late-night';
 
@@ -16,10 +16,14 @@ const MEAL_TIME_OPTIONS: MealTimeOption[] = [
   { id: 'late-night', label: '宵夜' },
 ];
 
+type SpinPhase = 'idle' | 'spinningMain' | 'bouncing' | 'done';
+
 interface FoodSelectorState {
   selectedMealTime: MealTime | null;
-  excludedIds: string[]; // Array for serialization
+  excludedIds: string[];
   lastPickedId: string | null;
+  historyIds: string[];
+  // scores removed - not persisted to localStorage
 }
 
 const STORAGE_KEY = 'rendezvous-food-selector-state';
@@ -28,9 +32,13 @@ export const FoodSelector: React.FC = () => {
   const [selectedMealTime, setSelectedMealTime] = useState<MealTime | null>(null);
   const [excludedIds, setExcludedIds] = useState<Set<string>>(new Set());
   const [lastPickedId, setLastPickedId] = useState<string | null>(null);
-  const [isSpinning, setIsSpinning] = useState(false);
+  const [historyIds, setHistoryIds] = useState<string[]>([]);
+  const [scores, setScores] = useState<Record<string, number>>({});
+  const [spinPhase, setSpinPhase] = useState<SpinPhase>('idle');
   const [currentResult, setCurrentResult] = useState<{ id: string; label: string } | null>(null);
-  const [wheelRotation, setWheelRotation] = useState(0);
+  const [currentRotation, setCurrentRotation] = useState(0);
+  const [transitionDuration, setTransitionDuration] = useState('0ms');
+  const [transitionTiming, setTransitionTiming] = useState('ease-out');
   const wheelRef = useRef<HTMLDivElement>(null);
 
   // Load state from localStorage on mount
@@ -42,6 +50,8 @@ export const FoodSelector: React.FC = () => {
         setSelectedMealTime(parsed.selectedMealTime);
         setExcludedIds(new Set(parsed.excludedIds || []));
         setLastPickedId(parsed.lastPickedId || null);
+        setHistoryIds(parsed.historyIds || []);
+        // scores not loaded - start fresh on each page load
       }
     } catch (error) {
       console.error('Failed to load food selector state:', error);
@@ -53,14 +63,16 @@ export const FoodSelector: React.FC = () => {
     try {
       const state: FoodSelectorState = {
         selectedMealTime,
-        excludedIds: Array.from(excludedIds), // Convert Set to array for serialization
+        excludedIds: Array.from(excludedIds),
         lastPickedId,
+        historyIds,
+        // scores not persisted - memory only
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch (error) {
       console.error('Failed to save food selector state:', error);
     }
-  }, [selectedMealTime, excludedIds, lastPickedId]);
+  }, [selectedMealTime, excludedIds, lastPickedId, historyIds]);
 
   // Calculate available options (not excluded)
   const availableOptions = STYLE_OPTIONS.filter(opt => !excludedIds.has(opt.id));
@@ -71,11 +83,24 @@ export const FoodSelector: React.FC = () => {
   const segments = calculateSegments(availableOptions);
 
   // Validation: can spin if remainingCount >= 2
-  const canSpin = remainingCount >= 2 && !isSpinning;
+  const canSpin = remainingCount >= 2 && (spinPhase === 'idle' || spinPhase === 'done');
+
+  // Check if it's the first spin (no history yet)
+  const isFirstSpin = historyIds.length === 0;
+
+  // Get history labels for display
+  const historyLabels = historyIds
+    .slice(0, 3)
+    .map(id => {
+      const option = STYLE_OPTIONS.find(opt => opt.id === id);
+      return option ? option.label.split(' ')[0] : id;
+    })
+    .join(' → ');
 
   // Toggle exclusion for a style option
   const toggleExclusion = (id: string) => {
-    if (isSpinning) return;
+    // Allow toggling when idle or done (not during spinning)
+    if (spinPhase !== 'idle' && spinPhase !== 'done') return;
     
     setExcludedIds(prev => {
       const next = new Set(prev);
@@ -88,66 +113,113 @@ export const FoodSelector: React.FC = () => {
     });
   };
 
-  // Handle spin
+  // Handle spin with two-phase bounce animation
   const handleSpin = () => {
-    if (!canSpin || isSpinning) return;
+    if (!canSpin) return;
+    // Allow spinning from 'idle' or 'done' state
+    if (spinPhase !== 'idle' && spinPhase !== 'done') return;
 
-    setIsSpinning(true);
+    // Clear result if starting a new spin
+    if (currentResult) {
+      setCurrentResult(null);
+    }
+
+    setSpinPhase('spinningMain');
     
-    // Select winner (avoiding last picked if possible)
-    const winner = selectWinner(availableOptions, lastPickedId);
+    // Select winner using weighted selection
+    const winner = selectWinnerWeighted(availableOptions, lastPickedId, scores);
     
     // Find winner index
     const winnerIndex = availableOptions.findIndex(opt => opt.id === winner.id);
     
-    // Calculate target rotation
-    const targetRotation = calculateTargetRotation(winnerIndex, availableOptions.length);
+    // Calculate base rotation needed to land on winner (from 0)
+    // This already includes extra full rotations (5-8 turns)
+    const baseRotationFromZero = calculateTargetRotation(winnerIndex, availableOptions.length);
     
-    // Set rotation with transition
-    setWheelRotation(targetRotation);
+    // Calculate overshoot (6-14 degrees)
+    const overshootDeg = 6 + Math.random() * 8;
     
-    // Wait for animation to complete (3 seconds)
+    // Phase 1: Main spin with overshoot (add to current rotation)
+    const phase1Target = currentRotation + baseRotationFromZero + overshootDeg;
+    const phase1Duration = 2200 + Math.random() * 1000; // 2.2-3.2s
+    
+    // Store final target for phase 2 (phase1Target minus overshoot)
+    const finalTarget = currentRotation + baseRotationFromZero;
+    
+    setTransitionDuration(`${phase1Duration}ms`);
+    setTransitionTiming('cubic-bezier(0.15, 0.85, 0.25, 1)'); // Strong ease-out
+    setCurrentRotation(phase1Target);
+    
+    // After phase 1, start phase 2 (bounce back)
     setTimeout(() => {
-      setCurrentResult(winner);
-      setLastPickedId(winner.id);
-      setIsSpinning(false);
-    }, 3000);
+      setSpinPhase('bouncing');
+      const phase2Duration = 250 + Math.random() * 100; // 250-350ms
+      setTransitionDuration(`${phase2Duration}ms`);
+      setTransitionTiming('cubic-bezier(0.34, 1.56, 0.64, 1)'); // Bounce ease
+      setCurrentRotation(finalTarget);
+      
+      // After bounce completes, reveal result
+      setTimeout(() => {
+        setSpinPhase('done');
+        setCurrentResult(winner);
+        setLastPickedId(winner.id);
+        
+        // Update history
+        setHistoryIds(prev => {
+          const newHistory = [winner.id, ...prev.filter(id => id !== winner.id)];
+          return newHistory.slice(0, 3);
+        });
+      }, phase2Duration);
+    }, phase1Duration);
   };
 
   // Handle "spin again"
   const handleSpinAgain = () => {
     setCurrentResult(null);
-    setWheelRotation(0);
+    setSpinPhase('idle');
+    // Reset transition timing for next spin
+    setTransitionDuration('0ms');
     // Small delay to reset visual state
     setTimeout(() => {
       handleSpin();
     }, 100);
   };
 
+  // Handle "accept this result"
+  const handleAcceptResult = () => {
+    if (!currentResult) return;
+    
+    // Increment score for accepted style
+    setScores(prev => ({
+      ...prev,
+      [currentResult.id]: (prev[currentResult.id] || 0) + 1,
+    }));
+    
+    // Show feedback (optional toast - keeping it simple for now)
+    // Could add a toast notification here if desired
+  };
+
   // Handle "ban this result"
   const handleBanResult = () => {
     if (!currentResult) return;
+    
+    // Decrement score for banned style
+    setScores(prev => ({
+      ...prev,
+      [currentResult.id]: (prev[currentResult.id] || 0) - 1,
+    }));
     
     const newExcludedIds = new Set(excludedIds);
     newExcludedIds.add(currentResult.id);
     setExcludedIds(newExcludedIds);
     setCurrentResult(null);
     setLastPickedId(null);
-    setWheelRotation(0);
-    
-    // After banning, check if remaining < 2
-    // The warning will automatically show based on remainingCount calculation
+    setCurrentRotation(0);
+    setTransitionDuration('0ms');
+    setSpinPhase('idle');
   };
 
-  // Handle reset
-  const handleReset = () => {
-    setSelectedMealTime(null);
-    setExcludedIds(new Set());
-    setLastPickedId(null);
-    setCurrentResult(null);
-    setWheelRotation(0);
-    setIsSpinning(false);
-  };
+  // Reset handlers removed - no reset buttons in UI
 
   // Generate colors for wheel segments
   const getSegmentColor = (index: number): string => {
@@ -158,6 +230,8 @@ export const FoodSelector: React.FC = () => {
     ];
     return colors[index % colors.length];
   };
+
+  const isSpinning = spinPhase !== 'idle' && spinPhase !== 'done';
 
   return (
     <div className="max-w-[720px] mx-auto space-y-6 py-6">
@@ -211,7 +285,7 @@ export const FoodSelector: React.FC = () => {
           <p>已排除：{excludedCount}（至少需保留 2 種選擇才能開始）</p>
           {remainingCount < 2 && (
             <p className="text-red-600 font-medium">
-              排除太多，至少要保留 2 種選擇
+              排除種類過多，請保留至少 2 種
             </p>
           )}
         </div>
@@ -220,6 +294,18 @@ export const FoodSelector: React.FC = () => {
       {/* Wheel Spinner */}
       <section className="bg-bg-card rounded-3xl border border-border-color p-6 shadow-sm">
         <div className="flex flex-col items-center">
+          {/* Remaining count and history */}
+          <div className="w-full max-w-md mb-4 space-y-2 text-center">
+            <p className="text-base font-medium text-text-primary">
+              剩下：<span className="text-accent-primary font-bold">{remainingCount}</span> 種
+            </p>
+            {historyLabels && (
+              <p className="text-sm text-text-secondary">
+                最近：{historyLabels}
+              </p>
+            )}
+          </div>
+
           <div className="relative w-full max-w-md aspect-square mb-6">
             {/* Pointer at top */}
             <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-2 z-20">
@@ -230,9 +316,10 @@ export const FoodSelector: React.FC = () => {
             <div className="relative w-full h-full rounded-full overflow-hidden border-4 border-border-color shadow-lg">
               <div
                 ref={wheelRef}
-                className="w-full h-full transition-transform duration-[3000ms] ease-out"
+                className="w-full h-full"
                 style={{
-                  transform: `rotate(${wheelRotation}deg)`,
+                  transform: `rotate(${currentRotation}deg)`,
+                  transition: `transform ${transitionDuration} ${transitionTiming}`,
                 }}
               >
                 <svg viewBox="0 0 400 400" className="w-full h-full">
@@ -263,6 +350,22 @@ export const FoodSelector: React.FC = () => {
                     const textRadius = radius * 0.7;
                     const textX = centerX + textRadius * Math.sin(textAngleRad);
                     const textY = centerY - textRadius * Math.cos(textAngleRad);
+                    
+                    // Calculate rotation angle for text (make it upright/readable)
+                    // The text should be rotated to align with the radial direction
+                    // Add 90 degrees to make it upright (since we're using sin/cos from top)
+                    let textRotation = (textAngleRad * 180) / Math.PI + 90;
+                    
+                    // If text would be upside down (angle > 90 and < 270), flip it
+                    const normalizedAngle = ((textAngleRad * 180) / Math.PI + 360) % 360;
+                    if (normalizedAngle > 90 && normalizedAngle < 270) {
+                      textRotation += 180;
+                    }
+                    
+                    // Responsive font size based on number of segments
+                    const segmentCount = segments.length;
+                    const baseFontSize = segmentCount >= 10 ? 10 : 12;
+                    const fontSize = Math.max(10, Math.min(14, baseFontSize));
 
                     return (
                       <g key={segment.id}>
@@ -277,10 +380,16 @@ export const FoodSelector: React.FC = () => {
                           y={textY}
                           textAnchor="middle"
                           dominantBaseline="middle"
-                          className="text-xs font-bold fill-white"
-                          style={{ fontSize: '11px' }}
+                          transform={`rotate(${textRotation}, ${textX}, ${textY})`}
+                          style={{
+                            fontSize: `${fontSize}px`,
+                            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+                            fontWeight: 700,
+                            fill: '#ffffff',
+                            letterSpacing: '0.02em',
+                          }}
                         >
-                          <tspan x={textX} dy="0">{segment.label.split(' ')[0]}</tspan>
+                          {segment.label.split(' ')[0]}
                         </text>
                       </g>
                     );
@@ -293,11 +402,11 @@ export const FoodSelector: React.FC = () => {
           {/* Warning message if remaining < 2 */}
           {remainingCount < 2 && (
             <p className="text-red-600 font-medium mb-4 text-center">
-              排除太多，至少要保留 2 種選擇
+              排除種類過多，請保留至少 2 種
             </p>
           )}
 
-          {/* Spin button */}
+          {/* Spin button - changes text after first spin */}
           <button
             onClick={handleSpin}
             disabled={!canSpin}
@@ -308,7 +417,7 @@ export const FoodSelector: React.FC = () => {
             }`}
             style={canSpin ? { fontFamily: 'Garamond, Baskerville, Georgia, Times New Roman, serif', fontWeight: 900 } : {}}
           >
-            開始轉
+            {isFirstSpin ? '開始轉' : '再轉一次'}
           </button>
         </div>
       </section>
@@ -321,17 +430,17 @@ export const FoodSelector: React.FC = () => {
             <div className="text-2xl font-bold text-accent-primary py-4">
               {currentResult.label}
             </div>
-            <div className="flex gap-3 justify-center">
+            <div className="flex gap-3 justify-center flex-wrap">
               <button
-                onClick={handleSpinAgain}
-                disabled={!canSpin || isSpinning}
+                onClick={handleAcceptResult}
+                disabled={isSpinning}
                 className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
-                  canSpin && !isSpinning
-                    ? 'bg-accent-primary text-text-primary shadow-md hover:shadow-lg'
+                  !isSpinning
+                    ? 'bg-green-100 text-green-700 border-2 border-green-300 hover:bg-green-200'
                     : 'bg-bg-tertiary text-text-secondary cursor-not-allowed opacity-50'
                 }`}
               >
-                再轉一次
+                就吃這個
               </button>
               <button
                 onClick={handleBanResult}
@@ -349,21 +458,6 @@ export const FoodSelector: React.FC = () => {
         </section>
       )}
 
-      {/* Reset button */}
-      <div className="flex justify-center">
-        <button
-          onClick={handleReset}
-          disabled={isSpinning}
-          className={`px-6 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-            !isSpinning
-              ? 'text-text-secondary hover:text-text-primary hover:bg-bg-hover'
-              : 'text-text-secondary cursor-not-allowed opacity-50'
-          }`}
-        >
-          重置
-        </button>
-      </div>
     </div>
   );
 };
-
