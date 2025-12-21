@@ -13,6 +13,7 @@ import postsRouter from './routes/posts';
 import usersRouter from './routes/users';
 import restaurantsRouter from './routes/restaurants';
 import uploadRouter from './routes/upload';
+import commentsRouter from './routes/comments';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -55,6 +56,7 @@ app.use('/api/posts', postsRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/restaurants', restaurantsRouter);
 app.use('/api/upload', uploadRouter);
+app.use('/api/comments', commentsRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {

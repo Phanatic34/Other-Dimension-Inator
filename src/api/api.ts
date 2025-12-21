@@ -256,6 +256,98 @@ export async function unlikePost(postId: string, postType: 'review' | 'meetup') 
   }
 }
 
+// ================== Comments API ==================
+
+export interface Comment {
+  id: string;
+  postId: string;
+  postType: string;
+  author: {
+    id: string;
+    displayName: string;
+    handle: string;
+    avatarUrl?: string;
+  };
+  content: string;
+  likeCount: number;
+  isLikedByUser: boolean;
+  createdAt: string;
+  replies: Comment[];
+}
+
+export async function fetchComments(postId: string, postType: 'review' | 'meetup' = 'review'): Promise<Comment[]> {
+  try {
+    const response = await fetch(`${API_URL}/api/comments/${postId}?postType=${postType}`, {
+      headers: getHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to fetch comments');
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching comments:', error);
+    return [];
+  }
+}
+
+export async function createComment(postId: string, content: string, postType: 'review' | 'meetup' = 'review', parentId?: string): Promise<Comment | null> {
+  try {
+    const response = await fetch(`${API_URL}/api/comments`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ postId, postType, parentId, content }),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to create comment');
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error creating comment:', error);
+    throw error;
+  }
+}
+
+export async function likeComment(commentId: string) {
+  try {
+    const response = await fetch(`${API_URL}/api/comments/${commentId}/like`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to like comment');
+    return await response.json();
+  } catch (error) {
+    console.error('Error liking comment:', error);
+    throw error;
+  }
+}
+
+export async function unlikeComment(commentId: string) {
+  try {
+    const response = await fetch(`${API_URL}/api/comments/${commentId}/like`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to unlike comment');
+    return await response.json();
+  } catch (error) {
+    console.error('Error unliking comment:', error);
+    throw error;
+  }
+}
+
+export async function deleteComment(commentId: string) {
+  try {
+    const response = await fetch(`${API_URL}/api/comments/${commentId}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to delete comment');
+    return await response.json();
+  } catch (error) {
+    console.error('Error deleting comment:', error);
+    throw error;
+  }
+}
+
 // ================== Saved Restaurants API ==================
 
 export async function fetchSavedRestaurants() {

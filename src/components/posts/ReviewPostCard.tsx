@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ReviewPost } from '../../types/models';
 import { Edit3, Archive, Trash2, Bookmark, Flag } from 'lucide-react';
 import { PostActions } from './PostActions';
 import { useLocationPreview } from '../../contexts/LocationPreviewContext';
+import { CommentsSection } from '../comments/CommentsSection';
+import { likePost, unlikePost } from '../../api/api';
 
 interface ReviewPostCardProps {
   post: ReviewPost;
@@ -131,13 +133,26 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick, o
     return locationArea ? areaMap[locationArea] || null : null;
   };
 
-  // Helper function to parse and style hashtags
+  // Helper function to parse and style hashtags - clickable to search
   const renderContentWithHashtags = (text: string) => {
     const parts = text.split(/(#[\w\u4e00-\u9fa5]+)/g);
     return parts.map((part, index) => {
       if (part.startsWith('#')) {
-    return (
-          <span key={index} className="text-blue-500 hover:underline cursor-pointer">
+        const tagText = part.substring(1); // Remove # for search
+        return (
+          <span 
+            key={index} 
+            className="text-blue-500 hover:underline cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onTagClick) {
+                onTagClick(tagText);
+              } else {
+                // Navigate to search with hashtag
+                navigate(`/?search=${encodeURIComponent(tagText)}`);
+              }
+            }}
+          >
             {part}
           </span>
         );
@@ -484,13 +499,44 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick, o
             likeCount={currentLikeCount}
             commentCount={post.commentCount}
             shareCount={post.shareCount}
-            onLike={(id) => {
-              setIsLiked(!isLiked);
-              setCurrentLikeCount(prev => isLiked ? prev - 1 : prev + 1);
+            onLike={async (id) => {
+              try {
+                if (isLiked) {
+                  await unlikePost(id, 'review');
+                  setIsLiked(false);
+                  setCurrentLikeCount(prev => prev - 1);
+                } else {
+                  await likePost(id, 'review');
+                  setIsLiked(true);
+                  setCurrentLikeCount(prev => prev + 1);
+                }
+              } catch (error) {
+                console.error('Error toggling like:', error);
+              }
             }}
-            onComment={(id) => console.log('comment post', id)}
-            onShare={(id) => console.log('share post', id)}
+            onComment={(id) => {
+              // Scroll to comments section
+              const commentsSection = document.getElementById(`comments-${id}`);
+              if (commentsSection) {
+                commentsSection.scrollIntoView({ behavior: 'smooth' });
+              }
+            }}
+            onShare={(id) => {
+              // Copy post URL to clipboard
+              const url = `${window.location.origin}/post/${id}`;
+              navigator.clipboard.writeText(url);
+              alert('連結已複製到剪貼簿！');
+            }}
           />
+
+          {/* Comments Section */}
+          <div id={`comments-${post.id}`}>
+            <CommentsSection
+              postId={post.id}
+              postType="review"
+              initialCommentCount={post.commentCount}
+            />
+          </div>
           
           {/* Save restaurant location (map pin) - Review posts only */}
           <button 

@@ -380,17 +380,147 @@ async function seed() {
         ]
       );
 
+      // Delete existing images for this post first (to prevent duplicates)
+      await query('DELETE FROM post_images WHERE post_id = $1', [post.id]);
+      
       // Insert images
       if (post.images) {
         for (let i = 0; i < post.images.length; i++) {
           await query(
-            'INSERT INTO post_images (id, post_id, image_url, image_order) VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO NOTHING',
+            'INSERT INTO post_images (id, post_id, image_url, image_order) VALUES ($1, $2, $3, $4)',
             [uuidv4(), post.id, post.images[i], i]
           );
         }
       }
     }
     console.log(`✓ Inserted ${reviewPosts.length} review posts`);
+
+    // Insert sample comments
+    const comments = [
+      {
+        id: 'comment1',
+        postId: 'post-mcd-tianmu-1',
+        postType: 'review',
+        authorId: 'user2',
+        parentId: null,
+        content: '這家麥當勞真的很不錯！座位比其他分店寬敞多了 👍',
+      },
+      {
+        id: 'comment2',
+        postId: 'post-mcd-tianmu-1',
+        postType: 'review',
+        authorId: 'user3',
+        parentId: null,
+        content: '下次去天母一定要試試！',
+      },
+      {
+        id: 'comment3',
+        postId: 'post-mcd-tianmu-1',
+        postType: 'review',
+        authorId: 'user4',
+        parentId: 'comment1',
+        content: '對啊！而且冷氣也蠻強的 😂',
+      },
+      {
+        id: 'comment4',
+        postId: 'saboten-tianmu',
+        postType: 'review',
+        authorId: 'user1',
+        parentId: null,
+        content: '勝博殿的炸豬排真的是天花板等級！',
+      },
+      {
+        id: 'comment5',
+        postId: 'saboten-tianmu',
+        postType: 'review',
+        authorId: 'user5',
+        parentId: null,
+        content: '高麗菜絲無限續真的超棒 🥬',
+      },
+      {
+        id: 'comment6',
+        postId: 'saboten-tianmu',
+        postType: 'review',
+        authorId: 'lorry930811',
+        parentId: 'comment4',
+        content: '同意！我每次去都必點腰內肉 🐷',
+      },
+      {
+        id: 'comment7',
+        postId: 'review1',
+        postType: 'review',
+        authorId: 'user4',
+        parentId: null,
+        content: '一蘭的湯頭真的無敵！雖然貴但值得',
+      },
+      {
+        id: 'comment8',
+        postId: 'review3',
+        postType: 'review',
+        authorId: 'user2',
+        parentId: null,
+        content: 'Lady M 的千層真的太好吃了！😍',
+      },
+      {
+        id: 'comment9',
+        postId: 'review3',
+        postType: 'review',
+        authorId: 'real_harrystyles',
+        parentId: 'comment8',
+        content: 'The mille crepe is absolutely divine! 🍰',
+      },
+      {
+        id: 'comment10',
+        postId: 'meetup1',
+        postType: 'meetup',
+        authorId: 'user3',
+        parentId: null,
+        content: '我想參加！還有位置嗎？',
+      },
+      {
+        id: 'comment11',
+        postId: 'meetup1',
+        postType: 'meetup',
+        authorId: 'user1',
+        parentId: 'comment10',
+        content: '有的！歡迎一起來 🙌',
+      },
+    ];
+
+    // Delete existing comments first
+    await query('DELETE FROM comments WHERE id LIKE $1', ['comment%']);
+    
+    for (const comment of comments) {
+      await query(
+        `INSERT INTO comments (id, post_id, post_type, author_id, parent_id, content, created_at) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          comment.id,
+          comment.postId,
+          comment.postType,
+          comment.authorId,
+          comment.parentId,
+          comment.content,
+          new Date(Date.now() - Math.random() * 86400000).toISOString(), // Random time in last 24 hours
+        ]
+      );
+    }
+    console.log(`✓ Inserted ${comments.length} sample comments`);
+
+    // Update comment counts on posts
+    await query(`
+      UPDATE review_posts rp 
+      SET comment_count = (
+        SELECT COUNT(*) FROM comments c WHERE c.post_id = rp.id AND c.post_type = 'review'
+      )
+    `);
+    await query(`
+      UPDATE meetup_posts mp 
+      SET comment_count = (
+        SELECT COUNT(*) FROM comments c WHERE c.post_id = mp.id AND c.post_type = 'meetup'
+      )
+    `);
+    console.log('✓ Updated comment counts');
 
     // Insert meetup posts
     const meetupPosts = [

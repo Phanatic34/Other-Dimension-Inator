@@ -94,17 +94,34 @@ CREATE TABLE IF NOT EXISTS post_images (
   FOREIGN KEY (post_id) REFERENCES review_posts(id) ON DELETE CASCADE
 );
 
--- Comments table
+-- Comments table (for review posts, supports nested replies)
 CREATE TABLE IF NOT EXISTS comments (
   id TEXT PRIMARY KEY,
   post_id TEXT NOT NULL,
+  post_type TEXT NOT NULL DEFAULT 'review' CHECK(post_type IN ('review', 'meetup')),
   author_id TEXT NOT NULL,
+  parent_id TEXT, -- NULL for top-level comments, comment_id for replies
   content TEXT NOT NULL,
+  like_count INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
   FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE,
-  FOREIGN KEY (post_id) REFERENCES review_posts(id) ON DELETE CASCADE
+  FOREIGN KEY (parent_id) REFERENCES comments(id) ON DELETE CASCADE
 );
+
+-- Comment likes table
+CREATE TABLE IF NOT EXISTS comment_likes (
+  id TEXT PRIMARY KEY,
+  comment_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  UNIQUE(comment_id, user_id),
+  FOREIGN KEY (comment_id) REFERENCES comments(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Post images unique constraint (prevent duplicates)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_post_images_unique ON post_images(post_id, image_order);
 
 -- Likes table
 CREATE TABLE IF NOT EXISTS likes (

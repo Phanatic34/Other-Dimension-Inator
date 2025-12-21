@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { MeetupPost } from '../../types/models';
 import { PostActions } from './PostActions';
 import { Edit3, Archive, Trash2, Bookmark, Flag } from 'lucide-react';
+import { CommentsSection } from '../comments/CommentsSection';
+import { likePost, unlikePost } from '../../api/api';
 
 interface MeetupPostCardProps {
   post: MeetupPost;
@@ -383,6 +385,9 @@ export const MeetupPostCard: React.FC<MeetupPostCardProps> = ({ post, onClick, o
                 e.stopPropagation();
                 if (onTagClick) {
                   onTagClick(tag);
+                } else {
+                  // Navigate to search with tag
+                  navigate(`/?search=${encodeURIComponent(tag)}`);
                 }
               }}
             >
@@ -492,12 +497,43 @@ export const MeetupPostCard: React.FC<MeetupPostCardProps> = ({ post, onClick, o
             likeCount={currentLikeCount}
             commentCount={post.commentCount}
             shareCount={post.shareCount}
-            onLike={(id) => {
-              setIsLiked(!isLiked);
-              setCurrentLikeCount(prev => isLiked ? prev - 1 : prev + 1);
+            onLike={async (id) => {
+              try {
+                if (isLiked) {
+                  await unlikePost(id, 'meetup');
+                  setIsLiked(false);
+                  setCurrentLikeCount(prev => prev - 1);
+                } else {
+                  await likePost(id, 'meetup');
+                  setIsLiked(true);
+                  setCurrentLikeCount(prev => prev + 1);
+                }
+              } catch (error) {
+                console.error('Error toggling like:', error);
+              }
             }}
-            onComment={(id) => console.log('comment meetup post', id)}
-            onShare={(id) => console.log('share meetup post', id)}
+            onComment={(id) => {
+              // Scroll to comments section
+              const commentsSection = document.getElementById(`comments-${id}`);
+              if (commentsSection) {
+                commentsSection.scrollIntoView({ behavior: 'smooth' });
+              }
+            }}
+            onShare={(id) => {
+              // Copy post URL to clipboard
+              const url = `${window.location.origin}/post/${id}`;
+              navigator.clipboard.writeText(url);
+              alert('連結已複製到剪貼簿！');
+            }}
+          />
+        </div>
+
+        {/* Comments Section */}
+        <div id={`comments-${post.id}`}>
+          <CommentsSection
+            postId={post.id}
+            postType="meetup"
+            initialCommentCount={post.commentCount}
           />
         </div>
       </div>
