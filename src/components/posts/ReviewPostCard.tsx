@@ -13,6 +13,9 @@ interface ReviewPostCardProps {
   onTagClick?: (tag: string) => void;
   onLocationClick?: (location: { name: string; address?: string; lat: number; lng: number }) => void;
   isOwnPost?: boolean;
+  onEdit?: (post: ReviewPost) => void;
+  onDelete?: (post: ReviewPost) => void;
+  onArchive?: (post: ReviewPost) => void;
 }
 
 interface MenuActionItemProps {
@@ -62,7 +65,7 @@ function getPriceInfo(maxPrice: number | null | undefined) {
   return { symbols: "$$$$$", label: "NT$5000+" };
 }
 
-export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick, onTagClick, onLocationClick, isOwnPost = false }) => {
+export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick, onTagClick, onLocationClick, isOwnPost = false, onEdit, onDelete, onArchive }) => {
   const navigate = useNavigate();
   
   // Lightbox state
@@ -283,16 +286,16 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick, o
                         icon={<Edit3 className="w-4 h-4" />}
                         label="Edit this post"
                         onClick={() => {
-                          console.log('Edit post', post.id);
                           setMenuOpen(false);
+                          if (onEdit) onEdit(post);
                         }}
                       />
                       <MenuActionItem
                         icon={<Archive className="w-4 h-4" />}
                         label="Archive this post"
                         onClick={() => {
-                          console.log('Archive post', post.id);
                           setMenuOpen(false);
+                          if (onArchive) onArchive(post);
                         }}
                       />
                       <MenuActionItem
@@ -300,8 +303,12 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick, o
                         label="Delete this post"
                         destructive
                         onClick={() => {
-                          console.log('Delete post', post.id);
                           setMenuOpen(false);
+                          if (onDelete) {
+                            if (window.confirm('確定要刪除這篇貼文嗎？此操作無法撤銷。')) {
+                              onDelete(post);
+                            }
+                          }
                         }}
                       />
                     </>

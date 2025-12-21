@@ -6,7 +6,11 @@ import {
   fetchAllPosts, 
   fetchRecommendedUsers as fetchRecommendedUsersAPI,
   createReviewPost as createReviewPostAPI,
-  createMeetupPost as createMeetupPostAPI 
+  createMeetupPost as createMeetupPostAPI,
+  deleteReviewPost as deleteReviewPostAPI,
+  deleteMeetupPost as deleteMeetupPostAPI,
+  updateReviewPost as updateReviewPostAPI,
+  updateMeetupPost as updateMeetupPostAPI
 } from '../api/api';
 import { fetchBoards as fetchMockBoards, fetchPosts as fetchMockPosts } from '../api/mock';
 import { useAuth } from '../contexts/AuthContext';
@@ -540,6 +544,50 @@ const RendezvousHomeContent: React.FC = () => {
     }
   };
 
+  // Handler to delete a review post
+  const handleDeleteReviewPost = async (post: ReviewPost) => {
+    try {
+      await deleteReviewPostAPI(post.id);
+      // Remove from local state
+      setPosts((prev) => prev.filter((p) => p.id !== post.id));
+    } catch (error) {
+      console.error('Error deleting review post:', error);
+      alert('刪除貼文失敗，請稍後再試');
+    }
+  };
+
+  // Handler to delete a meetup post
+  const handleDeleteMeetupPost = async (post: MeetupPost) => {
+    try {
+      await deleteMeetupPostAPI(post.id);
+      // Remove from local state
+      setPosts((prev) => prev.filter((p) => p.id !== post.id));
+    } catch (error) {
+      console.error('Error deleting meetup post:', error);
+      alert('刪除貼文失敗，請稍後再試');
+    }
+  };
+
+  // Handler to edit a review post (opens modal or navigates)
+  const handleEditReviewPost = (post: ReviewPost) => {
+    // For now, show an alert - implement full edit modal later
+    alert(`編輯功能開發中...\n\n貼文標題: ${post.title || post.restaurantName}`);
+    // TODO: Open edit modal with post data
+  };
+
+  // Handler to edit a meetup post (opens modal or navigates)
+  const handleEditMeetupPost = (post: MeetupPost) => {
+    // For now, show an alert - implement full edit modal later
+    alert(`編輯功能開發中...\n\n揪團: ${post.restaurantName}`);
+    // TODO: Open edit modal with post data
+  };
+
+  // Handler to archive a post (placeholder)
+  const handleArchivePost = (post: ReviewPost | MeetupPost) => {
+    alert(`封存功能開發中...\n\n貼文: ${post.restaurantName}`);
+    // TODO: Implement archive API
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-bg-primary transition-colors duration-300">
@@ -709,6 +757,9 @@ const RendezvousHomeContent: React.FC = () => {
                             onTagClick={handleSearchFromTag}
                             onLocationClick={handleLocationSelect}
                             isOwnPost={post.author.id === currentUser.id}
+                            onEdit={handleEditReviewPost}
+                            onDelete={handleDeleteReviewPost}
+                            onArchive={handleArchivePost}
                           />
                         );
                       } else {
@@ -719,6 +770,9 @@ const RendezvousHomeContent: React.FC = () => {
                             onClick={() => handlePostClick(post)}
                             onTagClick={handleSearchFromTag}
                             isOwnPost={post.author.id === currentUser.id}
+                            onEdit={handleEditMeetupPost}
+                            onDelete={handleDeleteMeetupPost}
+                            onArchive={handleArchivePost}
                           />
                         );
                       }

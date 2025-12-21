@@ -11,6 +11,9 @@ interface MeetupPostCardProps {
   onClick?: () => void;
   onTagClick?: (tag: string) => void;
   isOwnPost?: boolean;
+  onEdit?: (post: MeetupPost) => void;
+  onDelete?: (post: MeetupPost) => void;
+  onArchive?: (post: MeetupPost) => void;
 }
 
 interface MenuActionItemProps {
@@ -135,7 +138,7 @@ const parseBudget = (budgetDescription: string): {
   };
 };
 
-export const MeetupPostCard: React.FC<MeetupPostCardProps> = ({ post, onClick, onTagClick, isOwnPost = false }) => {
+export const MeetupPostCard: React.FC<MeetupPostCardProps> = ({ post, onClick, onTagClick, isOwnPost = false, onEdit, onDelete, onArchive }) => {
   const navigate = useNavigate();
   const isFull = post.currentHeadcount >= post.maxHeadcount;
   const isClosed = post.status === 'CLOSED' || isFull;
@@ -306,16 +309,16 @@ export const MeetupPostCard: React.FC<MeetupPostCardProps> = ({ post, onClick, o
                     icon={<Edit3 className="w-4 h-4" />}
                     label="Edit this post"
                     onClick={() => {
-                      console.log('Edit post', post.id);
                       setMenuOpen(false);
+                      if (onEdit) onEdit(post);
                     }}
                   />
                   <MenuActionItem
                     icon={<Archive className="w-4 h-4" />}
                     label="Archive this post"
                     onClick={() => {
-                      console.log('Archive post', post.id);
                       setMenuOpen(false);
+                      if (onArchive) onArchive(post);
                     }}
                   />
                   <MenuActionItem
@@ -323,8 +326,12 @@ export const MeetupPostCard: React.FC<MeetupPostCardProps> = ({ post, onClick, o
                     label="Delete this post"
                     destructive
                     onClick={() => {
-                      console.log('Delete post', post.id);
                       setMenuOpen(false);
+                      if (onDelete) {
+                        if (window.confirm('確定要刪除這篇貼文嗎？此操作無法撤銷。')) {
+                          onDelete(post);
+                        }
+                      }
                     }}
                   />
                 </>

@@ -154,6 +154,105 @@ export async function createMeetupPost(postData: {
   }
 }
 
+export async function updateReviewPost(postId: string, postData: {
+  restaurantName?: string;
+  restaurantAddress?: string;
+  restaurantLat?: number;
+  restaurantLng?: number;
+  locationArea?: string;
+  boardId?: string;
+  styleType?: string;
+  foodType?: string;
+  title?: string;
+  content?: string;
+  rating?: number;
+  priceLevel?: string;
+  priceMin?: number;
+  priceMax?: number;
+  images?: string[];
+}) {
+  try {
+    const response = await fetch(`${API_URL}/api/posts/review/${postId}`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(postData),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to update post');
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error updating review post:', error);
+    throw error;
+  }
+}
+
+export async function updateMeetupPost(postId: string, postData: {
+  restaurantName?: string;
+  locationText?: string;
+  address?: string;
+  meetupTime?: string;
+  foodTags?: string[];
+  maxHeadcount?: number;
+  budgetDescription?: string;
+  hasReservation?: boolean;
+  description?: string;
+  imageUrl?: string;
+  boardId?: string;
+  locationArea?: string;
+}) {
+  try {
+    const response = await fetch(`${API_URL}/api/posts/meetup/${postId}`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(postData),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to update meetup post');
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error updating meetup post:', error);
+    throw error;
+  }
+}
+
+export async function deleteReviewPost(postId: string) {
+  try {
+    const response = await fetch(`${API_URL}/api/posts/review/${postId}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to delete post');
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error deleting review post:', error);
+    throw error;
+  }
+}
+
+export async function deleteMeetupPost(postId: string) {
+  try {
+    const response = await fetch(`${API_URL}/api/posts/meetup/${postId}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to delete meetup post');
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error deleting meetup post:', error);
+    throw error;
+  }
+}
+
 // ================== Boards API ==================
 
 export async function fetchBoards() {

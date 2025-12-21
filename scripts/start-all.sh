@@ -144,3 +144,4 @@ npm start
 # Cleanup: Stop backend when frontend stops
 kill $BACKEND_PID 2>/dev/null
 
+

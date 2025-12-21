@@ -526,5 +526,210 @@ router.delete('/:id/like', requireDatabase, requireAuth, async (req: Request, re
   }
 });
 
+// PUT /api/posts/review/:id - Update a review post
+router.put('/review/:id', requireDatabase, requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = (req as any).userId;
+
+    // Check if user owns this post
+    const existingPost = await query('SELECT * FROM review_posts WHERE id = $1', [id]);
+    if (existingPost.rows.length === 0) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+    if (existingPost.rows[0].author_id !== userId) {
+      return res.status(403).json({ error: 'Not authorized to edit this post' });
+    }
+
+    const {
+      restaurantName,
+      restaurantAddress,
+      restaurantLat,
+      restaurantLng,
+      locationArea,
+      boardId,
+      styleType,
+      foodType,
+      title,
+      content,
+      rating,
+      priceLevel,
+      priceMin,
+      priceMax,
+      images,
+    } = req.body;
+
+    await query(
+      `UPDATE review_posts SET 
+        restaurant_name = COALESCE($1, restaurant_name),
+        restaurant_address = COALESCE($2, restaurant_address),
+        restaurant_lat = COALESCE($3, restaurant_lat),
+        restaurant_lng = COALESCE($4, restaurant_lng),
+        location_area = COALESCE($5, location_area),
+        board_id = COALESCE($6, board_id),
+        style_type = COALESCE($7, style_type),
+        food_type = COALESCE($8, food_type),
+        title = COALESCE($9, title),
+        content = COALESCE($10, content),
+        rating = COALESCE($11, rating),
+        price_level = COALESCE($12, price_level),
+        price_min = COALESCE($13, price_min),
+        price_max = COALESCE($14, price_max),
+        updated_at = NOW()
+      WHERE id = $15`,
+      [
+        restaurantName, restaurantAddress, restaurantLat, restaurantLng,
+        locationArea, boardId, styleType, foodType, title, content,
+        rating, priceLevel, priceMin, priceMax, id
+      ]
+    );
+
+    // Update images if provided
+    if (images && Array.isArray(images)) {
+      // Delete existing images
+      await query('DELETE FROM post_images WHERE post_id = $1', [id]);
+      // Insert new images
+      for (let i = 0; i < images.length; i++) {
+        await query(
+          'INSERT INTO post_images (id, post_id, image_url, image_order) VALUES ($1, $2, $3, $4)',
+          [uuidv4(), id, images[i], i]
+        );
+      }
+    }
+
+    // Fetch updated post
+    const result = await query('SELECT * FROM review_posts WHERE id = $1', [id]);
+    const post = await populateReviewPost(result.rows[0], userId);
+
+    res.json(post);
+  } catch (error) {
+    console.error('Error updating review post:', error);
+    res.status(500).json({ error: 'Failed to update post' });
+  }
+});
+
+// PUT /api/posts/meetup/:id - Update a meetup post
+router.put('/meetup/:id', requireDatabase, requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = (req as any).userId;
+
+    // Check if user owns this post
+    const existingPost = await query('SELECT * FROM meetup_posts WHERE id = $1', [id]);
+    if (existingPost.rows.length === 0) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+    if (existingPost.rows[0].author_id !== userId) {
+      return res.status(403).json({ error: 'Not authorized to edit this post' });
+    }
+
+    const {
+      restaurantName,
+      locationText,
+      address,
+      meetupTime,
+      foodTags,
+      maxHeadcount,
+      budgetDescription,
+      hasReservation,
+      description,
+      imageUrl,
+      boardId,
+      locationArea,
+    } = req.body;
+
+    await query(
+      `UPDATE meetup_posts SET 
+        restaurant_name = COALESCE($1, restaurant_name),
+        location_text = COALESCE($2, location_text),
+        address = COALESCE($3, address),
+        meetup_time = COALESCE($4, meetup_time),
+        food_tags = COALESCE($5, food_tags),
+        max_headcount = COALESCE($6, max_headcount),
+        budget_description = COALESCE($7, budget_description),
+        has_reservation = COALESCE($8, has_reservation),
+        description = COALESCE($9, description),
+        image_url = COALESCE($10, image_url),
+        board_id = COALESCE($11, board_id),
+        location_area = COALESCE($12, location_area),
+        updated_at = NOW()
+      WHERE id = $13`,
+      [
+        restaurantName, locationText, address, meetupTime, foodTags,
+        maxHeadcount, budgetDescription, hasReservation, description,
+        imageUrl, boardId, locationArea, id
+      ]
+    );
+
+    // Fetch updated post
+    const result = await query('SELECT * FROM meetup_posts WHERE id = $1', [id]);
+    const post = await populateMeetupPost(result.rows[0], userId);
+
+    res.json(post);
+  } catch (error) {
+    console.error('Error updating meetup post:', error);
+    res.status(500).json({ error: 'Failed to update post' });
+  }
+});
+
+// DELETE /api/posts/review/:id - Delete a review post
+router.delete('/review/:id', requireDatabase, requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = (req as any).userId;
+
+    // Check if user owns this post
+    const existingPost = await query('SELECT * FROM review_posts WHERE id = $1', [id]);
+    if (existingPost.rows.length === 0) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+    if (existingPost.rows[0].author_id !== userId) {
+      return res.status(403).json({ error: 'Not authorized to delete this post' });
+    }
+
+    // Delete associated data first (images, likes, comments)
+    await query('DELETE FROM post_images WHERE post_id = $1', [id]);
+    await query('DELETE FROM likes WHERE post_id = $1', [id]);
+    await query('DELETE FROM comments WHERE post_id = $1', [id]);
+    
+    // Delete the post
+    await query('DELETE FROM review_posts WHERE id = $1', [id]);
+
+    res.json({ success: true, message: 'Post deleted' });
+  } catch (error) {
+    console.error('Error deleting review post:', error);
+    res.status(500).json({ error: 'Failed to delete post' });
+  }
+});
+
+// DELETE /api/posts/meetup/:id - Delete a meetup post
+router.delete('/meetup/:id', requireDatabase, requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = (req as any).userId;
+
+    // Check if user owns this post
+    const existingPost = await query('SELECT * FROM meetup_posts WHERE id = $1', [id]);
+    if (existingPost.rows.length === 0) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+    if (existingPost.rows[0].author_id !== userId) {
+      return res.status(403).json({ error: 'Not authorized to delete this post' });
+    }
+
+    // Delete associated data first (likes, comments)
+    await query('DELETE FROM meetup_likes WHERE post_id = $1', [id]);
+    await query('DELETE FROM comments WHERE post_id = $1', [id]);
+    
+    // Delete the post
+    await query('DELETE FROM meetup_posts WHERE id = $1', [id]);
+
+    res.json({ success: true, message: 'Post deleted' });
+  } catch (error) {
+    console.error('Error deleting meetup post:', error);
+    res.status(500).json({ error: 'Failed to delete post' });
+  }
+});
+
 export default router;
 
