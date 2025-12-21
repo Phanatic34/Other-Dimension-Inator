@@ -34,6 +34,7 @@ export interface DiningMeetupFormValues {
   description: string;
   visibility: Visibility;
   imageUrl?: string | null;
+  photoFile?: File | null; // Add File object for upload
 }
 
 // Style options (reuse from ReviewPostComposer)
@@ -299,9 +300,6 @@ export const DiningMeetupComposer: React.FC<DiningMeetupComposerProps> = ({
       }
     }
 
-    // Convert photo file to URL (for now, use object URL; in production, upload to cloud storage)
-    const imageUrl = photoPreview || null;
-
     // Calculate total headcount
     const baseCount = parseInt(baseParticipantCount);
     const totalCount = parseInt(expectedInviteCount); // This is now the total headcount (預計總人數)
@@ -318,7 +316,8 @@ export const DiningMeetupComposer: React.FC<DiningMeetupComposerProps> = ({
       hasReservation,
       description: description.trim(),
       visibility: visibility!,
-      imageUrl,
+      imageUrl: photoPreview || null, // Keep preview for display
+      photoFile: photoFile || null, // Pass File object for upload
     };
 
     onCreateMeetupPost?.(formValues);

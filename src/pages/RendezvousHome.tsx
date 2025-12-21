@@ -416,8 +416,18 @@ const RendezvousHomeContent: React.FC = () => {
       ? locationDisplayParts[0]
       : 'Taipei';
 
-    // Convert photo files to image URLs (object URLs for immediate display)
-    const imageUrls = values.photoFiles.map((file) => URL.createObjectURL(file));
+    // Upload images to server first (if any)
+    let imageUrls: string[] = [];
+    if (values.photoFiles && values.photoFiles.length > 0) {
+      try {
+        const { uploadImages } = await import('../api/api');
+        imageUrls = await uploadImages(values.photoFiles);
+      } catch (error) {
+        console.error('Failed to upload images:', error);
+        alert('圖片上傳失敗，請重試。');
+        return;
+      }
+    }
 
     // Check if user is authenticated
     if (isAuthenticated) {
@@ -487,6 +497,22 @@ const RendezvousHomeContent: React.FC = () => {
   // Handler to create a new meetup post from form values
   const handleCreateMeetupPost = async (values: DiningMeetupFormValues) => {
     try {
+      // Upload image to server first (if any)
+      let imageUrl: string | undefined = undefined;
+      if (values.photoFile) {
+        try {
+          const { uploadImage } = await import('../api/api');
+          imageUrl = await uploadImage(values.photoFile);
+        } catch (error) {
+          console.error('Failed to upload image:', error);
+          alert('圖片上傳失敗，請重試。');
+          return;
+        }
+      } else if (values.imageUrl && !values.imageUrl.startsWith('blob:')) {
+        // Use existing URL if it's not a blob URL
+        imageUrl = values.imageUrl;
+      }
+      
       // Call the API to create the post
       let createdPost: any = null;
       
@@ -501,7 +527,7 @@ const RendezvousHomeContent: React.FC = () => {
           budgetDescription: values.budgetDescription,
           hasReservation: values.hasReservation,
           description: values.description,
-          imageUrl: values.imageUrl ?? undefined,
+          imageUrl: imageUrl,
           boardId: undefined,
           locationArea: values.locationText,
         });

@@ -626,3 +626,67 @@ export async function unsaveRestaurant(restaurantId: string) {
   }
 }
 
+// ================== Upload API ==================
+
+export async function uploadImage(file: File): Promise<string> {
+  try {
+    const formData = new FormData();
+    formData.append('image', file);
+
+    const token = getAuthToken();
+    const headers: HeadersInit = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_URL}/api/upload/image`, {
+      method: 'POST',
+      headers: headers,
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Upload failed' }));
+      throw new Error(errorData.error || 'Image upload failed');
+    }
+
+    const data = await response.json();
+    return data.imageUrl;
+  } catch (error) {
+    console.error('Error uploading image:', error);
+    throw error;
+  }
+}
+
+export async function uploadImages(files: File[]): Promise<string[]> {
+  try {
+    const formData = new FormData();
+    files.forEach((file) => {
+      formData.append('images', file);
+    });
+
+    const token = getAuthToken();
+    const headers: HeadersInit = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_URL}/api/upload/images`, {
+      method: 'POST',
+      headers: headers,
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Upload failed' }));
+      throw new Error(errorData.error || 'Images upload failed');
+    }
+
+    const data = await response.json();
+    return data.imageUrls || [];
+  } catch (error) {
+    console.error('Error uploading images:', error);
+    throw error;
+  }
+}
+
