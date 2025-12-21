@@ -127,7 +127,7 @@ async function populateReviewPost(post: any, currentUserId?: string): Promise<Re
     createdAt: post.created_at,
     updatedAt: post.updated_at,
     isFromFollowedUser,
-    isArchived: post.is_archived || false,
+    isArchived: post.is_archived === true,
   };
 }
 
@@ -180,8 +180,22 @@ async function populateMeetupPost(post: any, currentUserId?: string): Promise<Me
     createdAt: post.created_at,
     updatedAt: post.updated_at,
     isFromFollowedUser,
-    isArchived: post.is_archived || false,
+    isArchived: post.is_archived === true,
   };
+}
+
+// Helper function to check if column exists
+async function columnExists(tableName: string, columnName: string): Promise<boolean> {
+  try {
+    const result = await query(
+      `SELECT 1 FROM information_schema.columns 
+       WHERE table_name = $1 AND column_name = $2`,
+      [tableName, columnName]
+    );
+    return result.rows.length > 0;
+  } catch {
+    return false;
+  }
 }
 
 // GET /api/posts - Get all posts with optional filters
@@ -190,8 +204,14 @@ router.get('/', requireDatabase, async (req: Request, res: Response) => {
     const { type, boardId, feedFilter } = req.query;
     const currentUserId = req.headers['x-user-id'] as string | undefined;
 
+    // Check if is_archived column exists
+    const reviewHasArchived = await columnExists('review_posts', 'is_archived');
+    const meetupHasArchived = await columnExists('meetup_posts', 'is_archived');
+
     if (type === 'review') {
-      let sql = 'SELECT * FROM review_posts WHERE (is_archived IS NULL OR is_archived = FALSE)';
+      let sql = reviewHasArchived 
+        ? 'SELECT * FROM review_posts WHERE COALESCE(is_archived, FALSE) = FALSE'
+        : 'SELECT * FROM review_posts WHERE 1=1';
       const params: any[] = [];
       let paramIndex = 1;
 
@@ -202,10 +222,13 @@ router.get('/', requireDatabase, async (req: Request, res: Response) => {
       }
 
       if (feedFilter === 'following' && currentUserId) {
+        const archivedFilter = reviewHasArchived 
+          ? 'AND COALESCE(rp.is_archived, FALSE) = FALSE'
+          : '';
         sql = `
           SELECT rp.* FROM review_posts rp
           INNER JOIN follows f ON rp.author_id = f.following_id
-          WHERE f.follower_id = $${paramIndex} AND (rp.is_archived IS NULL OR rp.is_archived = FALSE)
+          WHERE f.follower_id = $${paramIndex} ${archivedFilter}
         `;
         params.push(currentUserId);
         paramIndex++;
@@ -223,7 +246,9 @@ router.get('/', requireDatabase, async (req: Request, res: Response) => {
       );
       return res.json(posts);
     } else if (type === 'meetup') {
-      let sql = 'SELECT * FROM meetup_posts WHERE (is_archived IS NULL OR is_archived = FALSE)';
+      let sql = meetupHasArchived
+        ? 'SELECT * FROM meetup_posts WHERE COALESCE(is_archived, FALSE) = FALSE'
+        : 'SELECT * FROM meetup_posts WHERE 1=1';
       const params: any[] = [];
       let paramIndex = 1;
 
@@ -234,10 +259,13 @@ router.get('/', requireDatabase, async (req: Request, res: Response) => {
       }
 
       if (feedFilter === 'following' && currentUserId) {
+        const archivedFilter = meetupHasArchived
+          ? 'AND COALESCE(mp.is_archived, FALSE) = FALSE'
+          : '';
         sql = `
           SELECT mp.* FROM meetup_posts mp
           INNER JOIN follows f ON mp.author_id = f.following_id
-          WHERE f.follower_id = $${paramIndex} AND (mp.is_archived IS NULL OR mp.is_archived = FALSE)
+          WHERE f.follower_id = $${paramIndex} ${archivedFilter}
         `;
         params.push(currentUserId);
         paramIndex++;
@@ -255,9 +283,22 @@ router.get('/', requireDatabase, async (req: Request, res: Response) => {
       );
       return res.json(posts);
     } else {
-      // Get both types (exclude archived posts)
-      const reviewResult = await query('SELECT * FROM review_posts WHERE (is_archived IS NULL OR is_archived = FALSE) ORDER BY created_at DESC');
-      const meetupResult = await query('SELECT * FROM meetup_posts WHERE (is_archived IS NULL OR is_archived = FALSE) ORDER BY created_at DESC');
+      // Get both types (exclude archived posts if column exists)
+      let reviewSql = 'SELECT * FROM review_posts';
+      let meetupSql = 'SELECT * FROM meetup_posts';
+      
+      if (reviewHasArchived) {
+        reviewSql += ' WHERE COALESCE(is_archived, FALSE) = FALSE';
+      }
+      reviewSql += ' ORDER BY created_at DESC';
+      
+      if (meetupHasArchived) {
+        meetupSql += ' WHERE COALESCE(is_archived, FALSE) = FALSE';
+      }
+      meetupSql += ' ORDER BY created_at DESC';
+      
+      const reviewResult = await query(reviewSql);
+      const meetupResult = await query(meetupSql);
 
       const reviewPosts = await Promise.all(
         reviewResult.rows.map((post) => populateReviewPost(post, currentUserId))

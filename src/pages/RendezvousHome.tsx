@@ -303,7 +303,7 @@ const RendezvousHomeContent: React.FC = () => {
     let filtered = [...posts];
 
     // Filter out archived posts (archived posts should not appear in home feed)
-    filtered = filtered.filter(post => !post.isArchived);
+    filtered = filtered.filter(post => !(post.isArchived === true));
 
     // Filter by tab (only for reviews and meetups tabs)
     if (activeTab === 'reviews') {
