@@ -24,7 +24,8 @@ export interface ReviewPost {
   styleType?: string;   // e.g. "美式 American" (cuisine/style)
   foodType?: string;    // e.g. "漢堡 Burgers" (food type)
   title: string;
-  contentSnippet: string;
+  content?: string;     // Full content (from backend)
+  contentSnippet: string; // Truncated content for display
   rating: number;       // 1–5
   priceLevel: '$' | '$$' | '$$$';
   priceMax?: number;    // Maximum price per person in NTD (for detailed range)
