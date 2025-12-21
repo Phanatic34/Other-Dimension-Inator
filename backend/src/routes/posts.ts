@@ -191,7 +191,7 @@ router.get('/', requireDatabase, async (req: Request, res: Response) => {
     const currentUserId = req.headers['x-user-id'] as string | undefined;
 
     if (type === 'review') {
-      let sql = 'SELECT * FROM review_posts WHERE 1=1';
+      let sql = 'SELECT * FROM review_posts WHERE (is_archived IS NULL OR is_archived = FALSE)';
       const params: any[] = [];
       let paramIndex = 1;
 
@@ -205,7 +205,7 @@ router.get('/', requireDatabase, async (req: Request, res: Response) => {
         sql = `
           SELECT rp.* FROM review_posts rp
           INNER JOIN follows f ON rp.author_id = f.following_id
-          WHERE f.follower_id = $${paramIndex}
+          WHERE f.follower_id = $${paramIndex} AND (rp.is_archived IS NULL OR rp.is_archived = FALSE)
         `;
         params.push(currentUserId);
         paramIndex++;
@@ -223,7 +223,7 @@ router.get('/', requireDatabase, async (req: Request, res: Response) => {
       );
       return res.json(posts);
     } else if (type === 'meetup') {
-      let sql = 'SELECT * FROM meetup_posts WHERE 1=1';
+      let sql = 'SELECT * FROM meetup_posts WHERE (is_archived IS NULL OR is_archived = FALSE)';
       const params: any[] = [];
       let paramIndex = 1;
 
@@ -237,7 +237,7 @@ router.get('/', requireDatabase, async (req: Request, res: Response) => {
         sql = `
           SELECT mp.* FROM meetup_posts mp
           INNER JOIN follows f ON mp.author_id = f.following_id
-          WHERE f.follower_id = $${paramIndex}
+          WHERE f.follower_id = $${paramIndex} AND (mp.is_archived IS NULL OR mp.is_archived = FALSE)
         `;
         params.push(currentUserId);
         paramIndex++;
@@ -255,9 +255,9 @@ router.get('/', requireDatabase, async (req: Request, res: Response) => {
       );
       return res.json(posts);
     } else {
-      // Get both types
-      const reviewResult = await query('SELECT * FROM review_posts ORDER BY created_at DESC');
-      const meetupResult = await query('SELECT * FROM meetup_posts ORDER BY created_at DESC');
+      // Get both types (exclude archived posts)
+      const reviewResult = await query('SELECT * FROM review_posts WHERE (is_archived IS NULL OR is_archived = FALSE) ORDER BY created_at DESC');
+      const meetupResult = await query('SELECT * FROM meetup_posts WHERE (is_archived IS NULL OR is_archived = FALSE) ORDER BY created_at DESC');
 
       const reviewPosts = await Promise.all(
         reviewResult.rows.map((post) => populateReviewPost(post, currentUserId))

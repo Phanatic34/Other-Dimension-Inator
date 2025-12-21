@@ -302,6 +302,9 @@ const RendezvousHomeContent: React.FC = () => {
   const filteredPosts = useMemo(() => {
     let filtered = [...posts];
 
+    // Filter out archived posts (archived posts should not appear in home feed)
+    filtered = filtered.filter(post => !post.isArchived);
+
     // Filter by tab (only for reviews and meetups tabs)
     if (activeTab === 'reviews') {
       filtered = filtered.filter((post): post is ReviewPost => post.type === 'review');
@@ -612,14 +615,22 @@ const RendezvousHomeContent: React.FC = () => {
         result = await archiveMeetupPostAPI(post.id);
       }
       
-      // Update the post's isArchived state
-      setPosts((prev) =>
-        prev.map((p) =>
-          p.id === post.id ? { ...p, isArchived: result.isArchived } : p
-        )
-      );
-      
-      alert(result.isArchived ? '貼文已封存' : '貼文已取消封存');
+      if (result.isArchived) {
+        // If archived, remove from posts list (it will be filtered out anyway)
+        setPosts((prev) => prev.filter((p) => p.id !== post.id));
+        alert('貼文已封存');
+      } else {
+        // If unarchived, update the state and reload posts to show it again
+        setPosts((prev) =>
+          prev.map((p) =>
+            p.id === post.id ? { ...p, isArchived: false } : p
+          )
+        );
+        // Reload posts to get the unarchived post back
+        const allPosts = await fetchAllPosts();
+        setPosts(allPosts);
+        alert('貼文已取消封存');
+      }
     } catch (error) {
       console.error('Error archiving post:', error);
       alert('封存失敗，請稍後再試');
