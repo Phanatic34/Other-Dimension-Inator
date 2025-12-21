@@ -53,6 +53,7 @@
    - 如果後端部署在 Railway：`https://your-backend.railway.app`
    - 如果後端部署在其他地方：你的後端 URL
    - **注意**：如果前端和後端在同一個 Vercel 專案中，可以設置為相對路徑或使用 Vercel 的環境變數
+   - **實際部署連結**：[https://other-dimension-inator.vercel.app/](https://other-dimension-inator.vercel.app/)
 
 ### 5. 部署
 
@@ -97,7 +98,7 @@
 | `DATABASE_URL` | PostgreSQL 連接字符串 | ✅ 是 | `postgresql://user:pass@host:5432/db?sslmode=require` |
 | `JWT_SECRET` | JWT 認證密鑰 | ✅ 是 | `your-random-secret-key` |
 | `NODE_ENV` | 環境模式 | ❌ 否 | `production` |
-| `FRONTEND_URL` | 前端 URL（用於 CORS） | ❌ 否 | `https://your-frontend.vercel.app` |
+| `FRONTEND_URL` | 前端 URL（用於 CORS） | ❌ 否 | `https://other-dimension-inator.vercel.app` |
 | `CLOUDINARY_URL` | Cloudinary 連接字符串 | ❌ 否 | `cloudinary://key:secret@cloud_name` |
 | `CLOUDINARY_CLOUD_NAME` | Cloudinary 雲名稱 | ❌ 否* | `your-cloud-name` |
 | `CLOUDINARY_API_KEY` | Cloudinary API Key | ❌ 否* | `your-api-key` |
@@ -159,7 +160,7 @@ JWT_SECRET=your-random-secret-key-at-least-32-characters-long
 
 # 可選的
 NODE_ENV=production
-FRONTEND_URL=https://your-frontend.vercel.app
+FRONTEND_URL=https://other-dimension-inator.vercel.app
 PORT=5000
 
 # Cloudinary（可選，如果未設置則使用本地存儲）
@@ -193,7 +194,7 @@ CLOUDINARY_API_SECRET=your-api-secret
 
 ### 前端測試
 
-1. 訪問你的 Vercel URL：`https://your-project.vercel.app`
+1. 訪問你的 Vercel URL：[https://other-dimension-inator.vercel.app/](https://other-dimension-inator.vercel.app/)
 2. 檢查瀏覽器控制台是否有錯誤
 3. 測試 Google Maps 功能是否正常
 

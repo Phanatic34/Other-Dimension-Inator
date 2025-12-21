@@ -474,6 +474,10 @@ interface SavedRestaurant {
    - Wait for build to complete (~1-3 minutes)
    - Your site will be live at `your-project.vercel.app`
 
+### 🌐 Live Demo
+
+**生產環境連結：** [https://other-dimension-inator.vercel.app/](https://other-dimension-inator.vercel.app/)
+
 ### Environment Variables
 
 Required environment variables:

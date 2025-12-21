@@ -1,7 +1,7 @@
 # Final Project – Midterm Plan
 
 ## Deploy Link
-https://rendezvous-rho.vercel.app
+https://other-dimension-inator.vercel.app
 
 ## 1. 本次 Prototype 已完成
 - 基本頁面架構（首頁餐廳 / 揪團貼文串、使用者檔案頁、收藏餐廳 / Collection 頁，透過 React Router 串起多頁導覽）

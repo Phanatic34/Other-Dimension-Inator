@@ -36,7 +36,7 @@
 
 6. **`FRONTEND_URL`**（可選）
    - 前端 URL，用於 CORS
-   - 例如：`https://your-project.vercel.app`
+   - 實際連結：`https://other-dimension-inator.vercel.app`
 
 7. **`NODE_ENV`**（可選）
    - 設置為 `production`
@@ -64,7 +64,7 @@
 
 部署完成後，測試以下功能：
 
-1. **健康檢查**：訪問 `https://your-project.vercel.app/api/health`
+1. **健康檢查**：訪問 [https://other-dimension-inator.vercel.app/api/health](https://other-dimension-inator.vercel.app/api/health)
    - 應該返回：`{"status":"ok","timestamp":"..."}`
 
 2. **登入功能**：嘗試登入
@@ -95,7 +95,7 @@
 **解決方法：**
 1. 檢查 Vercel 部署日誌中的構建輸出
 2. 確認 `backend/src/server.ts` 文件存在
-3. 訪問 `https://your-project.vercel.app/api/health` 測試 API
+3. 訪問 [https://other-dimension-inator.vercel.app/api/health](https://other-dimension-inator.vercel.app/api/health) 測試 API
 
 ### 問題 3：資料庫連接失敗
 
