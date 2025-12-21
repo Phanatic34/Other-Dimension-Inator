@@ -2,15 +2,44 @@
 // In production (Vercel), use relative path if REACT_APP_API_URL is not set
 // This allows the same Vercel project to serve both frontend and backend
 const getApiUrl = () => {
+  let baseUrl: string;
+  
+  // If explicitly set, use it
   if (process.env.REACT_APP_API_URL) {
-    return process.env.REACT_APP_API_URL;
+    baseUrl = process.env.REACT_APP_API_URL;
+  } else {
+    // Check if running in browser (client-side)
+    if (typeof window !== 'undefined') {
+      const hostname = window.location.hostname;
+      // If not localhost, assume production and use relative path
+      if (hostname !== 'localhost' && hostname !== '127.0.0.1' && !hostname.startsWith('192.168.')) {
+        baseUrl = '/api';
+      } else {
+        baseUrl = 'http://localhost:5000';
+      }
+    } else {
+      // Fallback: check NODE_ENV (for build-time)
+      if (process.env.NODE_ENV === 'production') {
+        baseUrl = '/api';
+      } else {
+        baseUrl = 'http://localhost:5000';
+      }
+    }
   }
-  // In production, use relative path (same domain)
-  if (process.env.NODE_ENV === 'production') {
-    return '/api';
+  
+  // Ensure baseUrl ends with /api if it's a full URL
+  // If it's already /api (relative path), keep it as is
+  if (baseUrl.startsWith('http') && !baseUrl.endsWith('/api')) {
+    return `${baseUrl}/api`;
   }
-  // In development, use localhost
-  return 'http://localhost:5000';
+  
+  // If it's a relative path starting with /api, return as is
+  if (baseUrl.startsWith('/api')) {
+    return baseUrl;
+  }
+  
+  // Otherwise, append /api
+  return `${baseUrl}/api`;
 };
 
 const API_URL = getApiUrl();
@@ -36,7 +65,7 @@ const getHeaders = (): HeadersInit => {
 
 export async function fetchUserByHandle(handle: string) {
   try {
-    const response = await fetch(`${API_URL}/api/users/handle/${handle}`, {
+    const response = await fetch(`${API_URL}/users/handle/${handle}`, {
       headers: getHeaders(),
     });
     if (!response.ok) {
@@ -52,7 +81,7 @@ export async function fetchUserByHandle(handle: string) {
 
 export async function fetchUserById(userId: string) {
   try {
-    const response = await fetch(`${API_URL}/api/users/${userId}`, {
+    const response = await fetch(`${API_URL}/users/${userId}`, {
       headers: getHeaders(),
     });
     if (!response.ok) {
@@ -68,7 +97,7 @@ export async function fetchUserById(userId: string) {
 
 export async function fetchUserPosts(userId: string) {
   try {
-    const response = await fetch(`${API_URL}/api/users/${userId}/posts`, {
+    const response = await fetch(`${API_URL}/users/${userId}/posts`, {
       headers: getHeaders(),
     });
     if (!response.ok) throw new Error('Failed to fetch user posts');
@@ -83,7 +112,7 @@ export async function fetchUserPosts(userId: string) {
 
 export async function fetchAllPosts(type?: 'review' | 'meetup') {
   try {
-    const url = type ? `${API_URL}/api/posts?type=${type}` : `${API_URL}/api/posts`;
+    const url = type ? `${API_URL}/posts?type=${type}` : `${API_URL}/posts`;
     const response = await fetch(url, {
       headers: getHeaders(),
     });
@@ -121,7 +150,7 @@ export async function createReviewPost(postData: {
   images?: string[];
 }) {
   try {
-    const response = await fetch(`${API_URL}/api/posts/review`, {
+    const response = await fetch(`${API_URL}/posts/review`, {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify(postData),
@@ -152,7 +181,7 @@ export async function createMeetupPost(postData: {
   locationArea?: string;
 }) {
   try {
-    const response = await fetch(`${API_URL}/api/posts/meetup`, {
+    const response = await fetch(`${API_URL}/posts/meetup`, {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify(postData),
@@ -186,7 +215,7 @@ export async function updateReviewPost(postId: string, postData: {
   images?: string[];
 }) {
   try {
-    const response = await fetch(`${API_URL}/api/posts/review/${postId}`, {
+    const response = await fetch(`${API_URL}/posts/review/${postId}`, {
       method: 'PUT',
       headers: getHeaders(),
       body: JSON.stringify(postData),
@@ -217,7 +246,7 @@ export async function updateMeetupPost(postId: string, postData: {
   locationArea?: string;
 }) {
   try {
-    const response = await fetch(`${API_URL}/api/posts/meetup/${postId}`, {
+    const response = await fetch(`${API_URL}/posts/meetup/${postId}`, {
       method: 'PUT',
       headers: getHeaders(),
       body: JSON.stringify(postData),
@@ -235,7 +264,7 @@ export async function updateMeetupPost(postId: string, postData: {
 
 export async function deleteReviewPost(postId: string) {
   try {
-    const response = await fetch(`${API_URL}/api/posts/review/${postId}`, {
+    const response = await fetch(`${API_URL}/posts/review/${postId}`, {
       method: 'DELETE',
       headers: getHeaders(),
     });
@@ -252,7 +281,7 @@ export async function deleteReviewPost(postId: string) {
 
 export async function deleteMeetupPost(postId: string) {
   try {
-    const response = await fetch(`${API_URL}/api/posts/meetup/${postId}`, {
+    const response = await fetch(`${API_URL}/posts/meetup/${postId}`, {
       method: 'DELETE',
       headers: getHeaders(),
     });
@@ -271,7 +300,7 @@ export async function deleteMeetupPost(postId: string) {
 
 export async function savePost(postId: string, postType: 'review' | 'meetup') {
   try {
-    const response = await fetch(`${API_URL}/api/posts/${postId}/save?type=${postType}`, {
+    const response = await fetch(`${API_URL}/posts/${postId}/save?type=${postType}`, {
       method: 'POST',
       headers: getHeaders(),
     });
@@ -288,7 +317,7 @@ export async function savePost(postId: string, postType: 'review' | 'meetup') {
 
 export async function unsavePost(postId: string, postType: 'review' | 'meetup') {
   try {
-    const response = await fetch(`${API_URL}/api/posts/${postId}/save?type=${postType}`, {
+    const response = await fetch(`${API_URL}/posts/${postId}/save?type=${postType}`, {
       method: 'DELETE',
       headers: getHeaders(),
     });
@@ -305,7 +334,7 @@ export async function unsavePost(postId: string, postType: 'review' | 'meetup') 
 
 export async function fetchSavedPosts() {
   try {
-    const response = await fetch(`${API_URL}/api/posts/saved/list`, {
+    const response = await fetch(`${API_URL}/posts/saved/list`, {
       headers: getHeaders(),
     });
     if (!response.ok) throw new Error('Failed to fetch saved posts');
@@ -322,7 +351,7 @@ export type ReportReason = 'spam' | 'harassment' | 'inappropriate' | 'misinforma
 
 export async function reportPost(postId: string, postType: 'review' | 'meetup', reason: ReportReason, description?: string) {
   try {
-    const response = await fetch(`${API_URL}/api/posts/${postId}/report`, {
+    const response = await fetch(`${API_URL}/posts/${postId}/report`, {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify({ type: postType, reason, description }),
@@ -342,7 +371,7 @@ export async function reportPost(postId: string, postType: 'review' | 'meetup', 
 
 export async function archiveReviewPost(postId: string) {
   try {
-    const response = await fetch(`${API_URL}/api/posts/review/${postId}/archive`, {
+    const response = await fetch(`${API_URL}/posts/review/${postId}/archive`, {
       method: 'POST',
       headers: getHeaders(),
     });
@@ -359,7 +388,7 @@ export async function archiveReviewPost(postId: string) {
 
 export async function archiveMeetupPost(postId: string) {
   try {
-    const response = await fetch(`${API_URL}/api/posts/meetup/${postId}/archive`, {
+    const response = await fetch(`${API_URL}/posts/meetup/${postId}/archive`, {
       method: 'POST',
       headers: getHeaders(),
     });
@@ -378,7 +407,7 @@ export async function archiveMeetupPost(postId: string) {
 
 export async function sharePost(postId: string, postType: 'review' | 'meetup') {
   try {
-    const response = await fetch(`${API_URL}/api/posts/${postId}/share?type=${postType}`, {
+    const response = await fetch(`${API_URL}/posts/${postId}/share?type=${postType}`, {
       method: 'POST',
       headers: getHeaders(),
     });
@@ -397,7 +426,7 @@ export async function sharePost(postId: string, postType: 'review' | 'meetup') {
 
 export async function fetchBoards() {
   try {
-    const response = await fetch(`${API_URL}/api/boards`, {
+    const response = await fetch(`${API_URL}/boards`, {
       headers: getHeaders(),
     });
     if (!response.ok) throw new Error('Failed to fetch boards');
@@ -412,7 +441,7 @@ export async function fetchBoards() {
 
 export async function fetchRecommendedUsers() {
   try {
-    const response = await fetch(`${API_URL}/api/users/recommended`, {
+    const response = await fetch(`${API_URL}/users/recommended`, {
       headers: getHeaders(),
     });
     if (!response.ok) throw new Error('Failed to fetch recommended users');
@@ -427,7 +456,7 @@ export async function fetchRecommendedUsers() {
 
 export async function followUser(userId: string) {
   try {
-    const response = await fetch(`${API_URL}/api/users/${userId}/follow`, {
+    const response = await fetch(`${API_URL}/users/${userId}/follow`, {
       method: 'POST',
       headers: getHeaders(),
     });
@@ -444,7 +473,7 @@ export async function followUser(userId: string) {
 
 export async function unfollowUser(userId: string) {
   try {
-    const response = await fetch(`${API_URL}/api/users/${userId}/follow`, {
+    const response = await fetch(`${API_URL}/users/${userId}/follow`, {
       method: 'DELETE',
       headers: getHeaders(),
     });
@@ -463,7 +492,7 @@ export async function unfollowUser(userId: string) {
 
 export async function likePost(postId: string, postType: 'review' | 'meetup') {
   try {
-    const response = await fetch(`${API_URL}/api/posts/${postId}/like?type=${postType}`, {
+    const response = await fetch(`${API_URL}/posts/${postId}/like?type=${postType}`, {
       method: 'POST',
       headers: getHeaders(),
     });
@@ -480,7 +509,7 @@ export async function likePost(postId: string, postType: 'review' | 'meetup') {
 
 export async function unlikePost(postId: string, postType: 'review' | 'meetup') {
   try {
-    const response = await fetch(`${API_URL}/api/posts/${postId}/like?type=${postType}`, {
+    const response = await fetch(`${API_URL}/posts/${postId}/like?type=${postType}`, {
       method: 'DELETE',
       headers: getHeaders(),
     });
@@ -516,7 +545,7 @@ export interface Comment {
 
 export async function fetchComments(postId: string, postType: 'review' | 'meetup' = 'review'): Promise<Comment[]> {
   try {
-    const response = await fetch(`${API_URL}/api/comments/${postId}?postType=${postType}`, {
+    const response = await fetch(`${API_URL}/comments/${postId}?postType=${postType}`, {
       headers: getHeaders(),
     });
     if (!response.ok) throw new Error('Failed to fetch comments');
@@ -529,7 +558,7 @@ export async function fetchComments(postId: string, postType: 'review' | 'meetup
 
 export async function createComment(postId: string, content: string, postType: 'review' | 'meetup' = 'review', parentId?: string): Promise<Comment | null> {
   try {
-    const response = await fetch(`${API_URL}/api/comments`, {
+    const response = await fetch(`${API_URL}/comments`, {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify({ postId, postType, parentId, content }),
@@ -547,7 +576,7 @@ export async function createComment(postId: string, content: string, postType: '
 
 export async function likeComment(commentId: string) {
   try {
-    const response = await fetch(`${API_URL}/api/comments/${commentId}/like`, {
+    const response = await fetch(`${API_URL}/comments/${commentId}/like`, {
       method: 'POST',
       headers: getHeaders(),
     });
@@ -561,7 +590,7 @@ export async function likeComment(commentId: string) {
 
 export async function unlikeComment(commentId: string) {
   try {
-    const response = await fetch(`${API_URL}/api/comments/${commentId}/like`, {
+    const response = await fetch(`${API_URL}/comments/${commentId}/like`, {
       method: 'DELETE',
       headers: getHeaders(),
     });
@@ -575,7 +604,7 @@ export async function unlikeComment(commentId: string) {
 
 export async function deleteComment(commentId: string) {
   try {
-    const response = await fetch(`${API_URL}/api/comments/${commentId}`, {
+    const response = await fetch(`${API_URL}/comments/${commentId}`, {
       method: 'DELETE',
       headers: getHeaders(),
     });
@@ -591,7 +620,7 @@ export async function deleteComment(commentId: string) {
 
 export async function fetchSavedRestaurants() {
   try {
-    const response = await fetch(`${API_URL}/api/restaurants/saved`, {
+    const response = await fetch(`${API_URL}/restaurants/saved`, {
       headers: getHeaders(),
     });
     if (!response.ok) throw new Error('Failed to fetch saved restaurants');
@@ -613,7 +642,7 @@ export async function saveRestaurant(restaurant: {
   priceLevel?: string;
 }) {
   try {
-    const response = await fetch(`${API_URL}/api/restaurants/save`, {
+    const response = await fetch(`${API_URL}/restaurants/save`, {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify(restaurant),
@@ -628,7 +657,7 @@ export async function saveRestaurant(restaurant: {
 
 export async function unsaveRestaurant(restaurantId: string) {
   try {
-    const response = await fetch(`${API_URL}/api/restaurants/${restaurantId}`, {
+    const response = await fetch(`${API_URL}/restaurants/${restaurantId}`, {
       method: 'DELETE',
       headers: getHeaders(),
     });
@@ -653,7 +682,7 @@ export async function uploadImage(file: File): Promise<string> {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${API_URL}/api/upload/image`, {
+    const response = await fetch(`${API_URL}/upload/image`, {
       method: 'POST',
       headers: headers,
       body: formData,
@@ -685,7 +714,7 @@ export async function uploadImages(files: File[]): Promise<string[]> {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${API_URL}/api/upload/images`, {
+    const response = await fetch(`${API_URL}/upload/images`, {
       method: 'POST',
       headers: headers,
       body: formData,

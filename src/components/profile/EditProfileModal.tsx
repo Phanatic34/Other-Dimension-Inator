@@ -3,13 +3,44 @@ import { UserProfile } from '../../types/profile';
 import { STYLE_OPTIONS, CATEGORY_OPTIONS } from '../../utils/tagOptions';
 
 const getApiUrl = () => {
+  let baseUrl: string;
+  
+  // If explicitly set, use it
   if (process.env.REACT_APP_API_URL) {
-    return process.env.REACT_APP_API_URL;
+    baseUrl = process.env.REACT_APP_API_URL;
+  } else {
+    // Check if running in browser (client-side)
+    if (typeof window !== 'undefined') {
+      const hostname = window.location.hostname;
+      // If not localhost, assume production and use relative path
+      if (hostname !== 'localhost' && hostname !== '127.0.0.1' && !hostname.startsWith('192.168.')) {
+        baseUrl = '/api';
+      } else {
+        baseUrl = 'http://localhost:5000';
+      }
+    } else {
+      // Fallback: check NODE_ENV (for build-time)
+      if (process.env.NODE_ENV === 'production') {
+        baseUrl = '/api';
+      } else {
+        baseUrl = 'http://localhost:5000';
+      }
+    }
   }
-  if (process.env.NODE_ENV === 'production') {
-    return '/api';
+  
+  // Ensure baseUrl ends with /api if it's a full URL
+  // If it's already /api (relative path), keep it as is
+  if (baseUrl.startsWith('http') && !baseUrl.endsWith('/api')) {
+    return `${baseUrl}/api`;
   }
-  return 'http://localhost:5000';
+  
+  // If it's a relative path starting with /api, return as is
+  if (baseUrl.startsWith('/api')) {
+    return baseUrl;
+  }
+  
+  // Otherwise, append /api
+  return `${baseUrl}/api`;
 };
 
 const API_URL = getApiUrl();
@@ -69,7 +100,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
     
     try {
       setIsUploading(true);
-      const response = await fetch(`${API_URL}/api/upload/image`, {
+      const response = await fetch(`${API_URL}/upload/image`, {
         method: 'POST',
         body: formData,
       });

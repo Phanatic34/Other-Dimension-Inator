@@ -25,13 +25,44 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // API base URL
 // In production (Vercel), use relative path if REACT_APP_API_URL is not set
 const getApiUrl = () => {
+  let baseUrl: string;
+  
+  // If explicitly set, use it
   if (process.env.REACT_APP_API_URL) {
-    return process.env.REACT_APP_API_URL;
+    baseUrl = process.env.REACT_APP_API_URL;
+  } else {
+    // Check if running in browser (client-side)
+    if (typeof window !== 'undefined') {
+      const hostname = window.location.hostname;
+      // If not localhost, assume production and use relative path
+      if (hostname !== 'localhost' && hostname !== '127.0.0.1' && !hostname.startsWith('192.168.')) {
+        baseUrl = '/api';
+      } else {
+        baseUrl = 'http://localhost:5000';
+      }
+    } else {
+      // Fallback: check NODE_ENV (for build-time)
+      if (process.env.NODE_ENV === 'production') {
+        baseUrl = '/api';
+      } else {
+        baseUrl = 'http://localhost:5000';
+      }
+    }
   }
-  if (process.env.NODE_ENV === 'production') {
-    return '/api';
+  
+  // Ensure baseUrl ends with /api if it's a full URL
+  // If it's already /api (relative path), keep it as is
+  if (baseUrl.startsWith('http') && !baseUrl.endsWith('/api')) {
+    return `${baseUrl}/api`;
   }
-  return 'http://localhost:5000';
+  
+  // If it's a relative path starting with /api, return as is
+  if (baseUrl.startsWith('/api')) {
+    return baseUrl;
+  }
+  
+  // Otherwise, append /api
+  return `${baseUrl}/api`;
 };
 
 const API_URL = getApiUrl();
@@ -77,7 +108,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      const response = await fetch(`${API_URL}/api/auth/login`, {
+      const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -108,7 +139,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     handle: string
   ): Promise<{ success: boolean; error?: string }> => {
     try {
-      const response = await fetch(`${API_URL}/api/auth/register`, {
+      const response = await fetch(`${API_URL}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
