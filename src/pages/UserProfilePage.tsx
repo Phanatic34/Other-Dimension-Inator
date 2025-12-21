@@ -211,7 +211,7 @@ export const UserProfilePage: React.FC = () => {
   // Handler to archive/unarchive a post
   const handleArchivePost = async (post: ReviewPost | MeetupPost) => {
     try {
-      let result;
+      let result: { success: boolean; message: string; isArchived: boolean };
       if (post.type === 'review') {
         result = await archiveReviewPost(post.id);
       } else {
