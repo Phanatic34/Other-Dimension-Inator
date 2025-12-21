@@ -4,6 +4,8 @@ A modern, bilingual (Chinese/English) social platform for food lovers to discove
 
 🌐 **Live Demo:** [https://other-dimension-inator.vercel.app/](https://other-dimension-inator.vercel.app/)
 
+> **Last Updated:** 2025-01-21 - Auto-deploy test
+
 ## ✨ Features
 
 ### 🍱 Restaurant Reviews
