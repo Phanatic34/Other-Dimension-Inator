@@ -333,33 +333,51 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick, o
           
           {/* Line 2: Three Separate Pills - Restaurant+Location, Style Type, Food Type */}
           <div className="mt-1 flex flex-wrap items-center gap-2">
-            {/* Chip 1: Restaurant + Location */}
+            {/* Chip 1: Location Area - clickable to search */}
+            {(post.locationArea || (post as any).region) && (
+              <button
+                className="inline-flex items-center px-3 py-1 rounded-full bg-white border border-gray-200 text-sm shadow-sm cursor-pointer hover:bg-neutral-50 hover:border-accent-primary transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const area = (post as any).region || post.locationArea;
+                  if (area) {
+                    if (onTagClick) {
+                      onTagClick(area);
+                    } else {
+                      navigate(`/?search=${encodeURIComponent(area)}`);
+                    }
+                  }
+                }}
+              >
+                <span className="text-text-secondary">
+                  {(post as any).region || post.locationArea}
+                </span>
+              </button>
+            )}
+            
+            {/* Chip 2: Restaurant Name - clickable to show location on map */}
             <button
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-gray-200 text-sm shadow-sm cursor-pointer group-hover:bg-neutral-50 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-gray-200 text-sm shadow-sm cursor-pointer hover:bg-neutral-50 hover:border-accent-primary transition-colors"
               onClick={handleLocationClick}
             >
-              {(post.locationArea || (post as any).region) && (
-                <>
-                  <span className="text-text-secondary">
-                    {(post as any).region || post.locationArea}
-                  </span>
-                  <span className="text-gray-300">|</span>
-                </>
-              )}
               <span className="font-medium text-text-primary">
                 {post.restaurantName}
               </span>
             </button>
 
-            {/* Chip 2: Style Type (Cuisine) - use styleType if available, otherwise use board if it's cuisine */}
+            {/* Chip 3: Style Type (Cuisine) - use styleType if available, otherwise use board if it's cuisine */}
             {(post.styleType || (post.board?.category === 'cuisine' && post.board?.label)) && (
               <button
-                className="inline-flex items-center px-3 py-1 rounded-full bg-white border border-gray-200 text-sm shadow-sm cursor-pointer hover:bg-neutral-50 transition-colors"
+                className="inline-flex items-center px-3 py-1 rounded-full bg-white border border-gray-200 text-sm shadow-sm cursor-pointer hover:bg-neutral-50 hover:border-accent-primary transition-colors"
                 onClick={(e) => {
                   e.stopPropagation();
                   const tag = post.styleType || post.board?.label;
-                  if (tag && onTagClick) {
-                    onTagClick(tag);
+                  if (tag) {
+                    if (onTagClick) {
+                      onTagClick(tag);
+                    } else {
+                      navigate(`/?search=${encodeURIComponent(tag)}`);
+                    }
                   }
                 }}
               >
@@ -369,15 +387,19 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick, o
               </button>
             )}
 
-            {/* Chip 3: Food Type - use foodType if available, otherwise use board if it's type */}
+            {/* Chip 4: Food Type - use foodType if available, otherwise use board if it's type */}
             {(post.foodType || (post.board?.category === 'type' && post.board?.label)) && (
               <button
-                className="inline-flex items-center px-3 py-1 rounded-full bg-white border border-gray-200 text-sm shadow-sm cursor-pointer hover:bg-neutral-50 transition-colors"
+                className="inline-flex items-center px-3 py-1 rounded-full bg-white border border-gray-200 text-sm shadow-sm cursor-pointer hover:bg-neutral-50 hover:border-accent-primary transition-colors"
                 onClick={(e) => {
                   e.stopPropagation();
                   const tag = post.foodType || post.board?.label;
-                  if (tag && onTagClick) {
-                    onTagClick(tag);
+                  if (tag) {
+                    if (onTagClick) {
+                      onTagClick(tag);
+                    } else {
+                      navigate(`/?search=${encodeURIComponent(tag)}`);
+                    }
                   }
                 }}
               >

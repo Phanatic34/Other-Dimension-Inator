@@ -356,21 +356,32 @@ export const MeetupPostCard: React.FC<MeetupPostCardProps> = ({ post, onClick, o
 
       {/* Post Content */}
       <div className="ml-[52px]">
-        {/* Line 2: Three Separate Pills - Restaurant+Location, Style Type, Food Type - EXACTLY like ReviewPostCard */}
+        {/* Line 2: Separate Pills - Location, Restaurant, Style Tags - EXACTLY like ReviewPostCard */}
         <div className="mt-1 flex flex-wrap items-center gap-2 mb-2">
-          {/* Chip 1: Restaurant + Location - Same style as ReviewPostCard */}
+          {/* Chip 1: Location Area - clickable to search */}
+          {district && (
+            <button
+              className="inline-flex items-center px-3 py-1 rounded-full bg-white border border-gray-200 text-sm shadow-sm cursor-pointer hover:bg-neutral-50 hover:border-accent-primary transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onTagClick) {
+                  onTagClick(district);
+                } else {
+                  navigate(`/?search=${encodeURIComponent(district)}`);
+                }
+              }}
+            >
+              <span className="text-text-secondary">
+                {district}
+              </span>
+            </button>
+          )}
+          
+          {/* Chip 2: Restaurant Name - clickable to open Google Maps */}
           <button
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-gray-200 text-sm shadow-sm cursor-pointer group-hover:bg-neutral-50 transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-gray-200 text-sm shadow-sm cursor-pointer hover:bg-neutral-50 hover:border-accent-primary transition-colors"
             onClick={handleOpenGoogleMaps}
           >
-            {district && (
-              <>
-                <span className="text-text-secondary">
-                  {district}
-                </span>
-                <span className="text-gray-300">|</span>
-              </>
-            )}
             <span className="font-medium text-text-primary">
               {post.restaurantName}
             </span>
@@ -380,7 +391,7 @@ export const MeetupPostCard: React.FC<MeetupPostCardProps> = ({ post, onClick, o
           {post.foodTags && post.foodTags.map((tag, index) => (
             <button
               key={index}
-              className="inline-flex items-center px-3 py-1 rounded-full bg-white border border-gray-200 text-sm shadow-sm cursor-pointer hover:bg-neutral-50 transition-colors"
+              className="inline-flex items-center px-3 py-1 rounded-full bg-white border border-gray-200 text-sm shadow-sm cursor-pointer hover:bg-neutral-50 hover:border-accent-primary transition-colors"
               onClick={(e) => {
                 e.stopPropagation();
                 if (onTagClick) {
@@ -393,7 +404,7 @@ export const MeetupPostCard: React.FC<MeetupPostCardProps> = ({ post, onClick, o
             >
               <span className="font-medium text-text-primary">
                 {tag}
-          </span>
+              </span>
             </button>
           ))}
         </div>

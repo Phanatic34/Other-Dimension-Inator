@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Board, Post, ReviewPost, MeetupPost, User } from '../types/models';
 import { 
   fetchBoards as fetchBoardsAPI, 
@@ -38,6 +39,9 @@ type ActiveFilters = {
 };
 
 const RendezvousHomeContent: React.FC = () => {
+  // URL search params
+  const [searchParams, setSearchParams] = useSearchParams();
+  
   // State
   const [boards, setBoards] = useState<Board[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -55,9 +59,12 @@ const RendezvousHomeContent: React.FC = () => {
   // Use context for location preview
   const { setSelectedLocation } = useLocationPreview();
 
+  // Get initial search query from URL
+  const urlSearchQuery = searchParams.get('search') || '';
+
   // Centralized filter state
   const [filters, setFilters] = useState<ActiveFilters>({
-    searchQuery: '',
+    searchQuery: urlSearchQuery,
     style: null,
     category: null,
     priceMin: null,
@@ -66,9 +73,24 @@ const RendezvousHomeContent: React.FC = () => {
     distanceKm: null,
   });
 
+  // Sync URL search param with filters
+  useEffect(() => {
+    const urlSearch = searchParams.get('search') || '';
+    if (urlSearch !== filters.searchQuery) {
+      setFilters((f) => ({ ...f, searchQuery: urlSearch }));
+    }
+  }, [searchParams]);
+
   // Filter updaters
-  const updateSearchQuery = (q: string) =>
+  const updateSearchQuery = (q: string) => {
     setFilters((f) => ({ ...f, searchQuery: q }));
+    // Update URL without causing a navigation
+    if (q) {
+      setSearchParams({ search: q }, { replace: true });
+    } else {
+      setSearchParams({}, { replace: true });
+    }
+  };
 
   const updateStyle = (style: string | null) =>
     setFilters((f) => ({ ...f, style }));
