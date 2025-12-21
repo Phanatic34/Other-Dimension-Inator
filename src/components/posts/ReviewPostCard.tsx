@@ -303,7 +303,7 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick, o
                       />
                       <MenuActionItem
                         icon={<Archive className="w-4 h-4" />}
-                        label={post.isArchived ? '取消封存' : '封存貼文'}
+                        label={post.isArchived ? 'Cancel archived' : 'Archive this post'}
                         onClick={() => {
                           setMenuOpen(false);
                           if (onArchive) onArchive(post);
