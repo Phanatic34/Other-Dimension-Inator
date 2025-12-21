@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ReviewPost } from '../../types/models';
 import { Edit3, Archive, Trash2, Bookmark, Flag } from 'lucide-react';
 import { PostActions } from './PostActions';
@@ -60,6 +61,8 @@ function getPriceInfo(maxPrice: number | null | undefined) {
 }
 
 export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick, onTagClick, onLocationClick, isOwnPost = false }) => {
+  const navigate = useNavigate();
+  
   // Lightbox state
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -73,6 +76,14 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick, o
 
   // Location preview context (optional - only available in RendezvousHome)
   const { setSelectedLocation, setPendingSaveLocation, isProviderAvailable } = useLocationPreview();
+
+  // Navigate to author's profile
+  const handleAuthorClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const handle = post.author.handle?.replace('@', '') || post.author.id;
+    navigate(`/user/${handle}`);
+  };
 
   // Compute price info from priceMax
   const priceInfo = getPriceInfo(post.priceMax);
@@ -192,9 +203,12 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick, o
     >
       {/* TOP SECTION: Header Row */}
       <div className="flex items-start mb-2">
-        {/* Avatar */}
-        <div className="relative mr-3 flex-shrink-0">
-          <div className="w-10 h-10 rounded-full bg-accent-gold bg-opacity-40 flex items-center justify-center overflow-hidden">
+        {/* Avatar - clickable to go to author profile */}
+        <div 
+          className="relative mr-3 flex-shrink-0 cursor-pointer"
+          onClick={handleAuthorClick}
+        >
+          <div className="w-10 h-10 rounded-full bg-accent-gold bg-opacity-40 flex items-center justify-center overflow-hidden hover:ring-2 hover:ring-accent-primary transition-all">
           {post.author.avatarUrl ? (
             <img src={post.author.avatarUrl} alt={post.author.displayName} className="w-full h-full object-cover" />
           ) : (
@@ -208,10 +222,16 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick, o
           {/* Line 1: Name, Username, Time + More Menu (right-aligned) */}
           <div className="flex items-baseline justify-between gap-2">
             <div className="flex items-baseline flex-wrap gap-1 text-sm">
-              <span className="font-bold text-text-primary">
+              <span 
+                className="font-bold text-text-primary hover:underline cursor-pointer"
+                onClick={handleAuthorClick}
+              >
               {post.author.displayName}
             </span>
-              <span className="text-text-secondary">
+              <span 
+                className="text-text-secondary hover:underline cursor-pointer"
+                onClick={handleAuthorClick}
+              >
                 {post.author.handle}
               </span>
               <span className="text-text-secondary">•</span>

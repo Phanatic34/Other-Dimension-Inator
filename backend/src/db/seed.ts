@@ -34,14 +34,102 @@ const boards = [
 ];
 
 const users = [
-  { id: 'user1', displayName: 'Foodie NTU', handle: 'foodie_ntu', username: 'foodie_ntu', email: 'foodie@example.com' },
-  { id: 'user2', displayName: 'Taipei Eater', handle: 'taipei_eater', username: 'taipei_eater', email: 'eater@example.com' },
-  { id: 'user3', displayName: 'Ramen Lover', handle: 'ramen_lover', username: 'ramen_lover', email: 'ramen@example.com' },
-  { id: 'user4', displayName: 'Sweet Tooth', handle: 'sweet_tooth', username: 'sweet_tooth', email: 'sweet@example.com' },
-  { id: 'user5', displayName: 'Street Food Hunter', handle: 'street_hunter', username: 'street_hunter', email: 'street@example.com' },
-  { id: 'lamige_9', displayName: '王柏融', handle: 'lamige_9', username: 'lamige_9', email: 'lamige@example.com', avatarUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRRlemVfqgIwcy8YxYkeyEcWKZaQ8gKT64JVg&s' },
-  { id: 'real_harrystyles', displayName: 'Harry Styles', handle: 'real_harrystyles', username: 'real_harrystyles', email: 'harry@example.com', avatarUrl: 'https://m.media-amazon.com/images/M/MV5BN2YxZGU1YTMtZmYyYy00YzA5LWIyNjMtMDA1NDg5YmFjMWY2XkEyXkFqcGc@._V1_.jpg' },
-  { id: 'lorry930811', displayName: '羅立宸', handle: 'lorry930811', username: 'lorry930811', email: 'lorry@example.com', avatarUrl: 'https://images.squarespace-cdn.com/content/v1/5c34403aaa49a1c60b7e6c7e/1548979956856-ZSK82JV8UYCWVECAKEAS/person.png', bio: '熱愛探索美食的吃貨，喜歡分享餐廳體驗 🍜', favoriteStyles: ['日式 Japanese', '美式 American', '泰式 Thai', '墨西哥 Mexican'], favoriteCategories: ['早餐 Breakfast', '飲料 Beverages', '甜點 Desserts', '速食 Fast Food'], joinedDate: 'April 2024' },
+  { 
+    id: 'user1', 
+    displayName: 'Foodie NTU', 
+    handle: 'foodie_ntu', 
+    username: 'foodie_ntu', 
+    email: 'foodie@example.com',
+    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=faces',
+    bio: '台大學生，專門探索公館周邊美食！每週發掘新餐廳 🍜',
+    favoriteStyles: ['日式 Japanese', '台菜 Taiwanese', '韓式 Korean'],
+    favoriteCategories: ['拉麵 Ramen', '小籠包', '炸雞'],
+    joinedDate: 'January 2024'
+  },
+  { 
+    id: 'user2', 
+    displayName: 'Taipei Eater', 
+    handle: 'taipei_eater', 
+    username: 'taipei_eater', 
+    email: 'eater@example.com',
+    avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop&crop=faces',
+    bio: '台北美食部落客，專門挖掘隱藏版美食 📸',
+    favoriteStyles: ['台菜 Taiwanese', '法式 French', '義式 Italian'],
+    favoriteCategories: ['甜點 Desserts', '咖啡', '早午餐'],
+    joinedDate: 'February 2024'
+  },
+  { 
+    id: 'user3', 
+    displayName: 'Ramen Lover', 
+    handle: 'ramen_lover', 
+    username: 'ramen_lover', 
+    email: 'ramen@example.com',
+    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&crop=faces',
+    bio: '拉麵狂熱者！目標是吃遍台北所有拉麵店 🍜',
+    favoriteStyles: ['日式 Japanese'],
+    favoriteCategories: ['拉麵 Ramen', '沾麵', '豚骨'],
+    joinedDate: 'March 2024'
+  },
+  { 
+    id: 'user4', 
+    displayName: 'Sweet Tooth', 
+    handle: 'sweet_tooth', 
+    username: 'sweet_tooth', 
+    email: 'sweet@example.com',
+    avatarUrl: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=faces',
+    bio: '甜點控！蛋糕、冰淇淋、手搖飲通通愛 🍰',
+    favoriteStyles: ['法式 French', '日式 Japanese'],
+    favoriteCategories: ['甜點 Desserts', '飲料 Beverages', '下午茶'],
+    joinedDate: 'April 2024'
+  },
+  { 
+    id: 'user5', 
+    displayName: 'Street Food Hunter', 
+    handle: 'street_hunter', 
+    username: 'street_hunter', 
+    email: 'street@example.com',
+    avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=faces',
+    bio: '夜市達人！專門發掘各地夜市的隱藏美食 🌙',
+    favoriteStyles: ['台菜 Taiwanese', '泰式 Thai', '越式 Vietnamese'],
+    favoriteCategories: ['街頭小吃 Street Food', '宵夜 Late Night', '燒烤'],
+    joinedDate: 'May 2024'
+  },
+  { 
+    id: 'lamige_9', 
+    displayName: '王柏融', 
+    handle: 'lamige_9', 
+    username: 'lamige_9', 
+    email: 'lamige@example.com', 
+    avatarUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRRlemVfqgIwcy8YxYkeyEcWKZaQ8gKT64JVg&s',
+    bio: '職業棒球選手，休假時最愛探索美食！⚾',
+    favoriteStyles: ['美式 American', '日式 Japanese', '台菜 Taiwanese'],
+    favoriteCategories: ['速食 Fast Food', '牛排', '燒肉'],
+    joinedDate: 'June 2024'
+  },
+  { 
+    id: 'real_harrystyles', 
+    displayName: 'Harry Styles', 
+    handle: 'real_harrystyles', 
+    username: 'real_harrystyles', 
+    email: 'harry@example.com', 
+    avatarUrl: 'https://m.media-amazon.com/images/M/MV5BN2YxZGU1YTMtZmYyYy00YzA5LWIyNjMtMDA1NDg5YmFjMWY2XkEyXkFqcGc@._V1_.jpg',
+    bio: 'Singer, songwriter, and food enthusiast 🎤🍽️',
+    favoriteStyles: ['義式 Italian', '日式 Japanese', '法式 French'],
+    favoriteCategories: ['Fine Dining', '甜點 Desserts', '紅酒'],
+    joinedDate: 'July 2024'
+  },
+  { 
+    id: 'lorry930811', 
+    displayName: '羅立宸', 
+    handle: 'lorry930811', 
+    username: 'lorry930811', 
+    email: 'lorry@example.com', 
+    avatarUrl: 'https://images.squarespace-cdn.com/content/v1/5c34403aaa49a1c60b7e6c7e/1548979956856-ZSK82JV8UYCWVECAKEAS/person.png', 
+    bio: '熱愛探索美食的吃貨，喜歡分享餐廳體驗 🍜', 
+    favoriteStyles: ['日式 Japanese', '美式 American', '泰式 Thai', '墨西哥 Mexican'], 
+    favoriteCategories: ['早餐 Breakfast', '飲料 Beverages', '甜點 Desserts', '速食 Fast Food'], 
+    joinedDate: 'April 2024' 
+  },
 ];
 
 async function seed() {
@@ -57,10 +145,18 @@ async function seed() {
     }
     console.log(`✓ Inserted ${boards.length} boards`);
 
-    // Insert users
+    // Insert users (update if already exists)
     for (const user of users) {
       await query(
-        'INSERT INTO users (id, display_name, handle, username, email, avatar_url, bio, favorite_styles, favorite_categories, joined_date) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) ON CONFLICT (id) DO NOTHING',
+        `INSERT INTO users (id, display_name, handle, username, email, avatar_url, bio, favorite_styles, favorite_categories, joined_date) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
+         ON CONFLICT (id) DO UPDATE SET
+           display_name = EXCLUDED.display_name,
+           avatar_url = COALESCE(EXCLUDED.avatar_url, users.avatar_url),
+           bio = COALESCE(EXCLUDED.bio, users.bio),
+           favorite_styles = COALESCE(EXCLUDED.favorite_styles, users.favorite_styles),
+           favorite_categories = COALESCE(EXCLUDED.favorite_categories, users.favorite_categories),
+           joined_date = COALESCE(EXCLUDED.joined_date, users.joined_date)`,
         [
           user.id,
           user.displayName,
@@ -68,14 +164,14 @@ async function seed() {
           user.username,
           user.email,
           user.avatarUrl || null,
-          (user as any).bio || null,
-          (user as any).favoriteStyles || null,
-          (user as any).favoriteCategories || null,
-          (user as any).joinedDate || null,
+          user.bio || null,
+          user.favoriteStyles || null,
+          user.favoriteCategories || null,
+          user.joinedDate || null,
         ]
       );
     }
-    console.log(`✓ Inserted ${users.length} users`);
+    console.log(`✓ Inserted/Updated ${users.length} users`);
 
     // Insert review posts
     const reviewPosts = [
