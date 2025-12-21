@@ -74,12 +74,14 @@ async function populateReviewPost(post: any, currentUserId?: string): Promise<Re
   const author = await getUser(post.author_id);
   const board = await getBoard(post.board_id);
 
-  // Get images
+  // Get images (filter out blob URLs as they are temporary and won't persist)
   const imagesResult = await query(
     'SELECT image_url FROM post_images WHERE post_id = $1 ORDER BY image_order',
     [post.id]
   );
-  const imageUrls = imagesResult.rows.map((img: any) => img.image_url);
+  const imageUrls = imagesResult.rows
+    .map((img: any) => img.image_url)
+    .filter((url: string) => url && !url.startsWith('blob:'));
 
   // Check if user follows author
   let isFromFollowedUser = false;

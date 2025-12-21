@@ -227,12 +227,16 @@ export const MeetupPostCard: React.FC<MeetupPostCardProps> = ({ post, onClick, o
       className="group px-4 py-3 border-b border-border-color cursor-pointer hover:bg-bg-hover transition-colors duration-200"
     >
       {/* Optional Image Banner */}
-      {post.imageUrl && (
+      {post.imageUrl && !post.imageUrl.startsWith('blob:') && (
         <div className="mb-3 -mx-4 -mt-3 overflow-hidden">
           <img
             src={post.imageUrl}
             alt={post.restaurantName}
             className="w-full h-48 object-cover"
+            onError={(e) => {
+              // Hide broken images
+              (e.target as HTMLImageElement).style.display = 'none';
+            }}
           />
         </div>
       )}

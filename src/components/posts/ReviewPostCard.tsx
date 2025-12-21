@@ -196,7 +196,8 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick, o
   // Navigate to next image
   const goToNext = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const maxIndex = (post.images?.length || 1) - 1;
+    const validImages = post.images?.filter((url) => url && !url.startsWith('blob:')) || [];
+    const maxIndex = (validImages.length || 1) - 1;
     setActiveIndex((prev) => Math.min(maxIndex, prev + 1));
   };
 
@@ -487,63 +488,82 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick, o
         {/* IMAGE GALLERY */}
         {/* PRODUCTION NOTE: Images should be uploaded to cloud storage (AWS S3, GCS, Firebase Storage) 
             and URLs stored in database. Never rely on direct Unsplash/external hotlinks in production. */}
-        {(post.images && post.images.length > 0) ? (
-          <div className="mb-3 -mx-4">
-            <div 
-              className="flex overflow-x-auto scroll-smooth px-4 gap-3"
-              style={{
-                scrollSnapType: 'x mandatory',
-                scrollbarWidth: 'none',
-                msOverflowStyle: 'none',
-                WebkitOverflowScrolling: 'touch',
-              }}
-            >
-              {post.images.map((imageUrl, index) => (
-                <div
-                  key={index}
-                  className="relative flex-shrink-0 rounded-xl overflow-hidden border border-border-color group cursor-pointer snap-center"
+        {(() => {
+          // Filter out blob URLs as they are temporary and won't persist
+          const validImages = post.images?.filter((url) => url && !url.startsWith('blob:')) || [];
+          const validImageUrl = post.imageUrl && !post.imageUrl.startsWith('blob:') ? post.imageUrl : null;
+          
+          if (validImages.length > 0) {
+            return (
+              <div className="mb-3 -mx-4">
+                <div 
+                  className="flex overflow-x-auto scroll-smooth px-4 gap-3"
                   style={{
-                    width: post.images!.length === 1 ? 'calc(100% - 2rem)' : '85%',
-                    height: '300px',
-                    maxWidth: '100%',
-                    maxHeight: '420px',
+                    scrollSnapType: 'x mandatory',
+                    scrollbarWidth: 'none',
+                    msOverflowStyle: 'none',
+                    WebkitOverflowScrolling: 'touch',
                   }}
-                  onClick={(e) => openLightbox(index, e)}
                 >
-                  <img
-                    src={imageUrl}
-                    alt={`${post.restaurantName} - ${index + 1}`}
-                    className="w-full h-full max-w-full object-cover hover:opacity-90 transition-opacity"
-                  />
-                  {/* Image counter badge - HOVER ONLY */}
-                  {post.images!.length > 1 && (
-                    <div className="absolute top-3 right-3 bg-black bg-opacity-70 text-white px-2 py-0.5 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity">
-                      {index + 1}/{post.images!.length}
+                  {validImages.map((imageUrl, index) => (
+                    <div
+                      key={index}
+                      className="relative flex-shrink-0 rounded-xl overflow-hidden border border-border-color group cursor-pointer snap-center"
+                      style={{
+                        width: validImages.length === 1 ? 'calc(100% - 2rem)' : '85%',
+                        height: '300px',
+                        maxWidth: '100%',
+                        maxHeight: '420px',
+                      }}
+                      onClick={(e) => openLightbox(index, e)}
+                    >
+                      <img
+                        src={imageUrl}
+                        alt={`${post.restaurantName} - ${index + 1}`}
+                        className="w-full h-full max-w-full object-cover hover:opacity-90 transition-opacity"
+                        onError={(e) => {
+                          // Hide broken images
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                      {/* Image counter badge - HOVER ONLY */}
+                      {validImages.length > 1 && (
+                        <div className="absolute top-3 right-3 bg-black bg-opacity-70 text-white px-2 py-0.5 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                          {index + 1}/{validImages.length}
+                        </div>
+                      )}
                     </div>
-                  )}
+                  ))}
                 </div>
-              ))}
-            </div>
-            {/* Hide scrollbar CSS-in-JS */}
-            <style>{`
-              .overflow-x-auto::-webkit-scrollbar {
-                display: none;
-              }
-            `}</style>
-          </div>
-        ) : post.imageUrl ? (
-          // Legacy single image support
-          <div 
-            className="rounded-xl overflow-hidden border border-border-color mb-3 cursor-pointer group"
-            onClick={(e) => openLightbox(0, e)}
-          >
-            <img 
-              src={post.imageUrl} 
-              alt={post.restaurantName}
-              className="w-full max-w-full h-[300px] max-h-[420px] object-cover hover:opacity-90 transition-opacity"
-            />
-          </div>
-        ) : null}
+                {/* Hide scrollbar CSS-in-JS */}
+                <style>{`
+                  .overflow-x-auto::-webkit-scrollbar {
+                    display: none;
+                  }
+                `}</style>
+              </div>
+            );
+          } else if (validImageUrl) {
+            // Legacy single image support
+            return (
+              <div 
+                className="rounded-xl overflow-hidden border border-border-color mb-3 cursor-pointer group"
+                onClick={(e) => openLightbox(0, e)}
+              >
+                <img 
+                  src={validImageUrl} 
+                  alt={post.restaurantName}
+                  className="w-full max-w-full h-[300px] max-h-[420px] object-cover hover:opacity-90 transition-opacity"
+                  onError={(e) => {
+                    // Hide broken images
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+              </div>
+            );
+          }
+          return null;
+        })()}
 
         {/* BOTTOM ACTION BAR - Like, Comment, Share, Save */}
         <div className="flex items-center gap-6 text-text-secondary text-sm pt-2">
@@ -696,42 +716,59 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick, o
           <div className="relative max-w-[90vw] max-h-[90vh]">
             {/* Main Image */}
             <img
-              src={(post.images && post.images[activeIndex]) || post.imageUrl || ''}
+              src={(() => {
+                const validImages = post.images?.filter((url) => url && !url.startsWith('blob:')) || [];
+                const validImageUrl = post.imageUrl && !post.imageUrl.startsWith('blob:') ? post.imageUrl : null;
+                return (validImages[activeIndex] || validImageUrl || '');
+              })()}
               alt={`${post.restaurantName} - ${activeIndex + 1}`}
               className="max-w-full max-h-[90vh] object-contain rounded-lg"
               onClick={(e) => e.stopPropagation()}
+              onError={(e) => {
+                // Hide broken images
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
             />
 
             {/* Image Counter */}
-            {post.images && post.images.length > 1 && (
-              <div className="absolute top-4 right-4 bg-black bg-opacity-70 text-white px-3 py-1.5 rounded-lg text-sm font-semibold">
-                {activeIndex + 1} / {post.images.length}
-              </div>
-            )}
+            {(() => {
+              const validImages = post.images?.filter((url) => url && !url.startsWith('blob:')) || [];
+              return validImages.length > 1 && (
+                <div className="absolute top-4 right-4 bg-black bg-opacity-70 text-white px-3 py-1.5 rounded-lg text-sm font-semibold">
+                  {activeIndex + 1} / {validImages.length}
+                </div>
+              );
+            })()}
 
             {/* Previous Arrow */}
-            {post.images && post.images.length > 1 && activeIndex > 0 && (
-              <button
-                onClick={goToPrev}
-                className="absolute left-4 top-1/2 -translate-y-1/2 bg-black bg-opacity-60 hover:bg-opacity-80 text-white p-3 rounded-full transition-all"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="15 18 9 12 15 6"></polyline>
-                </svg>
-              </button>
-            )}
+            {(() => {
+              const validImages = post.images?.filter((url) => url && !url.startsWith('blob:')) || [];
+              return validImages.length > 1 && activeIndex > 0 && (
+                <button
+                  onClick={goToPrev}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 bg-black bg-opacity-60 hover:bg-opacity-80 text-white p-3 rounded-full transition-all"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                  </svg>
+                </button>
+              );
+            })()}
 
             {/* Next Arrow */}
-            {post.images && post.images.length > 1 && activeIndex < post.images.length - 1 && (
-              <button
-                onClick={goToNext}
-                className="absolute right-4 top-1/2 -translate-y-1/2 bg-black bg-opacity-60 hover:bg-opacity-80 text-white p-3 rounded-full transition-all"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="9 18 15 12 9 6"></polyline>
-                </svg>
-              </button>
-            )}
+            {(() => {
+              const validImages = post.images?.filter((url) => url && !url.startsWith('blob:')) || [];
+              return validImages.length > 1 && activeIndex < validImages.length - 1 && (
+                <button
+                  onClick={goToNext}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 bg-black bg-opacity-60 hover:bg-opacity-80 text-white p-3 rounded-full transition-all"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                  </svg>
+                </button>
+              );
+            })()}
 
             {/* Close Button */}
             <button
