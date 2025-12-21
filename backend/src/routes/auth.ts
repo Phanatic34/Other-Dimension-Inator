@@ -88,9 +88,26 @@ router.post('/register', requireDatabase, async (req: Request, res: Response) =>
         avatarUrl: defaultAvatar,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Register error:', error);
-    res.status(500).json({ error: 'Registration failed' });
+    // Provide more detailed error message
+    if (error.code === '23505') { // PostgreSQL unique constraint violation
+      if (error.detail?.includes('email')) {
+        return res.status(400).json({ error: 'Email already registered' });
+      }
+      if (error.detail?.includes('handle')) {
+        return res.status(400).json({ error: 'Username already taken' });
+      }
+      return res.status(400).json({ error: 'User already exists' });
+    }
+    if (error.code === '23502') { // PostgreSQL not null constraint violation
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    // Return detailed error in development, generic in production
+    const errorMessage = process.env.NODE_ENV === 'development' 
+      ? `Registration failed: ${error.message}` 
+      : 'Registration failed. Please try again.';
+    res.status(500).json({ error: errorMessage });
   }
 });
 
