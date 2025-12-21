@@ -612,6 +612,22 @@ const RendezvousHomeContent: React.FC = () => {
                 <FoodSelector />
               ) : (
               <div className="max-w-[720px] mx-auto space-y-4">
+                  {/* Search indicator */}
+                  {filters.searchQuery && (
+                    <div className="flex items-center justify-between bg-accent-primary/10 border border-accent-primary/30 rounded-xl px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-text-secondary">搜尋結果：</span>
+                        <span className="font-bold text-accent-primary">{filters.searchQuery}</span>
+                        <span className="text-text-secondary">({filteredPosts.length} 篇貼文)</span>
+                      </div>
+                      <button
+                        onClick={() => updateSearchQuery('')}
+                        className="text-text-secondary hover:text-text-primary transition-colors px-2 py-1 rounded-lg hover:bg-bg-hover"
+                      >
+                        ✕ 清除搜尋
+                      </button>
+                    </div>
+                  )}
                   {/* "今天吃了什麼好東西？" input card */}
                   {activeTab === 'reviews' ? (
                     <section
