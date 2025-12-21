@@ -211,7 +211,6 @@ const RendezvousHomeContent: React.FC = () => {
       post.restaurantName?.toLowerCase().includes(text) ||
       post.locationArea?.toLowerCase().includes(text) ||
       post.contentSnippet?.toLowerCase().includes(text) ||
-      post.content?.toLowerCase().includes(text) ||
       post.title?.toLowerCase().includes(text) ||
       post.styleType?.toLowerCase().includes(text) ||
       post.foodType?.toLowerCase().includes(text) ||
