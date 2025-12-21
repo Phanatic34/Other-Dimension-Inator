@@ -1,8 +1,8 @@
 import React from 'react';
 
 interface TabSwitcherProps {
-  activeTab: 'reviews' | 'meetups';
-  onTabChange: (tab: 'reviews' | 'meetups') => void;
+  activeTab: 'reviews' | 'meetups' | 'food-selector';
+  onTabChange: (tab: 'reviews' | 'meetups' | 'food-selector') => void;
   feedFilter: 'all' | 'following';
   onFeedFilterChange: (filter: 'all' | 'following') => void;
 }
@@ -40,9 +40,21 @@ export const TabSwitcher: React.FC<TabSwitcherProps> = ({
           >
             揪吃飯貼文串
           </button>
+          <button
+            onClick={() => onTabChange('food-selector')}
+            className={`px-5 py-3 text-base rounded-lg transition-all duration-200 ${
+              activeTab === 'food-selector'
+                ? 'text-accent-primary border-b-3 border-accent-primary bg-bg-card shadow-sm font-bold'
+                : 'text-text-secondary hover:text-text-primary hover:bg-bg-hover'
+            }`}
+            style={{ fontFamily: 'Garamond, Baskerville, Georgia, Times New Roman, serif', fontWeight: 900 }}
+          >
+            食物選擇器
+          </button>
         </div>
 
-        {/* All / Following Toggle */}
+        {/* All / Following Toggle (only show for reviews/meetups tabs) */}
+        {activeTab !== 'food-selector' && (
         <div className="flex items-center space-x-2 bg-bg-card rounded-lg p-1 shadow-sm">
           <button
             onClick={() => onFeedFilterChange('all')}
@@ -67,6 +79,7 @@ export const TabSwitcher: React.FC<TabSwitcherProps> = ({
             Following
           </button>
         </div>
+        )}
       </div>
     </div>
   );

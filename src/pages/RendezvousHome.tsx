@@ -24,6 +24,7 @@ import { YouMightLike } from '../components/profile/YouMightLike';
 import { SmallMap } from '../components/homepage/SmallMap';
 import { LocationPreviewProvider, useLocationPreview } from '../contexts/LocationPreviewContext';
 import { LocationSavePrompt } from '../components/LocationSavePrompt';
+import { FoodSelector } from '../components/food-selector/FoodSelector';
 
 // Active Filters Type (single-select per group)
 type ActiveFilters = {
@@ -40,7 +41,7 @@ const RendezvousHomeContent: React.FC = () => {
   // State
   const [boards, setBoards] = useState<Board[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
-  const [activeTab, setActiveTab] = useState<'reviews' | 'meetups'>('reviews');
+  const [activeTab, setActiveTab] = useState<'reviews' | 'meetups' | 'food-selector'>('reviews');
   const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null);
   const [feedFilter, setFeedFilter] = useState<'all' | 'following'>('all');
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
@@ -563,7 +564,10 @@ const RendezvousHomeContent: React.FC = () => {
               {/* Feed top anchor for scrolling */}
               <div id="review-feed-top" />
 
-              {/* Posts feed – constrain width */}
+              {/* Content based on active tab */}
+              {activeTab === 'food-selector' ? (
+                <FoodSelector />
+              ) : (
               <div className="max-w-[720px] mx-auto space-y-4">
                   {/* "今天吃了什麼好東西？" input card */}
                   {activeTab === 'reviews' ? (
@@ -662,6 +666,7 @@ const RendezvousHomeContent: React.FC = () => {
                     })
                   )}
               </div>
+              )}
             </main>
 
             {/* RIGHT SIDEBAR */}
