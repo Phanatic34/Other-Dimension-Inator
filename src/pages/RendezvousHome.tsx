@@ -1,7 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Board, Post, ReviewPost, MeetupPost, User } from '../types/models';
-import { fetchBoards, fetchPosts, createMeetupPost } from '../api/mock';
-import { fetchRecommendedUsers } from '../api/mockProfile';
+import { 
+  fetchBoards as fetchBoardsAPI, 
+  fetchAllPosts, 
+  fetchRecommendedUsers as fetchRecommendedUsersAPI,
+  createReviewPost as createReviewPostAPI,
+  createMeetupPost as createMeetupPostAPI 
+} from '../api/api';
+import { fetchBoards as fetchMockBoards, fetchPosts as fetchMockPosts } from '../api/mock';
+import { useAuth } from '../contexts/AuthContext';
 import { RestaurantLocation } from '../types/location';
 import { TopNavBar } from '../components/layout/TopNavBar';
 import { Sidebar } from '../components/layout/Sidebar';
@@ -89,11 +96,26 @@ const RendezvousHomeContent: React.FC = () => {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        const [boardsData, postsData, recommended] = await Promise.all([
-          fetchBoards(),
-          fetchPosts(),
-          fetchRecommendedUsers(),
-        ]);
+        // Try to fetch from API first, fallback to mock data
+        let boardsData: Board[] = [];
+        let postsData: Post[] = [];
+        let recommended: any[] = [];
+
+        try {
+          [boardsData, postsData, recommended] = await Promise.all([
+            fetchBoardsAPI(),
+            fetchAllPosts(),
+            fetchRecommendedUsersAPI(),
+          ]);
+        } catch (apiError) {
+          console.warn('API not available, using mock data:', apiError);
+          // Fallback to mock data
+          [boardsData, postsData] = await Promise.all([
+            fetchMockBoards(),
+            fetchMockPosts(),
+          ]);
+        }
+
         setBoards(boardsData);
         setPosts(postsData);
         setRecommendedUsers(recommended);
@@ -286,17 +308,26 @@ const RendezvousHomeContent: React.FC = () => {
     // TODO: The form will submit to the backend API
   };
 
-  // Current user (mock - in real app, get from auth context)
-  const currentUser: User = {
-    id: 'me',
-    displayName: 'Philip',
-    handle: '@philip',
+  // Get current user from auth context
+  const { user: authUser, isAuthenticated } = useAuth();
+  
+  // Current user for display purposes
+  const currentUser: User = authUser ? {
+    id: authUser.id,
+    displayName: authUser.displayName,
+    handle: `@${authUser.handle}`,
+    avatarUrl: authUser.avatarUrl,
+    isFollowedByCurrentUser: false,
+  } : {
+    id: 'guest',
+    displayName: 'Guest',
+    handle: '@guest',
     avatarUrl: '/images/default-avatar.png',
-    isFollowedByCurrentUser: false, // User doesn't follow themselves
+    isFollowedByCurrentUser: false,
   };
 
   // Handler to create a new review post from form values
-  const handleCreateReviewPost = (values: ReviewPostFormValues) => {
+  const handleCreateReviewPost = async (values: ReviewPostFormValues) => {
     const now = new Date();
 
     // Find the style board (cuisine category)
@@ -323,44 +354,73 @@ const RendezvousHomeContent: React.FC = () => {
     }
 
     // Extract locationArea from locationDisplayName
-    // Format: "大安區 | 好吃炒飯" or just "好吃炒飯"
     const locationDisplayParts = values.locationDisplayName.split(' | ');
     const locationArea = locationDisplayParts.length > 1 
-      ? locationDisplayParts[0]  // e.g. "大安區"
-      : 'Taipei'; // Default if no region in display name
+      ? locationDisplayParts[0]
+      : 'Taipei';
 
     // Convert photo files to image URLs (object URLs for immediate display)
     const imageUrls = values.photoFiles.map((file) => URL.createObjectURL(file));
 
-    const newPost: ReviewPost = {
-      id: `local-${now.getTime()}`,
-      type: 'review',
-      author: currentUser,
-      restaurantName: values.restaurantName,
-      board: styleBoard || boards[0], // Fallback to first board if not found
-      styleType: styleBoard?.label,
-      foodType: categoryBoard?.label,
-      title: values.restaurantName, // Use restaurant name as title for now
-      contentSnippet: values.content.length > 100 
-        ? values.content.substring(0, 100) + '...' 
-        : values.content,
-      rating: values.rating,
-      priceLevel,
-      priceMax: values.priceMax ?? undefined,
-      locationArea,
-      createdAt: now.toISOString(),
-      likeCount: 0,
-      commentCount: 0,
-      shareCount: 0,
-      images: imageUrls.length > 0 ? imageUrls : undefined,
-      imageUrl: imageUrls[0], // Legacy support
-      isFromFollowedUser: feedFilter === 'following',
-    };
+    // Check if user is authenticated
+    if (isAuthenticated) {
+      try {
+        // Create post via API
+        const createdPost = await createReviewPostAPI({
+          restaurantName: values.restaurantName,
+          restaurantAddress: values.restaurantAddress,
+          restaurantLat: values.lat ?? undefined,
+          restaurantLng: values.lng ?? undefined,
+          locationArea,
+          boardId: styleBoard?.id || boards[0]?.id,
+          styleType: styleBoard?.label,
+          foodType: categoryBoard?.label,
+          title: values.restaurantName,
+          content: values.content,
+          rating: values.rating,
+          priceLevel,
+          priceMin: values.priceMin ?? undefined,
+          priceMax: values.priceMax ?? undefined,
+          images: imageUrls,
+        });
 
-    // Add the new post to the beginning of the posts array
-    setPosts((prev) => [newPost, ...prev]);
+        // Add the created post to the beginning
+        setPosts((prev) => [createdPost, ...prev]);
+      } catch (error) {
+        console.error('Failed to create post:', error);
+        alert('Failed to create post. Please try again.');
+        return;
+      }
+    } else {
+      // Create local post for non-authenticated users
+      const newPost: ReviewPost = {
+        id: `local-${now.getTime()}`,
+        type: 'review',
+        author: currentUser,
+        restaurantName: values.restaurantName,
+        board: styleBoard || boards[0],
+        styleType: styleBoard?.label,
+        foodType: categoryBoard?.label,
+        title: values.restaurantName,
+        contentSnippet: values.content.length > 100 
+          ? values.content.substring(0, 100) + '...' 
+          : values.content,
+        rating: values.rating,
+        priceLevel,
+        priceMax: values.priceMax ?? undefined,
+        locationArea,
+        createdAt: now.toISOString(),
+        likeCount: 0,
+        commentCount: 0,
+        shareCount: 0,
+        images: imageUrls.length > 0 ? imageUrls : undefined,
+        imageUrl: imageUrls[0],
+        isFromFollowedUser: feedFilter === 'following',
+      };
+      setPosts((prev) => [newPost, ...prev]);
+    }
 
-    // Optional: scroll to the top of the feed smoothly after posting
+    // Scroll to the top of the feed
     const feedTop = document.getElementById('review-feed-top');
     if (feedTop) {
       feedTop.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -371,7 +431,24 @@ const RendezvousHomeContent: React.FC = () => {
   const handleCreateMeetupPost = async (values: DiningMeetupFormValues) => {
     try {
       // Call the API to create the post
-      const createdPost = await createMeetupPost(values);
+      let createdPost: any = null;
+      
+      if (isAuthenticated) {
+        createdPost = await createMeetupPostAPI({
+          restaurantName: values.restaurantName,
+          locationText: values.locationText,
+          address: values.locationText, // Use locationText as address
+          meetupTime: values.meetupTime,
+          foodTags: values.foodTags,
+          maxHeadcount: values.maxHeadcount,
+          budgetDescription: values.budgetDescription,
+          hasReservation: values.hasReservation,
+          description: values.description,
+          imageUrl: values.imageUrl ?? undefined,
+          boardId: undefined,
+          locationArea: values.locationText,
+        });
+      }
       
       // Convert API response to MeetupPost format
       const now = new Date();

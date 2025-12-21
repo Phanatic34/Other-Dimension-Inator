@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { UserProfile } from '../../types/profile';
 import { STYLE_OPTIONS, CATEGORY_OPTIONS } from '../../utils/tagOptions';
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
 interface EditProfileModalProps {
   isOpen: boolean;
   profile: UserProfile;
@@ -15,56 +17,102 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   onClose,
   onSave,
 }) => {
-  const [displayName, setDisplayName] = useState(profile.displayName);
-  const [avatarUrl, setAvatarUrl] = useState(profile.avatarUrl);
-  const [coverImageUrl, setCoverImageUrl] = useState(profile.coverImageUrl);
+  // All hooks must be called before any conditional returns
+  const [displayName, setDisplayName] = useState(profile.displayName || '');
+  const [avatarUrl, setAvatarUrl] = useState(profile.avatarUrl || '');
+  const [coverImageUrl, setCoverImageUrl] = useState(profile.coverImageUrl || '');
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
-  const [selectedStyles, setSelectedStyles] = useState<string[]>(profile.favoriteStyles);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>(profile.favoriteCategories);
+  const [selectedStyles, setSelectedStyles] = useState<string[]>(profile.favoriteStyles || []);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(profile.favoriteCategories || []);
+  const [isUploading, setIsUploading] = useState(false);
   
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
+  // Helper to check if URL is valid (not a blob URL or invalid format)
+  const isValidImageUrl = (url: string | undefined): boolean => {
+    if (!url) return false;
+    // Check if it's a valid HTTP(S) URL
+    return url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:');
+  };
+
   // Reset state when modal opens/closes or profile changes
   useEffect(() => {
     if (isOpen) {
-      setDisplayName(profile.displayName);
-      setAvatarUrl(profile.avatarUrl);
-      setCoverImageUrl(profile.coverImageUrl);
-      setSelectedStyles([...profile.favoriteStyles]);
-      setSelectedCategories([...profile.favoriteCategories]);
+      setDisplayName(profile.displayName || '');
+      setAvatarUrl(profile.avatarUrl || '');
+      setCoverImageUrl(profile.coverImageUrl || '');
+      setSelectedStyles([...(profile.favoriteStyles || [])]);
+      setSelectedCategories([...(profile.favoriteCategories || [])]);
       setAvatarPreview(null);
       setCoverPreview(null);
     }
   }, [isOpen, profile]);
 
+  // Early return AFTER all hooks
   if (!isOpen) return null;
 
-  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const uploadImage = async (file: File): Promise<string | null> => {
+    const formData = new FormData();
+    formData.append('image', file);
+    
+    try {
+      setIsUploading(true);
+      const response = await fetch(`${API_URL}/api/upload/image`, {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        throw new Error('Upload failed');
+      }
+      
+      const data = await response.json();
+      return data.imageUrl;
+    } catch (error) {
+      console.error('Image upload error:', error);
+      return null;
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleAvatarFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const preview = URL.createObjectURL(file);
       setAvatarPreview(preview);
-      // TODO: In production, upload to cloud storage and get URL
-      // For now, we'll use the preview URL temporarily
+      
+      // Upload to cloud storage
+      const uploadedUrl = await uploadImage(file);
+      if (uploadedUrl) {
+        setAvatarUrl(uploadedUrl);
+      }
     }
   };
 
-  const handleCoverFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCoverFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const preview = URL.createObjectURL(file);
       setCoverPreview(preview);
-      // TODO: In production, upload to cloud storage and get URL
+      
+      // Upload to cloud storage
+      const uploadedUrl = await uploadImage(file);
+      if (uploadedUrl) {
+        setCoverImageUrl(uploadedUrl);
+      }
     }
   };
 
   const handleSave = () => {
+    // Use the actual uploaded URL (avatarUrl/coverImageUrl), not the blob preview
+    // avatarUrl and coverImageUrl are updated to Cloudinary URLs after successful upload
     onSave({
       displayName,
-      avatarUrl: avatarPreview || avatarUrl,
-      coverImageUrl: coverPreview || coverImageUrl,
+      avatarUrl: avatarUrl || undefined, // Use the Cloudinary URL, not the blob preview
+      coverImageUrl: coverImageUrl || undefined,
       favoriteStyles: selectedStyles,
       favoriteCategories: selectedCategories,
     });
@@ -78,11 +126,11 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
 
   const handleCancel = () => {
     // Reset to original values
-    setDisplayName(profile.displayName);
-    setAvatarUrl(profile.avatarUrl);
-    setCoverImageUrl(profile.coverImageUrl);
-    setSelectedStyles([...profile.favoriteStyles]);
-    setSelectedCategories([...profile.favoriteCategories]);
+    setDisplayName(profile.displayName || '');
+    setAvatarUrl(profile.avatarUrl || '');
+    setCoverImageUrl(profile.coverImageUrl || '');
+    setSelectedStyles([...(profile.favoriteStyles || [])]);
+    setSelectedCategories([...(profile.favoriteCategories || [])]);
     if (avatarPreview) URL.revokeObjectURL(avatarPreview);
     if (coverPreview) URL.revokeObjectURL(coverPreview);
     setAvatarPreview(null);
@@ -146,11 +194,20 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
               Cover Image
             </label>
             <div className="relative h-32 bg-gray-200 rounded-lg overflow-hidden mb-2">
-              <img
-                src={coverPreview || coverImageUrl}
-                alt="Cover preview"
-                className="w-full h-full object-cover"
-              />
+              {(coverPreview || isValidImageUrl(coverImageUrl)) ? (
+                <img
+                  src={coverPreview || coverImageUrl}
+                  alt="Cover preview"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-r from-[#722F37] to-[#8B4513] flex items-center justify-center text-white text-sm">
+                  No cover image
+                </div>
+              )}
             </div>
             <div className="flex gap-2">
               <input
@@ -162,9 +219,10 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
               />
               <button
                 onClick={() => coverInputRef.current?.click()}
-                className="px-4 py-2 rounded-lg border border-border-color bg-bg-card text-text-primary hover:bg-bg-hover transition-colors"
+                disabled={isUploading}
+                className="px-4 py-2 rounded-lg border border-border-color bg-bg-card text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-50"
               >
-                Upload Image
+                {isUploading ? 'Uploading...' : 'Upload Image'}
               </button>
               <input
                 type="text"
@@ -182,12 +240,21 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
               Avatar
             </label>
             <div className="flex items-center gap-4">
-              <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
-                <img
-                  src={avatarPreview || avatarUrl}
-                  alt="Avatar preview"
-                  className="w-full h-full object-cover"
-                />
+              <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-200 flex-shrink-0 flex items-center justify-center">
+                {(avatarPreview || isValidImageUrl(avatarUrl)) ? (
+                  <img
+                    src={avatarPreview || avatarUrl}
+                    alt="Avatar preview"
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-full bg-[#722F37] flex items-center justify-center text-white font-bold text-2xl">
+                    {displayName?.charAt(0).toUpperCase() || 'U'}
+                  </div>
+                )}
               </div>
               <div className="flex-1 flex gap-2">
                 <input
@@ -199,9 +266,10 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
                 />
                 <button
                   onClick={() => avatarInputRef.current?.click()}
-                  className="px-4 py-2 rounded-lg border border-border-color bg-bg-card text-text-primary hover:bg-bg-hover transition-colors"
+                  disabled={isUploading}
+                  className="px-4 py-2 rounded-lg border border-border-color bg-bg-card text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-50"
                 >
-                  Upload Image
+                  {isUploading ? 'Uploading...' : 'Upload Image'}
                 </button>
                 <input
                   type="text"
@@ -290,21 +358,14 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
             </button>
             <button
               onClick={handleSave}
-              className="px-6 py-2 rounded-full bg-accent-primary text-white hover:bg-accent-primary/90 transition-colors font-semibold"
+              disabled={isUploading}
+              className="px-6 py-2 rounded-full bg-accent-primary text-white hover:bg-accent-primary/90 transition-colors font-semibold disabled:opacity-50"
             >
-              Save
+              {isUploading ? 'Uploading...' : 'Save'}
             </button>
           </div>
-
-          {/* TODO: In production, replace local state with API calls:
-           * 1. Upload images to cloud storage (AWS S3, GCS, Firebase)
-           * 2. Get image URLs from upload response
-           * 3. Call PATCH /api/users/:userId/profile with updated data
-           * 4. Handle loading states and error messages
-           */}
         </div>
       </div>
     </div>
   );
 };
-

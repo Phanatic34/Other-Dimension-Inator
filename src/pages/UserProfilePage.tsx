@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { UserProfile, ProfileTab, ProfileTabData, RecommendedUser } from '../types/profile';
 import { Post, ReviewPost, MeetupPost } from '../types/models';
-import { fetchUserProfile, getProfileTabData, fetchRecommendedUsers } from '../api/mockProfile';
+import { fetchUserByHandle, fetchUserPosts, fetchRecommendedUsers } from '../api/api';
+import { useAuth } from '../contexts/AuthContext';
 import { ProfileHeader } from '../components/profile/ProfileHeader';
 import { ProfileTags } from '../components/profile/ProfileTags';
 import { ProfileTabs } from '../components/profile/ProfileTabs';
@@ -15,7 +16,10 @@ import { TopNavBar } from '../components/layout/TopNavBar';
 export const UserProfilePage: React.FC = () => {
   const { username } = useParams<{ username: string }>();
   const navigate = useNavigate();
+  const { user: currentUser, isAuthenticated } = useAuth();
+  
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [tabData, setTabData] = useState<ProfileTabData | null>(null);
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -23,10 +27,7 @@ export const UserProfilePage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [recommendedUsers, setRecommendedUsers] = useState<RecommendedUser[]>([]);
 
-  // Mock current user ID (in production, get from auth context)
-  // TODO: Replace with actual auth context
-  const currentUserId = 'user1'; // Should match the logged-in user's ID
-  const isOwnProfile = profile?.id === currentUserId;
+  const isOwnProfile = isAuthenticated && currentUser?.handle === username;
 
   // Fetch profile data
   useEffect(() => {
@@ -35,13 +36,25 @@ export const UserProfilePage: React.FC = () => {
       
       setIsLoading(true);
       try {
-        const userProfile = await fetchUserProfile(username);
+        // Fetch user profile from API
+        const userProfile = await fetchUserByHandle(username);
         if (userProfile) {
           setProfile(userProfile);
-          // Fetch tab data
-          const data = await getProfileTabData(userProfile.id);
-          setTabData(data);
+          
+          // Fetch user's posts
+          const userPosts = await fetchUserPosts(userProfile.id);
+          setPosts(userPosts);
+          
+          // Create tab data structure
+          setTabData({
+            posts: userPosts,
+            likes: [], // TODO: Fetch liked posts
+            replies: [], // TODO: Fetch replies
+            reposts: [], // TODO: Fetch reposts
+            bookmarks: [], // TODO: Fetch bookmarks
+          });
         }
+        
         // Fetch recommended users
         const recommended = await fetchRecommendedUsers();
         setRecommendedUsers(recommended);
@@ -56,21 +69,38 @@ export const UserProfilePage: React.FC = () => {
   }, [username]);
 
   // Handle edit profile save
-  const handleSaveProfile = (updatedFields: Partial<UserProfile>) => {
-    if (!profile) return;
+  const handleSaveProfile = async (updatedFields: Partial<UserProfile>) => {
+    if (!profile || !currentUser) return;
     
-    // Update local state (in production, this would be an API call)
+    // Update local state immediately for responsiveness
     setProfile({
       ...profile,
       ...updatedFields,
     });
     
-    // TODO: In production, call API:
-    // await fetch(`/api/users/${profile.id}/profile`, {
-    //   method: 'PATCH',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(updatedFields),
-    // });
+    // Call API to save profile changes
+    try {
+      const token = localStorage.getItem('authToken');
+      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+      
+      const response = await fetch(`${API_URL}/api/users/${profile.id}/profile`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+        body: JSON.stringify(updatedFields),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update profile');
+      }
+      
+      console.log('Profile updated successfully');
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      // Could show error toast here
+    }
   };
 
   // Get current tab posts
@@ -79,16 +109,14 @@ export const UserProfilePage: React.FC = () => {
     return tabData[activeTab] || [];
   };
 
-  // Handle tag click (navigate to search)
+  // Handle tag click
   const handleTagClick = (tag: string) => {
-    // TODO: Navigate to home page with search query
     console.log('Tag clicked:', tag);
   };
 
   // Handle post click
   const handlePostClick = (post: Post) => {
     console.log('Post clicked:', post.id);
-    // TODO: Navigate to post detail page
   };
 
   if (isLoading) {
@@ -112,6 +140,12 @@ export const UserProfilePage: React.FC = () => {
           <p className="text-text-secondary text-base">
             The user @{username} does not exist.
           </p>
+          <button
+            onClick={() => navigate('/')}
+            className="mt-4 px-4 py-2 bg-[#722F37] text-white rounded-lg hover:bg-[#5C252C] transition-colors"
+          >
+            Go Home
+          </button>
         </div>
       </div>
     );
@@ -133,10 +167,7 @@ export const UserProfilePage: React.FC = () => {
       <TopNavBar
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        onPostClick={() => {
-          // Navigate to home or post creation
-          navigate('/');
-        }}
+        onPostClick={() => navigate('/')}
         showSearch={false}
       />
 
@@ -202,10 +233,7 @@ export const UserProfilePage: React.FC = () => {
                 ) : (
                   <div>
                     {currentPosts.map((post) => {
-                      // Only show "Edit" and "Archive" options for posts in the "Posts" tab
-                      // For reposts, likes, replies, and bookmarks, treat all posts as external
-                      // (show "Save" and "Report" options instead)
-                      const isOwnPost = activeTab === 'posts' && post.author.id === currentUserId;
+                      const isOwnPost = activeTab === 'posts' && isOwnProfile;
                       
                       if (post.type === 'review') {
                         return (
@@ -256,4 +284,3 @@ export const UserProfilePage: React.FC = () => {
     </div>
   );
 };
-

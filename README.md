@@ -151,16 +151,21 @@ npm install
 ```
 
 3. **Set up environment variables**
-Create a `.env.local` file in the root directory:
-```bash
-REACT_APP_GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
-```
-> **Note**: You need a Google Maps API key with Places API and Maps JavaScript API enabled. Get one from [Google Cloud Console](https://console.cloud.google.com/).
+   - See [環境變數設置指南](./docs/ENV_SETUP.md) for detailed instructions
+   - Create a `.env.local` file in the root directory:
+   ```bash
+   REACT_APP_GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
+   ```
+   > **Note**: You need a Google Maps API key with Places API and Maps JavaScript API enabled. Get one from [Google Cloud Console](https://console.cloud.google.com/).
 
 4. **Start development server**
-```bash
-npm start
-```
+   - Option 1: Use the startup scripts in `scripts/` folder
+     - Windows: Double-click `scripts/start-frontend.bat`
+     - PowerShell: Run `scripts/start-frontend.ps1`
+   - Option 2: Use npm directly
+   ```bash
+   npm start
+   ```
 
 5. **Open in browser**
 Navigate to [http://localhost:3000](http://localhost:3000)
@@ -398,6 +403,17 @@ interface SavedRestaurant {
   savedFromPostId?: string;     // Original post ID if saved from post
 }
 ```
+
+## 📚 Documentation
+
+### 🚀 快速開始
+👉 **[快速開始指南](./快速開始.md)** - 快速設置和啟動專案
+
+### 📖 詳細文檔
+所有詳細文檔請查看 [docs/](./docs/) 目錄：
+- **[環境變數設置指南](./docs/ENV_SETUP.md)** - 如何獲取和設置所有 API Key
+- **[NeonDB 資料庫串接指南](./docs/NEONDB_SETUP_GUIDE.md)** - 完整的資料庫設置步驟
+- **[後端 API 文檔](./backend/README.md)** - API 端點說明
 
 ## 🚀 Deployment
 

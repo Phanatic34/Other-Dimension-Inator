@@ -1,20 +1,57 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { RecommendedUser } from '../../types/profile';
+import { followUser, unfollowUser } from '../../api/api';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface YouMightLikeProps {
   recommendedUsers: RecommendedUser[];
 }
 
 export const YouMightLike: React.FC<YouMightLikeProps> = ({ recommendedUsers }) => {
-  const [followingStates, setFollowingStates] = useState<Record<string, boolean>>({});
+  const navigate = useNavigate();
+  const { user: currentUser, isAuthenticated } = useAuth();
+  const [followingStates, setFollowingStates] = useState<Record<string, boolean>>(() => {
+    // Initialize from the isFollowing property if available
+    const initial: Record<string, boolean> = {};
+    recommendedUsers.forEach(user => {
+      initial[user.id] = (user as any).isFollowing || false;
+    });
+    return initial;
+  });
+  const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
 
-  const handleFollow = (userId: string) => {
+  const handleFollow = async (userId: string) => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+
+    const isCurrentlyFollowing = followingStates[userId] || false;
+    
+    // Optimistic update
     setFollowingStates((prev) => ({
       ...prev,
-      [userId]: !prev[userId],
+      [userId]: !isCurrentlyFollowing,
     }));
-    // TODO: In production, call API to follow/unfollow user
-    // await fetch(`/api/users/${userId}/follow`, { method: 'POST' });
+    setLoadingStates((prev) => ({ ...prev, [userId]: true }));
+
+    try {
+      if (isCurrentlyFollowing) {
+        await unfollowUser(userId);
+      } else {
+        await followUser(userId);
+      }
+    } catch (error) {
+      // Revert on error
+      setFollowingStates((prev) => ({
+        ...prev,
+        [userId]: isCurrentlyFollowing,
+      }));
+      console.error('Follow/unfollow error:', error);
+    } finally {
+      setLoadingStates((prev) => ({ ...prev, [userId]: false }));
+    }
   };
 
   const handleShowMore = () => {
@@ -22,7 +59,13 @@ export const YouMightLike: React.FC<YouMightLikeProps> = ({ recommendedUsers }) 
     // TODO: In production, fetch more recommendations
   };
 
-  if (recommendedUsers.length === 0) {
+  // Filter out current user from recommendations
+  const filteredUsers = recommendedUsers.filter(user => {
+    if (!currentUser) return true;
+    return user.id !== currentUser.id;
+  });
+
+  if (filteredUsers.length === 0) {
     return null;
   }
 
@@ -33,12 +76,16 @@ export const YouMightLike: React.FC<YouMightLikeProps> = ({ recommendedUsers }) 
       </h3>
       
       <div className="space-y-4">
-        {recommendedUsers.map((user) => {
+        {filteredUsers.map((user) => {
           const isFollowing = followingStates[user.id] || false;
+          const isLoading = loadingStates[user.id] || false;
           
           return (
             <div key={user.id} className="flex items-start justify-between gap-3">
-              <div className="flex items-start gap-3 flex-1 min-w-0">
+              <div 
+                className="flex items-start gap-3 flex-1 min-w-0 cursor-pointer"
+                onClick={() => navigate(`/user/${user.handle || user.username}`)}
+              >
                 {/* Avatar */}
                 <div className="w-12 h-12 rounded-full bg-gray-200 flex-shrink-0 overflow-hidden">
                   {user.avatarUrl ? (
@@ -48,19 +95,19 @@ export const YouMightLike: React.FC<YouMightLikeProps> = ({ recommendedUsers }) 
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-text-secondary">
-                      <span className="text-lg">👤</span>
+                    <div className="w-full h-full flex items-center justify-center bg-[#722F37] text-white font-bold text-lg">
+                      {user.displayName?.charAt(0).toUpperCase() || 'U'}
                     </div>
                   )}
                 </div>
                 
                 {/* User Info */}
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-text-primary text-sm truncate">
+                  <p className="font-semibold text-text-primary text-sm truncate hover:underline">
                     {user.displayName}
                   </p>
                   <p className="text-text-secondary text-sm truncate">
-                    @{user.username}
+                    @{user.handle || user.username}
                   </p>
                   {user.bio && (
                     <p className="text-text-secondary text-xs mt-1 line-clamp-2">
@@ -73,13 +120,14 @@ export const YouMightLike: React.FC<YouMightLikeProps> = ({ recommendedUsers }) 
               {/* Follow Button */}
               <button
                 onClick={() => handleFollow(user.id)}
-                className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-colors flex-shrink-0 ${
+                disabled={isLoading}
+                className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-colors flex-shrink-0 disabled:opacity-50 ${
                   isFollowing
                     ? 'bg-bg-card border border-border-color text-text-primary hover:bg-bg-hover'
                     : 'bg-accent-primary text-white hover:bg-accent-primary/90'
                 }`}
               >
-                {isFollowing ? 'Following' : 'Follow'}
+                {isLoading ? '...' : isFollowing ? 'Following' : 'Follow'}
               </button>
             </div>
           );
@@ -96,4 +144,3 @@ export const YouMightLike: React.FC<YouMightLikeProps> = ({ recommendedUsers }) 
     </div>
   );
 };
-
