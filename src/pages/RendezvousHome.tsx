@@ -327,6 +327,7 @@ const RendezvousHomeContent: React.FC = () => {
       }
     }
 
+    console.log(`[FilteredPosts] Query="${filters.searchQuery}", Total=${posts.length}, After filter=${filtered.length}`);
     return filtered;
   }, [posts, activeTab, selectedBoardId, feedFilter, filters, passesFilters, matchesMeetupText]);
 
