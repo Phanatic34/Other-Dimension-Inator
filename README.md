@@ -2,6 +2,8 @@
 
 A modern, bilingual (Chinese/English) social platform for food lovers to discover restaurants, share reviews, and organize dining experiences. Built with React, TypeScript, and Tailwind CSS.
 
+🌐 **Live Demo:** [https://other-dimension-inator.vercel.app/](https://other-dimension-inator.vercel.app/)
+
 ## ✨ Features
 
 ### 🍱 Restaurant Reviews
