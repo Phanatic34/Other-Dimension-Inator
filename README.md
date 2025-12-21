@@ -151,12 +151,29 @@ npm install
 ```
 
 3. **Set up environment variables**
+
+   **前端環境變數：**
    - See [環境變數設置指南](./docs/ENV_SETUP.md) for detailed instructions
    - Create a `.env.local` file in the root directory:
    ```bash
    REACT_APP_GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
    ```
    > **Note**: You need a Google Maps API key with Places API and Maps JavaScript API enabled. Get one from [Google Cloud Console](https://console.cloud.google.com/).
+
+   **後端環境變數（重要！）：**
+   - 進入 `backend` 目錄
+   - 複製 `.env.example` 為 `.env`：
+   ```bash
+   cd backend
+   cp .env.example .env
+   ```
+   - 編輯 `.env` 文件，**至少需要設置：**
+   ```bash
+   DATABASE_URL=postgresql://user:password@host:port/database
+   JWT_SECRET=your-random-secret-key
+   ```
+   - 詳細說明請查看 [後端設置指南](./backend/SETUP.md)
+   > **⚠️ 重要：** 如果沒有設置 `DATABASE_URL`，後端將無法連接資料庫，所有 API 功能都無法使用！
 
 4. **Start development server**
    - Option 1: Use the startup scripts in `scripts/` folder

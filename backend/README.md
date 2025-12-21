@@ -27,7 +27,7 @@ cd backend
 npm install
 ```
 
-### 2. 配置環境變數
+### 2. 配置環境變數 ⚠️ **重要：這是必須的步驟！**
 
 複製 `.env.example` 為 `.env` 並填入您的值：
 
@@ -35,14 +35,25 @@ npm install
 cp .env.example .env
 ```
 
-編輯 `.env`：
+編輯 `.env` 文件，**至少需要設置以下變數：**
+
 ```env
-PORT=3001
+# 必需的環境變數
+DATABASE_URL=postgresql://user:password@host:port/database
+JWT_SECRET=your-random-secret-key-here
+
+# 可選的環境變數
+PORT=5000
 NODE_ENV=development
-JWT_SECRET=your-secret-key
-DATABASE_URL=your-neondb-connection-string
-FRONTEND_URL=http://localhost:3000
+FRONTEND_URL=http://localhost:3001
 ```
+
+**重要提示：**
+- 如果沒有設置 `DATABASE_URL`，所有資料庫功能將無法使用
+- `JWT_SECRET` 應該是一個隨機字符串，用於 JWT 認證
+- 如果使用 NeonDB，連接字符串格式：`postgresql://user:password@ep-xxx.region.neon.tech/dbname?sslmode=require`
+
+**詳細設置說明請查看 `SETUP.md`**
 
 ### 3. 初始化資料庫
 
