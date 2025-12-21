@@ -73,12 +73,15 @@ const RendezvousHomeContent: React.FC = () => {
     distanceKm: null,
   });
 
-  // Sync URL search param with filters
+  // Sync URL search param with filters - must include searchParams in dependencies
   useEffect(() => {
     const urlSearch = searchParams.get('search') || '';
-    if (urlSearch !== filters.searchQuery) {
-      setFilters((f) => ({ ...f, searchQuery: urlSearch }));
-    }
+    setFilters((f) => {
+      if (urlSearch !== f.searchQuery) {
+        return { ...f, searchQuery: urlSearch };
+      }
+      return f;
+    });
   }, [searchParams]);
 
   // Filter updaters
@@ -204,15 +207,26 @@ const RendezvousHomeContent: React.FC = () => {
     const text = q.toLowerCase();
 
     // Include restaurant, location, content and tags
-    if (post.restaurantName?.toLowerCase().includes(text)) return true;
-    if (post.locationArea?.toLowerCase().includes(text)) return true;
-    if (post.contentSnippet?.toLowerCase().includes(text)) return true;
-    if (post.styleType?.toLowerCase().includes(text)) return true;
-    if (post.foodType?.toLowerCase().includes(text)) return true;
-    if (post.author?.displayName?.toLowerCase().includes(text)) return true;
-    if (post.author?.handle?.toLowerCase().includes(text)) return true;
+    const matches = (
+      post.restaurantName?.toLowerCase().includes(text) ||
+      post.locationArea?.toLowerCase().includes(text) ||
+      post.contentSnippet?.toLowerCase().includes(text) ||
+      post.content?.toLowerCase().includes(text) ||
+      post.title?.toLowerCase().includes(text) ||
+      post.styleType?.toLowerCase().includes(text) ||
+      post.foodType?.toLowerCase().includes(text) ||
+      post.author?.displayName?.toLowerCase().includes(text) ||
+      post.author?.handle?.toLowerCase().includes(text) ||
+      post.board?.label?.toLowerCase().includes(text) ||
+      post.restaurantAddress?.toLowerCase().includes(text)
+    );
+    
+    // Debug logging
+    if (q) {
+      console.log(`[Filter] Checking post "${post.restaurantName}" for query "${q}": ${matches ? 'MATCH' : 'no match'}, locationArea="${post.locationArea}"`);
+    }
 
-    return false;
+    return !!matches;
   }, []);
 
   // Helper: Check if meetup post text matches search query
@@ -277,11 +291,14 @@ const RendezvousHomeContent: React.FC = () => {
   const filteredPosts = useMemo(() => {
     let filtered = [...posts];
 
-    // Filter by tab
+    // Filter by tab (only for reviews and meetups tabs)
     if (activeTab === 'reviews') {
       filtered = filtered.filter((post): post is ReviewPost => post.type === 'review');
-    } else {
+    } else if (activeTab === 'meetups') {
       filtered = filtered.filter((post): post is MeetupPost => post.type === 'meetup');
+    } else {
+      // For food-selector or other tabs, show all posts but no filtering needed
+      return filtered;
     }
 
     // Filter by board (only if board exists on post)
@@ -321,6 +338,8 @@ const RendezvousHomeContent: React.FC = () => {
   };
 
   const handleSearchFromTag = (tag: string) => {
+    console.log('[Search] Tag clicked:', tag);
+    console.log('[Search] Current filters.searchQuery:', filters.searchQuery);
     updateSearchQuery(tag);
     // The filtering will happen automatically via the filteredPosts useMemo
   };
