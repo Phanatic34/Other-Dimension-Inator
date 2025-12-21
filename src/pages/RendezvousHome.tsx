@@ -605,24 +605,21 @@ const RendezvousHomeContent: React.FC = () => {
   // Handler to archive a post
   const handleArchivePost = async (post: ReviewPost | MeetupPost) => {
     try {
+      let result;
       if (post.type === 'review') {
-        const result = await archiveReviewPostAPI(post.id);
-        if (result.isArchived) {
-          // Remove from display (archived posts are hidden)
-          setPosts((prev) => prev.filter((p) => p.id !== post.id));
-          alert('貼文已封存');
-        } else {
-          alert('貼文已取消封存');
-        }
+        result = await archiveReviewPostAPI(post.id);
       } else {
-        const result = await archiveMeetupPostAPI(post.id);
-        if (result.isArchived) {
-          setPosts((prev) => prev.filter((p) => p.id !== post.id));
-          alert('貼文已封存');
-        } else {
-          alert('貼文已取消封存');
-        }
+        result = await archiveMeetupPostAPI(post.id);
       }
+      
+      // Update the post's isArchived state
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === post.id ? { ...p, isArchived: result.isArchived } : p
+        )
+      );
+      
+      alert(result.isArchived ? '貼文已封存' : '貼文已取消封存');
     } catch (error) {
       console.error('Error archiving post:', error);
       alert('封存失敗，請稍後再試');

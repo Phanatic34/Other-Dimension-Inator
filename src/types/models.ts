@@ -40,6 +40,7 @@ export interface ReviewPost {
   imageUrl?: string;    // Single image (legacy support)
   images?: string[];    // Multiple images array
   isFromFollowedUser?: boolean;
+  isArchived?: boolean; // Whether the post is archived
 }
 
 export type Visibility = 'PUBLIC' | 'FOLLOWERS';
@@ -67,6 +68,7 @@ export interface MeetupPost {
   commentCount: number;     // Number of comments
   shareCount?: number;      // Number of shares
   isFromFollowedUser?: boolean;
+  isArchived?: boolean;     // Whether the post is archived
   // Legacy fields for backward compatibility (can be derived from new fields)
   board?: Board;            // Optional: can derive from foodTags
   locationArea?: string;    // Optional: can derive from locationText

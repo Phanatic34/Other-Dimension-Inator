@@ -211,15 +211,26 @@ export const UserProfilePage: React.FC = () => {
   // Handler to archive/unarchive a post
   const handleArchivePost = async (post: ReviewPost | MeetupPost) => {
     try {
+      let result;
       if (post.type === 'review') {
-        const result = await archiveReviewPost(post.id);
-        alert(result.isArchived ? '貼文已封存' : '貼文已取消封存');
-        // Note: archived posts might still show on profile page (unlike home feed)
-        // You can choose to filter them out or show with a badge
+        result = await archiveReviewPost(post.id);
       } else {
-        const result = await archiveMeetupPost(post.id);
-        alert(result.isArchived ? '貼文已封存' : '貼文已取消封存');
+        result = await archiveMeetupPost(post.id);
       }
+      
+      // Update the post's isArchived state
+      const updatePost = (p: Post) =>
+        p.id === post.id ? { ...p, isArchived: result.isArchived } : p;
+      
+      setPosts((prev) => prev.map(updatePost));
+      if (tabData) {
+        setTabData({
+          ...tabData,
+          posts: tabData.posts.map(updatePost),
+        });
+      }
+      
+      alert(result.isArchived ? '貼文已封存' : '貼文已取消封存');
     } catch (error) {
       console.error('Error archiving post:', error);
       alert('封存失敗，請稍後再試');

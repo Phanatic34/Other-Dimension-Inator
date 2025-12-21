@@ -127,6 +127,7 @@ async function populateReviewPost(post: any, currentUserId?: string): Promise<Re
     createdAt: post.created_at,
     updatedAt: post.updated_at,
     isFromFollowedUser,
+    isArchived: post.is_archived || false,
   };
 }
 
@@ -179,6 +180,7 @@ async function populateMeetupPost(post: any, currentUserId?: string): Promise<Me
     createdAt: post.created_at,
     updatedAt: post.updated_at,
     isFromFollowedUser,
+    isArchived: post.is_archived || false,
   };
 }
 
