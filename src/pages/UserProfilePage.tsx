@@ -2,12 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { UserProfile, ProfileTab, ProfileTabData, RecommendedUser } from '../types/profile';
 import { Post, ReviewPost, MeetupPost } from '../types/models';
-import { fetchUserByHandle, fetchUserPosts, fetchRecommendedUsers } from '../api/api';
+import { 
+  fetchUserByHandle, 
+  fetchUserPosts, 
+  fetchRecommendedUsers,
+  deleteReviewPost,
+  deleteMeetupPost,
+  archiveReviewPost,
+  archiveMeetupPost
+} from '../api/api';
 import { useAuth } from '../contexts/AuthContext';
 import { ProfileHeader } from '../components/profile/ProfileHeader';
 import { ProfileTags } from '../components/profile/ProfileTags';
 import { ProfileTabs } from '../components/profile/ProfileTabs';
 import { EditProfileModal } from '../components/profile/EditProfileModal';
+import { EditReviewPostModal } from '../components/modals/EditReviewPostModal';
+import { EditMeetupPostModal } from '../components/modals/EditMeetupPostModal';
 import { YouMightLike } from '../components/profile/YouMightLike';
 import { ReviewPostCard } from '../components/posts/ReviewPostCard';
 import { MeetupPostCard } from '../components/posts/MeetupPostCard';
@@ -26,6 +36,12 @@ export const UserProfilePage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [recommendedUsers, setRecommendedUsers] = useState<RecommendedUser[]>([]);
+
+  // Edit post modals
+  const [isEditReviewModalOpen, setIsEditReviewModalOpen] = useState(false);
+  const [isEditMeetupModalOpen, setIsEditMeetupModalOpen] = useState(false);
+  const [editingReviewPost, setEditingReviewPost] = useState<ReviewPost | null>(null);
+  const [editingMeetupPost, setEditingMeetupPost] = useState<MeetupPost | null>(null);
 
   const isOwnProfile = isAuthenticated && currentUser?.handle === username;
 
@@ -117,6 +133,97 @@ export const UserProfilePage: React.FC = () => {
   // Handle post click
   const handlePostClick = (post: Post) => {
     console.log('Post clicked:', post.id);
+  };
+
+  // Handler to edit a review post
+  const handleEditReviewPost = (post: ReviewPost) => {
+    setEditingReviewPost(post);
+    setIsEditReviewModalOpen(true);
+  };
+
+  // Handler to edit a meetup post
+  const handleEditMeetupPost = (post: MeetupPost) => {
+    setEditingMeetupPost(post);
+    setIsEditMeetupModalOpen(true);
+  };
+
+  // Handler to save edited review post
+  const handleSaveEditedReviewPost = (updatedPost: ReviewPost) => {
+    setPosts((prev) =>
+      prev.map((p) => (p.id === updatedPost.id ? updatedPost : p))
+    );
+    // Update tab data too
+    if (tabData) {
+      setTabData({
+        ...tabData,
+        posts: tabData.posts.map((p) => (p.id === updatedPost.id ? updatedPost : p)),
+      });
+    }
+  };
+
+  // Handler to save edited meetup post
+  const handleSaveEditedMeetupPost = (updatedPost: MeetupPost) => {
+    setPosts((prev) =>
+      prev.map((p) => (p.id === updatedPost.id ? updatedPost : p))
+    );
+    if (tabData) {
+      setTabData({
+        ...tabData,
+        posts: tabData.posts.map((p) => (p.id === updatedPost.id ? updatedPost : p)),
+      });
+    }
+  };
+
+  // Handler to delete a review post
+  const handleDeleteReviewPost = async (post: ReviewPost) => {
+    try {
+      await deleteReviewPost(post.id);
+      setPosts((prev) => prev.filter((p) => p.id !== post.id));
+      if (tabData) {
+        setTabData({
+          ...tabData,
+          posts: tabData.posts.filter((p) => p.id !== post.id),
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting review post:', error);
+      alert('刪除貼文失敗，請稍後再試');
+    }
+  };
+
+  // Handler to delete a meetup post
+  const handleDeleteMeetupPost = async (post: MeetupPost) => {
+    try {
+      await deleteMeetupPost(post.id);
+      setPosts((prev) => prev.filter((p) => p.id !== post.id));
+      if (tabData) {
+        setTabData({
+          ...tabData,
+          posts: tabData.posts.filter((p) => p.id !== post.id),
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting meetup post:', error);
+      alert('刪除貼文失敗，請稍後再試');
+    }
+  };
+
+  // Handler to archive/unarchive a post
+  const handleArchivePost = async (post: ReviewPost | MeetupPost) => {
+    try {
+      if (post.type === 'review') {
+        const result = await archiveReviewPost(post.id);
+        alert(result.isArchived ? '貼文已封存' : '貼文已取消封存');
+        // Note: archived posts might still show on profile page (unlike home feed)
+        // You can choose to filter them out or show with a badge
+      } else {
+        const result = await archiveMeetupPost(post.id);
+        alert(result.isArchived ? '貼文已封存' : '貼文已取消封存');
+      }
+    } catch (error) {
+      console.error('Error archiving post:', error);
+      alert('封存失敗，請稍後再試');
+    }
   };
 
   if (isLoading) {
@@ -243,6 +350,9 @@ export const UserProfilePage: React.FC = () => {
                             onClick={() => handlePostClick(post)}
                             onTagClick={handleTagClick}
                             isOwnPost={isOwnPost}
+                            onEdit={handleEditReviewPost}
+                            onDelete={handleDeleteReviewPost}
+                            onArchive={handleArchivePost}
                           />
                         );
                       } else {
@@ -253,6 +363,9 @@ export const UserProfilePage: React.FC = () => {
                             onClick={() => handlePostClick(post)}
                             onTagClick={handleTagClick}
                             isOwnPost={isOwnPost}
+                            onEdit={handleEditMeetupPost}
+                            onDelete={handleDeleteMeetupPost}
+                            onArchive={handleArchivePost}
                           />
                         );
                       }
@@ -279,6 +392,32 @@ export const UserProfilePage: React.FC = () => {
           profile={profile}
           onClose={() => setIsEditModalOpen(false)}
           onSave={handleSaveProfile}
+        />
+      )}
+
+      {/* Edit Review Post Modal */}
+      {editingReviewPost && (
+        <EditReviewPostModal
+          isOpen={isEditReviewModalOpen}
+          onClose={() => {
+            setIsEditReviewModalOpen(false);
+            setEditingReviewPost(null);
+          }}
+          post={editingReviewPost}
+          onSave={handleSaveEditedReviewPost}
+        />
+      )}
+
+      {/* Edit Meetup Post Modal */}
+      {editingMeetupPost && (
+        <EditMeetupPostModal
+          isOpen={isEditMeetupModalOpen}
+          onClose={() => {
+            setIsEditMeetupModalOpen(false);
+            setEditingMeetupPost(null);
+          }}
+          post={editingMeetupPost}
+          onSave={handleSaveEditedMeetupPost}
         />
       )}
     </div>
