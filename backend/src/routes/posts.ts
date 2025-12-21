@@ -741,6 +741,19 @@ router.post('/:id/save', requireDatabase, requireAuth, async (req: Request, res:
     const userId = (req as any).userId;
     const postType = type === 'meetup' ? 'meetup' : 'review';
 
+    // Ensure saved_posts table exists
+    await query(`
+      CREATE TABLE IF NOT EXISTS saved_posts (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        post_id TEXT NOT NULL,
+        post_type TEXT NOT NULL CHECK(post_type IN ('review', 'meetup')),
+        created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+        UNIQUE(user_id, post_id, post_type),
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+    `);
+
     // Check if post exists
     const table = postType === 'meetup' ? 'meetup_posts' : 'review_posts';
     const postExists = await query(`SELECT id FROM ${table} WHERE id = $1`, [id]);
@@ -845,6 +858,22 @@ router.post('/:id/report', requireDatabase, requireAuth, async (req: Request, re
       return res.status(400).json({ error: 'Invalid reason. Must be one of: ' + validReasons.join(', ') });
     }
 
+    // Ensure reported_posts table exists
+    await query(`
+      CREATE TABLE IF NOT EXISTS reported_posts (
+        id TEXT PRIMARY KEY,
+        reporter_id TEXT NOT NULL,
+        post_id TEXT NOT NULL,
+        post_type TEXT NOT NULL CHECK(post_type IN ('review', 'meetup')),
+        reason TEXT NOT NULL CHECK(reason IN ('spam', 'harassment', 'inappropriate', 'misinformation', 'other')),
+        description TEXT,
+        status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'reviewed', 'resolved', 'dismissed')),
+        created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+        reviewed_at TIMESTAMP WITH TIME ZONE,
+        FOREIGN KEY (reporter_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+    `);
+
     // Check if post exists
     const table = postType === 'meetup' ? 'meetup_posts' : 'review_posts';
     const postExists = await query(`SELECT id, author_id FROM ${table} WHERE id = $1`, [id]);
@@ -887,6 +916,21 @@ router.post('/review/:id/archive', requireDatabase, requireAuth, async (req: Req
     const { id } = req.params;
     const userId = (req as any).userId;
 
+    // Ensure is_archived column exists
+    try {
+      await query(`
+        DO $$
+        BEGIN
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='review_posts' AND column_name='is_archived') THEN
+            ALTER TABLE review_posts ADD COLUMN is_archived BOOLEAN NOT NULL DEFAULT FALSE;
+          END IF;
+        END
+        $$;
+      `);
+    } catch (migrationError) {
+      console.log('Migration check completed');
+    }
+
     // Check if user owns this post
     const existingPost = await query('SELECT * FROM review_posts WHERE id = $1', [id]);
     if (existingPost.rows.length === 0) {
@@ -897,7 +941,8 @@ router.post('/review/:id/archive', requireDatabase, requireAuth, async (req: Req
     }
 
     // Toggle archive status
-    const newArchivedStatus = !existingPost.rows[0].is_archived;
+    const currentStatus = existingPost.rows[0].is_archived || false;
+    const newArchivedStatus = !currentStatus;
     await query(
       'UPDATE review_posts SET is_archived = $1, updated_at = NOW() WHERE id = $2',
       [newArchivedStatus, id]
@@ -920,6 +965,21 @@ router.post('/meetup/:id/archive', requireDatabase, requireAuth, async (req: Req
     const { id } = req.params;
     const userId = (req as any).userId;
 
+    // Ensure is_archived column exists
+    try {
+      await query(`
+        DO $$
+        BEGIN
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='meetup_posts' AND column_name='is_archived') THEN
+            ALTER TABLE meetup_posts ADD COLUMN is_archived BOOLEAN NOT NULL DEFAULT FALSE;
+          END IF;
+        END
+        $$;
+      `);
+    } catch (migrationError) {
+      console.log('Migration check completed');
+    }
+
     // Check if user owns this post
     const existingPost = await query('SELECT * FROM meetup_posts WHERE id = $1', [id]);
     if (existingPost.rows.length === 0) {
@@ -930,7 +990,8 @@ router.post('/meetup/:id/archive', requireDatabase, requireAuth, async (req: Req
     }
 
     // Toggle archive status
-    const newArchivedStatus = !existingPost.rows[0].is_archived;
+    const currentStatus = existingPost.rows[0].is_archived || false;
+    const newArchivedStatus = !currentStatus;
     await query(
       'UPDATE meetup_posts SET is_archived = $1, updated_at = NOW() WHERE id = $2',
       [newArchivedStatus, id]
