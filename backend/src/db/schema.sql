@@ -174,6 +174,34 @@ CREATE TABLE IF NOT EXISTS saved_restaurants (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+-- Saved Posts table (bookmarks)
+CREATE TABLE IF NOT EXISTS saved_posts (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  post_id TEXT NOT NULL,
+  post_type TEXT NOT NULL CHECK(post_type IN ('review', 'meetup')),
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  UNIQUE(user_id, post_id, post_type),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Reported Posts table
+CREATE TABLE IF NOT EXISTS reported_posts (
+  id TEXT PRIMARY KEY,
+  reporter_id TEXT NOT NULL,
+  post_id TEXT NOT NULL,
+  post_type TEXT NOT NULL CHECK(post_type IN ('review', 'meetup')),
+  reason TEXT NOT NULL CHECK(reason IN ('spam', 'harassment', 'inappropriate', 'misinformation', 'other')),
+  description TEXT,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'reviewed', 'resolved', 'dismissed')),
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  reviewed_at TIMESTAMP WITH TIME ZONE,
+  FOREIGN KEY (reporter_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Archived Posts tracking (soft delete)
+-- We'll add is_archived column to review_posts and meetup_posts instead
+
 -- Indexes for better query performance
 CREATE INDEX IF NOT EXISTS idx_review_posts_author ON review_posts(author_id);
 CREATE INDEX IF NOT EXISTS idx_review_posts_board ON review_posts(board_id);
@@ -190,4 +218,6 @@ CREATE INDEX IF NOT EXISTS idx_meetup_likes_user ON meetup_likes(user_id);
 CREATE INDEX IF NOT EXISTS idx_follows_follower ON follows(follower_id);
 CREATE INDEX IF NOT EXISTS idx_follows_following ON follows(following_id);
 CREATE INDEX IF NOT EXISTS idx_saved_restaurants_user ON saved_restaurants(user_id);
+CREATE INDEX IF NOT EXISTS idx_saved_posts_user ON saved_posts(user_id);
+CREATE INDEX IF NOT EXISTS idx_reported_posts_status ON reported_posts(status);
 

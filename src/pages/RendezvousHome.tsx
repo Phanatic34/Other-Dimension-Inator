@@ -9,8 +9,8 @@ import {
   createMeetupPost as createMeetupPostAPI,
   deleteReviewPost as deleteReviewPostAPI,
   deleteMeetupPost as deleteMeetupPostAPI,
-  updateReviewPost as updateReviewPostAPI,
-  updateMeetupPost as updateMeetupPostAPI
+  archiveReviewPost as archiveReviewPostAPI,
+  archiveMeetupPost as archiveMeetupPostAPI
 } from '../api/api';
 import { fetchBoards as fetchMockBoards, fetchPosts as fetchMockPosts } from '../api/mock';
 import { useAuth } from '../contexts/AuthContext';
@@ -25,6 +25,8 @@ import { ReviewPostComposer, ReviewPostFormValues } from '../components/posts/Re
 import { DiningMeetupComposer, DiningMeetupFormValues } from '../components/posts/DiningMeetupComposer';
 import { PostTypeModal } from '../components/modals/PostTypeModal';
 import { PostModal } from '../components/modals/PostModal';
+import { EditReviewPostModal } from '../components/modals/EditReviewPostModal';
+import { EditMeetupPostModal } from '../components/modals/EditMeetupPostModal';
 import { YouMightLike } from '../components/profile/YouMightLike';
 import { SmallMap } from '../components/homepage/SmallMap';
 import { LocationPreviewProvider, useLocationPreview } from '../contexts/LocationPreviewContext';
@@ -59,6 +61,12 @@ const RendezvousHomeContent: React.FC = () => {
   const [postType, setPostType] = useState<PostType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [recommendedUsers, setRecommendedUsers] = useState<any[]>([]);
+  
+  // Edit modal state
+  const [isEditReviewModalOpen, setIsEditReviewModalOpen] = useState(false);
+  const [isEditMeetupModalOpen, setIsEditMeetupModalOpen] = useState(false);
+  const [editingReviewPost, setEditingReviewPost] = useState<ReviewPost | null>(null);
+  const [editingMeetupPost, setEditingMeetupPost] = useState<MeetupPost | null>(null);
   
   // Use context for location preview
   const { setSelectedLocation } = useLocationPreview();
@@ -568,24 +576,57 @@ const RendezvousHomeContent: React.FC = () => {
     }
   };
 
-  // Handler to edit a review post (opens modal or navigates)
+  // Handler to edit a review post
   const handleEditReviewPost = (post: ReviewPost) => {
-    // For now, show an alert - implement full edit modal later
-    alert(`編輯功能開發中...\n\n貼文標題: ${post.title || post.restaurantName}`);
-    // TODO: Open edit modal with post data
+    setEditingReviewPost(post);
+    setIsEditReviewModalOpen(true);
   };
 
-  // Handler to edit a meetup post (opens modal or navigates)
+  // Handler to edit a meetup post
   const handleEditMeetupPost = (post: MeetupPost) => {
-    // For now, show an alert - implement full edit modal later
-    alert(`編輯功能開發中...\n\n揪團: ${post.restaurantName}`);
-    // TODO: Open edit modal with post data
+    setEditingMeetupPost(post);
+    setIsEditMeetupModalOpen(true);
   };
 
-  // Handler to archive a post (placeholder)
-  const handleArchivePost = (post: ReviewPost | MeetupPost) => {
-    alert(`封存功能開發中...\n\n貼文: ${post.restaurantName}`);
-    // TODO: Implement archive API
+  // Handler to save edited review post
+  const handleSaveEditedReviewPost = (updatedPost: ReviewPost) => {
+    setPosts((prev) =>
+      prev.map((p) => (p.id === updatedPost.id ? updatedPost : p))
+    );
+  };
+
+  // Handler to save edited meetup post
+  const handleSaveEditedMeetupPost = (updatedPost: MeetupPost) => {
+    setPosts((prev) =>
+      prev.map((p) => (p.id === updatedPost.id ? updatedPost : p))
+    );
+  };
+
+  // Handler to archive a post
+  const handleArchivePost = async (post: ReviewPost | MeetupPost) => {
+    try {
+      if (post.type === 'review') {
+        const result = await archiveReviewPostAPI(post.id);
+        if (result.isArchived) {
+          // Remove from display (archived posts are hidden)
+          setPosts((prev) => prev.filter((p) => p.id !== post.id));
+          alert('貼文已封存');
+        } else {
+          alert('貼文已取消封存');
+        }
+      } else {
+        const result = await archiveMeetupPostAPI(post.id);
+        if (result.isArchived) {
+          setPosts((prev) => prev.filter((p) => p.id !== post.id));
+          alert('貼文已封存');
+        } else {
+          alert('貼文已取消封存');
+        }
+      }
+    } catch (error) {
+      console.error('Error archiving post:', error);
+      alert('封存失敗，請稍後再試');
+    }
   };
 
   if (isLoading) {
@@ -911,6 +952,32 @@ const RendezvousHomeContent: React.FC = () => {
           }}
         />
       </PostModal>
+
+      {/* Edit Review Post Modal */}
+      {editingReviewPost && (
+        <EditReviewPostModal
+          isOpen={isEditReviewModalOpen}
+          onClose={() => {
+            setIsEditReviewModalOpen(false);
+            setEditingReviewPost(null);
+          }}
+          post={editingReviewPost}
+          onSave={handleSaveEditedReviewPost}
+        />
+      )}
+
+      {/* Edit Meetup Post Modal */}
+      {editingMeetupPost && (
+        <EditMeetupPostModal
+          isOpen={isEditMeetupModalOpen}
+          onClose={() => {
+            setIsEditMeetupModalOpen(false);
+            setEditingMeetupPost(null);
+          }}
+          post={editingMeetupPost}
+          onSave={handleSaveEditedMeetupPost}
+        />
+      )}
       
       {/* Location Save Prompt */}
       <LocationSavePrompt />

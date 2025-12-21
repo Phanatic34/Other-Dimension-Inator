@@ -731,5 +731,254 @@ router.delete('/meetup/:id', requireDatabase, requireAuth, async (req: Request, 
   }
 });
 
+// ================== SAVE/BOOKMARK POSTS ==================
+
+// POST /api/posts/:id/save - Save/bookmark a post
+router.post('/:id/save', requireDatabase, requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { type } = req.query; // 'review' or 'meetup'
+    const userId = (req as any).userId;
+    const postType = type === 'meetup' ? 'meetup' : 'review';
+
+    // Check if post exists
+    const table = postType === 'meetup' ? 'meetup_posts' : 'review_posts';
+    const postExists = await query(`SELECT id FROM ${table} WHERE id = $1`, [id]);
+    if (postExists.rows.length === 0) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    // Check if already saved
+    const existingSave = await query(
+      'SELECT id FROM saved_posts WHERE user_id = $1 AND post_id = $2 AND post_type = $3',
+      [userId, id, postType]
+    );
+    if (existingSave.rows.length > 0) {
+      return res.status(400).json({ error: 'Post already saved' });
+    }
+
+    // Save the post
+    await query(
+      'INSERT INTO saved_posts (id, user_id, post_id, post_type) VALUES ($1, $2, $3, $4)',
+      [uuidv4(), userId, id, postType]
+    );
+
+    res.status(201).json({ success: true, message: 'Post saved' });
+  } catch (error) {
+    console.error('Error saving post:', error);
+    res.status(500).json({ error: 'Failed to save post' });
+  }
+});
+
+// DELETE /api/posts/:id/save - Unsave/unbookmark a post
+router.delete('/:id/save', requireDatabase, requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { type } = req.query;
+    const userId = (req as any).userId;
+    const postType = type === 'meetup' ? 'meetup' : 'review';
+
+    const result = await query(
+      'DELETE FROM saved_posts WHERE user_id = $1 AND post_id = $2 AND post_type = $3',
+      [userId, id, postType]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Saved post not found' });
+    }
+
+    res.json({ success: true, message: 'Post unsaved' });
+  } catch (error) {
+    console.error('Error unsaving post:', error);
+    res.status(500).json({ error: 'Failed to unsave post' });
+  }
+});
+
+// GET /api/posts/saved - Get user's saved posts
+router.get('/saved/list', requireDatabase, requireAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).userId;
+
+    const savedPosts = await query(
+      'SELECT post_id, post_type, created_at FROM saved_posts WHERE user_id = $1 ORDER BY created_at DESC',
+      [userId]
+    );
+
+    // Fetch full post data for each saved post
+    const posts = [];
+    for (const saved of savedPosts.rows) {
+      if (saved.post_type === 'review') {
+        const result = await query('SELECT * FROM review_posts WHERE id = $1', [saved.post_id]);
+        if (result.rows.length > 0) {
+          const post = await populateReviewPost(result.rows[0], userId);
+          posts.push({ ...post, savedAt: saved.created_at });
+        }
+      } else {
+        const result = await query('SELECT * FROM meetup_posts WHERE id = $1', [saved.post_id]);
+        if (result.rows.length > 0) {
+          const post = await populateMeetupPost(result.rows[0], userId);
+          posts.push({ ...post, savedAt: saved.created_at });
+        }
+      }
+    }
+
+    res.json(posts);
+  } catch (error) {
+    console.error('Error fetching saved posts:', error);
+    res.status(500).json({ error: 'Failed to fetch saved posts' });
+  }
+});
+
+// ================== REPORT POSTS ==================
+
+// POST /api/posts/:id/report - Report a post
+router.post('/:id/report', requireDatabase, requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { type, reason, description } = req.body;
+    const userId = (req as any).userId;
+    const postType = type === 'meetup' ? 'meetup' : 'review';
+
+    // Validate reason
+    const validReasons = ['spam', 'harassment', 'inappropriate', 'misinformation', 'other'];
+    if (!reason || !validReasons.includes(reason)) {
+      return res.status(400).json({ error: 'Invalid reason. Must be one of: ' + validReasons.join(', ') });
+    }
+
+    // Check if post exists
+    const table = postType === 'meetup' ? 'meetup_posts' : 'review_posts';
+    const postExists = await query(`SELECT id, author_id FROM ${table} WHERE id = $1`, [id]);
+    if (postExists.rows.length === 0) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    // Can't report own post
+    if (postExists.rows[0].author_id === userId) {
+      return res.status(400).json({ error: 'Cannot report your own post' });
+    }
+
+    // Check if already reported by this user
+    const existingReport = await query(
+      'SELECT id FROM reported_posts WHERE reporter_id = $1 AND post_id = $2',
+      [userId, id]
+    );
+    if (existingReport.rows.length > 0) {
+      return res.status(400).json({ error: 'You have already reported this post' });
+    }
+
+    // Create report
+    await query(
+      'INSERT INTO reported_posts (id, reporter_id, post_id, post_type, reason, description) VALUES ($1, $2, $3, $4, $5, $6)',
+      [uuidv4(), userId, id, postType, reason, description || null]
+    );
+
+    res.status(201).json({ success: true, message: 'Report submitted. Thank you for helping keep our community safe.' });
+  } catch (error) {
+    console.error('Error reporting post:', error);
+    res.status(500).json({ error: 'Failed to report post' });
+  }
+});
+
+// ================== ARCHIVE POSTS ==================
+
+// POST /api/posts/review/:id/archive - Archive a review post
+router.post('/review/:id/archive', requireDatabase, requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = (req as any).userId;
+
+    // Check if user owns this post
+    const existingPost = await query('SELECT * FROM review_posts WHERE id = $1', [id]);
+    if (existingPost.rows.length === 0) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+    if (existingPost.rows[0].author_id !== userId) {
+      return res.status(403).json({ error: 'Not authorized to archive this post' });
+    }
+
+    // Toggle archive status
+    const newArchivedStatus = !existingPost.rows[0].is_archived;
+    await query(
+      'UPDATE review_posts SET is_archived = $1, updated_at = NOW() WHERE id = $2',
+      [newArchivedStatus, id]
+    );
+
+    res.json({ 
+      success: true, 
+      message: newArchivedStatus ? 'Post archived' : 'Post unarchived',
+      isArchived: newArchivedStatus 
+    });
+  } catch (error) {
+    console.error('Error archiving review post:', error);
+    res.status(500).json({ error: 'Failed to archive post' });
+  }
+});
+
+// POST /api/posts/meetup/:id/archive - Archive a meetup post
+router.post('/meetup/:id/archive', requireDatabase, requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = (req as any).userId;
+
+    // Check if user owns this post
+    const existingPost = await query('SELECT * FROM meetup_posts WHERE id = $1', [id]);
+    if (existingPost.rows.length === 0) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+    if (existingPost.rows[0].author_id !== userId) {
+      return res.status(403).json({ error: 'Not authorized to archive this post' });
+    }
+
+    // Toggle archive status
+    const newArchivedStatus = !existingPost.rows[0].is_archived;
+    await query(
+      'UPDATE meetup_posts SET is_archived = $1, updated_at = NOW() WHERE id = $2',
+      [newArchivedStatus, id]
+    );
+
+    res.json({ 
+      success: true, 
+      message: newArchivedStatus ? 'Post archived' : 'Post unarchived',
+      isArchived: newArchivedStatus 
+    });
+  } catch (error) {
+    console.error('Error archiving meetup post:', error);
+    res.status(500).json({ error: 'Failed to archive post' });
+  }
+});
+
+// ================== SHARE POSTS ==================
+
+// POST /api/posts/:id/share - Record a share (increment share count)
+router.post('/:id/share', requireDatabase, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { type } = req.query;
+    const postType = type === 'meetup' ? 'meetup' : 'review';
+
+    const table = postType === 'meetup' ? 'meetup_posts' : 'review_posts';
+    
+    // Check if post exists
+    const postExists = await query(`SELECT id FROM ${table} WHERE id = $1`, [id]);
+    if (postExists.rows.length === 0) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    // Increment share count
+    await query(
+      `UPDATE ${table} SET share_count = share_count + 1 WHERE id = $1`,
+      [id]
+    );
+
+    // Get updated share count
+    const result = await query(`SELECT share_count FROM ${table} WHERE id = $1`, [id]);
+
+    res.json({ success: true, shareCount: result.rows[0].share_count });
+  } catch (error) {
+    console.error('Error recording share:', error);
+    res.status(500).json({ error: 'Failed to record share' });
+  }
+});
+
 export default router;
 

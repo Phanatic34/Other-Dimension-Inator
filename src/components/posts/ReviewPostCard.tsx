@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ReviewPost } from '../../types/models';
-import { Edit3, Archive, Trash2, Bookmark, Flag } from 'lucide-react';
+import { Edit3, Archive, Trash2, Bookmark, BookmarkCheck, Flag, Share2 } from 'lucide-react';
 import { PostActions } from './PostActions';
 import { useLocationPreview } from '../../contexts/LocationPreviewContext';
 import { CommentsSection } from '../comments/CommentsSection';
-import { likePost, unlikePost } from '../../api/api';
+import { likePost, unlikePost, savePost, unsavePost, sharePost } from '../../api/api';
+import { ReportModal } from '../modals/ReportModal';
 
 interface ReviewPostCardProps {
   post: ReviewPost;
@@ -78,6 +79,16 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick, o
   // Like state
   const [isLiked, setIsLiked] = useState(false);
   const [currentLikeCount, setCurrentLikeCount] = useState(post.likeCount);
+
+  // Save state
+  const [isSaved, setIsSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Report modal state
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+
+  // Share state
+  const [shareCount, setShareCount] = useState(post.shareCount || 0);
 
   // Location preview context (optional - only available in RendezvousHome)
   const { setSelectedLocation, setPendingSaveLocation, isProviderAvailable } = useLocationPreview();
@@ -315,20 +326,34 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick, o
                   ) : (
                     <>
                       <MenuActionItem
-                        icon={<Bookmark className="w-4 h-4" />}
-                        label="Save this post"
-                        onClick={() => {
-                          console.log('Save post', post.id);
+                        icon={isSaved ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
+                        label={isSaved ? '取消儲存' : '儲存貼文'}
+                        onClick={async () => {
                           setMenuOpen(false);
+                          if (isSaving) return;
+                          setIsSaving(true);
+                          try {
+                            if (isSaved) {
+                              await unsavePost(post.id, 'review');
+                              setIsSaved(false);
+                            } else {
+                              await savePost(post.id, 'review');
+                              setIsSaved(true);
+                            }
+                          } catch (error) {
+                            console.error('Error toggling save:', error);
+                          } finally {
+                            setIsSaving(false);
+                          }
                         }}
                       />
                       <MenuActionItem
                         icon={<Flag className="w-4 h-4" />}
-                        label="Report this post"
+                        label="檢舉貼文"
                         destructive
                         onClick={() => {
-                          console.log('Report post', post.id);
                           setMenuOpen(false);
+                          setIsReportModalOpen(true);
                         }}
                       />
                     </>
@@ -527,7 +552,7 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick, o
             isLiked={isLiked}
             likeCount={currentLikeCount}
             commentCount={post.commentCount}
-            shareCount={post.shareCount}
+            shareCount={shareCount}
             onLike={async (id) => {
               try {
                 if (isLiked) {
@@ -550,11 +575,35 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick, o
                 commentsSection.scrollIntoView({ behavior: 'smooth' });
               }
             }}
-            onShare={(id) => {
+            onShare={async (id) => {
               // Copy post URL to clipboard
               const url = `${window.location.origin}/post/${id}`;
-              navigator.clipboard.writeText(url);
-              alert('連結已複製到剪貼簿！');
+              
+              // Try native share first (mobile)
+              if (navigator.share) {
+                try {
+                  await navigator.share({
+                    title: post.restaurantName,
+                    text: post.contentSnippet || post.title,
+                    url: url,
+                  });
+                } catch (err) {
+                  // User cancelled or error, fall back to clipboard
+                  await navigator.clipboard.writeText(url);
+                }
+              } else {
+                // Desktop: copy to clipboard
+                await navigator.clipboard.writeText(url);
+                alert('連結已複製到剪貼簿！');
+              }
+              
+              // Increment share count in backend
+              try {
+                const result = await sharePost(id, 'review');
+                setShareCount(result.shareCount);
+              } catch (error) {
+                console.error('Error recording share:', error);
+              }
             }}
           />
 
@@ -697,6 +746,14 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick, o
           </div>
         </div>
       )}
+
+      {/* Report Modal */}
+      <ReportModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        postId={post.id}
+        postType="review"
+      />
     </div>
   );
 };

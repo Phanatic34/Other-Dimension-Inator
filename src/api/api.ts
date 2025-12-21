@@ -253,6 +253,132 @@ export async function deleteMeetupPost(postId: string) {
   }
 }
 
+// ================== Save/Bookmark Posts API ==================
+
+export async function savePost(postId: string, postType: 'review' | 'meetup') {
+  try {
+    const response = await fetch(`${API_URL}/api/posts/${postId}/save?type=${postType}`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to save post');
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error saving post:', error);
+    throw error;
+  }
+}
+
+export async function unsavePost(postId: string, postType: 'review' | 'meetup') {
+  try {
+    const response = await fetch(`${API_URL}/api/posts/${postId}/save?type=${postType}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to unsave post');
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error unsaving post:', error);
+    throw error;
+  }
+}
+
+export async function fetchSavedPosts() {
+  try {
+    const response = await fetch(`${API_URL}/api/posts/saved/list`, {
+      headers: getHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to fetch saved posts');
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching saved posts:', error);
+    return [];
+  }
+}
+
+// ================== Report Posts API ==================
+
+export type ReportReason = 'spam' | 'harassment' | 'inappropriate' | 'misinformation' | 'other';
+
+export async function reportPost(postId: string, postType: 'review' | 'meetup', reason: ReportReason, description?: string) {
+  try {
+    const response = await fetch(`${API_URL}/api/posts/${postId}/report`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ type: postType, reason, description }),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to report post');
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error reporting post:', error);
+    throw error;
+  }
+}
+
+// ================== Archive Posts API ==================
+
+export async function archiveReviewPost(postId: string) {
+  try {
+    const response = await fetch(`${API_URL}/api/posts/review/${postId}/archive`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to archive post');
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error archiving review post:', error);
+    throw error;
+  }
+}
+
+export async function archiveMeetupPost(postId: string) {
+  try {
+    const response = await fetch(`${API_URL}/api/posts/meetup/${postId}/archive`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to archive post');
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error archiving meetup post:', error);
+    throw error;
+  }
+}
+
+// ================== Share Posts API ==================
+
+export async function sharePost(postId: string, postType: 'review' | 'meetup') {
+  try {
+    const response = await fetch(`${API_URL}/api/posts/${postId}/share?type=${postType}`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to record share');
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error sharing post:', error);
+    throw error;
+  }
+}
+
 // ================== Boards API ==================
 
 export async function fetchBoards() {
