@@ -14,7 +14,7 @@ if (!isDatabaseConfigured) {
 const pool = isDatabaseConfigured
   ? new Pool({
       connectionString: process.env.DATABASE_URL,
-      ssl: process.env.DATABASE_URL?.includes('neon.tech')
+      ssl: process.env.DATABASE_URL?.includes('neon.tech') || process.env.DATABASE_URL?.includes('sslmode=require')
         ? { rejectUnauthorized: false }
         : false, // Disable SSL for local PostgreSQL
       max: 20,

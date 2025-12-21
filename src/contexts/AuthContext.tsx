@@ -23,7 +23,18 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // API base URL
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+// In production (Vercel), use relative path if REACT_APP_API_URL is not set
+const getApiUrl = () => {
+  if (process.env.REACT_APP_API_URL) {
+    return process.env.REACT_APP_API_URL;
+  }
+  if (process.env.NODE_ENV === 'production') {
+    return '/api';
+  }
+  return 'http://localhost:5000';
+};
+
+const API_URL = getApiUrl();
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);

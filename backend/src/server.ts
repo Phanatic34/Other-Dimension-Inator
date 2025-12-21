@@ -32,10 +32,20 @@ app.use(
         'http://localhost:3003',
         'http://localhost:5000',
         process.env.FRONTEND_URL,
+        // Allow Vercel preview and production URLs
+        process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
+        process.env.VERCEL ? `https://${process.env.VERCEL}` : null,
       ].filter(Boolean);
       
-      if (allowedOrigins.includes(origin)) {
-        callback(null, true);
+      // In production, allow all origins from same domain (Vercel)
+      // In development, allow all origins
+      if (process.env.NODE_ENV === 'production') {
+        // Allow same-origin requests (frontend and backend on same domain)
+        if (!origin || allowedOrigins.some(allowed => origin.includes(allowed) || origin.includes('vercel.app'))) {
+          callback(null, true);
+        } else {
+          callback(null, true); // Allow all in production for now
+        }
       } else {
         callback(null, true); // Allow all origins in development
       }

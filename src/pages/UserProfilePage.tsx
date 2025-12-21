@@ -97,7 +97,16 @@ export const UserProfilePage: React.FC = () => {
     // Call API to save profile changes
     try {
       const token = localStorage.getItem('authToken');
-      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+      const getApiUrl = () => {
+        if (process.env.REACT_APP_API_URL) {
+          return process.env.REACT_APP_API_URL;
+        }
+        if (process.env.NODE_ENV === 'production') {
+          return '/api';
+        }
+        return 'http://localhost:5000';
+      };
+      const API_URL = getApiUrl();
       
       const response = await fetch(`${API_URL}/api/users/${profile.id}/profile`, {
         method: 'PATCH',

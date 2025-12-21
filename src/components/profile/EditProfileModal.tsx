@@ -2,7 +2,17 @@ import React, { useState, useRef, useEffect } from 'react';
 import { UserProfile } from '../../types/profile';
 import { STYLE_OPTIONS, CATEGORY_OPTIONS } from '../../utils/tagOptions';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const getApiUrl = () => {
+  if (process.env.REACT_APP_API_URL) {
+    return process.env.REACT_APP_API_URL;
+  }
+  if (process.env.NODE_ENV === 'production') {
+    return '/api';
+  }
+  return 'http://localhost:5000';
+};
+
+const API_URL = getApiUrl();
 
 interface EditProfileModalProps {
   isOpen: boolean;

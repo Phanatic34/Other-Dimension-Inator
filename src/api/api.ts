@@ -1,5 +1,19 @@
 // Real API service connecting to backend
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+// In production (Vercel), use relative path if REACT_APP_API_URL is not set
+// This allows the same Vercel project to serve both frontend and backend
+const getApiUrl = () => {
+  if (process.env.REACT_APP_API_URL) {
+    return process.env.REACT_APP_API_URL;
+  }
+  // In production, use relative path (same domain)
+  if (process.env.NODE_ENV === 'production') {
+    return '/api';
+  }
+  // In development, use localhost
+  return 'http://localhost:5000';
+};
+
+const API_URL = getApiUrl();
 
 // Get auth token from localStorage
 const getAuthToken = (): string | null => {
