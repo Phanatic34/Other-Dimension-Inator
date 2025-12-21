@@ -132,19 +132,41 @@ export const FoodSelector: React.FC = () => {
     // Find winner index
     const winnerIndex = availableOptions.findIndex(opt => opt.id === winner.id);
     
-    // Calculate base rotation needed to land on winner (from 0)
-    // This already includes extra full rotations (5-8 turns)
-    const baseRotationFromZero = calculateTargetRotation(winnerIndex, availableOptions.length);
+    // Calculate target rotation to land on winner
+    // The pointer is at 12 o'clock (0 degrees from top)
+    // Segment 0 starts at 0 degrees and goes clockwise
+    // To land on segment N, we need to rotate so segment N's center aligns with pointer
+    const segmentAngle = 360 / availableOptions.length;
+    const segmentCenterAngle = winnerIndex * segmentAngle + segmentAngle / 2;
+    
+    // Current normalized rotation (0-360)
+    const currentNormalized = ((currentRotation % 360) + 360) % 360;
+    
+    // We need the segment center to align with the pointer at top (0 degrees)
+    // Since we rotate clockwise, we need: 360 - segmentCenterAngle
+    const targetAngle = 360 - segmentCenterAngle;
+    
+    // Calculate the difference needed from current position
+    let rotationNeeded = targetAngle - currentNormalized;
+    
+    // Ensure we always rotate forward (clockwise) by at least 5 full rotations
+    const extraRotations = 5 + Math.floor(Math.random() * 3); // 5-7 rotations
+    rotationNeeded = rotationNeeded + extraRotations * 360;
+    
+    // If rotation is too small, add another full rotation
+    if (rotationNeeded < 1800) { // Less than 5 full rotations
+      rotationNeeded += 360;
+    }
     
     // Calculate overshoot (6-14 degrees)
     const overshootDeg = 6 + Math.random() * 8;
     
-    // Phase 1: Main spin with overshoot (add to current rotation)
-    const phase1Target = currentRotation + baseRotationFromZero + overshootDeg;
+    // Phase 1: Main spin with overshoot
+    const phase1Target = currentRotation + rotationNeeded + overshootDeg;
     const phase1Duration = 2200 + Math.random() * 1000; // 2.2-3.2s
     
     // Store final target for phase 2 (phase1Target minus overshoot)
-    const finalTarget = currentRotation + baseRotationFromZero;
+    const finalTarget = currentRotation + rotationNeeded;
     
     setTransitionDuration(`${phase1Duration}ms`);
     setTransitionTiming('cubic-bezier(0.15, 0.85, 0.25, 1)'); // Strong ease-out

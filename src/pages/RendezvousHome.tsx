@@ -544,12 +544,14 @@ const RendezvousHomeContent: React.FC = () => {
 
             {/* CENTER POSTS COLUMN (ONLY MAIN SCROLL AREA) */}
             <main className="flex-1 min-w-0 h-full overflow-y-auto overflow-x-hidden bg-bg-secondary transition-colors duration-300 px-8 pt-0 pb-4">
-              {/* Mobile Board Chips */}
-              <MobileBoardChips
-                boards={boards}
-                selectedBoardId={selectedBoardId}
-                onBoardSelect={setSelectedBoardId}
-              />
+              {/* Mobile Board Chips - hide when on food-selector tab */}
+              {activeTab !== 'food-selector' && (
+                <MobileBoardChips
+                  boards={boards}
+                  selectedBoardId={selectedBoardId}
+                  onBoardSelect={setSelectedBoardId}
+                />
+              )}
 
               {/* Tab bar 評價貼文串 / 揪吃飯貼文串 + All/Following - Full width */}
               <div className="-mx-8 mb-4">

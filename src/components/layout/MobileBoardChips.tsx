@@ -13,7 +13,7 @@ export const MobileBoardChips: React.FC<MobileBoardChipsProps> = ({
   onBoardSelect,
 }) => {
   return (
-    <div className="md:hidden px-4 py-3 bg-spotify-black border-b border-elegant-border overflow-x-auto">
+    <div className="md:hidden px-4 py-3 bg-spotify-black border-b border-elegant-border overflow-x-auto scrollbar-hidden">
       <div className="flex space-x-2">
         <button
           onClick={() => onBoardSelect(null)}
