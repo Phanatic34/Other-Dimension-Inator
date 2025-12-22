@@ -2,12 +2,12 @@
   "version": 2,
   "buildCommand": "npm run build",
   "outputDirectory": "build",
-  "installCommand": "npm install",
+  "installCommand": "npm install && cd backend && npm install",
   "framework": "create-react-app",
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/api/index.ts"
+      "destination": "/api/$1"
     },
     {
       "source": "/(.*)",

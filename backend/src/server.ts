@@ -57,7 +57,10 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Serve uploaded files statically (for local storage)
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+// Skip in Vercel serverless environment (no local file system)
+if (process.env.VERCEL !== '1') {
+  app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+}
 
 // API Routes
 app.use('/api/auth', authRouter);
