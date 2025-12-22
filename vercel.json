@@ -6,18 +6,14 @@
   "framework": "create-react-app",
   "builds": [
     {
-      "src": "backend/src/server.ts",
+      "src": "api/index.ts",
       "use": "@vercel/node"
     }
   ],
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "backend/src/server.ts"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "dest": "api/index.ts"
     }
   ],
   "rewrites": [
