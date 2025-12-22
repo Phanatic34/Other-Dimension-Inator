@@ -140,18 +140,46 @@ const RendezvousHomeContent: React.FC = () => {
         let recommended: any[] = [];
 
         try {
-          [boardsData, postsData, recommended] = await Promise.all([
+          // Use Promise.allSettled to handle partial failures
+          const results = await Promise.allSettled([
             fetchBoardsAPI(),
             fetchAllPosts(),
             fetchRecommendedUsersAPI(),
           ]);
+
+          // Process results, using fallback for failed requests
+          boardsData = results[0].status === 'fulfilled' ? results[0].value : [];
+          postsData = results[1].status === 'fulfilled' ? results[1].value : [];
+          recommended = results[2].status === 'fulfilled' ? results[2].value : [];
+
+          // If API failed or returned empty data, use mock data
+          if (boardsData.length === 0 || postsData.length === 0) {
+            console.warn('API returned empty data or failed, using mock data');
+            const [mockBoards, mockPosts] = await Promise.all([
+              fetchMockBoards(),
+              fetchMockPosts(),
+            ]);
+            
+            // Only use mock data if API didn't return anything
+            if (boardsData.length === 0) boardsData = mockBoards;
+            if (postsData.length === 0) postsData = mockPosts;
+          }
         } catch (apiError) {
           console.warn('API not available, using mock data:', apiError);
           // Fallback to mock data
-          [boardsData, postsData] = await Promise.all([
-            fetchMockBoards(),
-            fetchMockPosts(),
-          ]);
+          try {
+            const [mockBoards, mockPosts] = await Promise.all([
+              fetchMockBoards(),
+              fetchMockPosts(),
+            ]);
+            boardsData = mockBoards;
+            postsData = mockPosts;
+          } catch (mockError) {
+            console.error('Failed to load mock data:', mockError);
+            // Set empty arrays as last resort
+            boardsData = [];
+            postsData = [];
+          }
         }
 
         setBoards(boardsData);
@@ -159,6 +187,10 @@ const RendezvousHomeContent: React.FC = () => {
         setRecommendedUsers(recommended);
       } catch (error) {
         console.error('Error loading data:', error);
+        // Ensure we still set empty arrays to prevent rendering issues
+        setBoards([]);
+        setPosts([]);
+        setRecommendedUsers([]);
       } finally {
         setIsLoading(false);
       }
