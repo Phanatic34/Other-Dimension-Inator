@@ -1,0 +1,89 @@
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import path from 'path';
+
+// Load environment variables
+dotenv.config();
+
+// Import routes
+import authRouter from './routes/auth';
+import boardsRouter from './routes/boards';
+import postsRouter from './routes/posts';
+import usersRouter from './routes/users';
+import restaurantsRouter from './routes/restaurants';
+import uploadRouter from './routes/upload';
+import commentsRouter from './routes/comments';
+
+const app = express();
+
+// Middleware
+app.use(
+  cors({
+    origin: function(origin, callback) {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+      
+      const allowedOrigins: string[] = [
+        'http://localhost:3000',
+        'http://localhost:3001',
+        'http://localhost:3002',
+        'http://localhost:3003',
+        'http://localhost:5000',
+        process.env.FRONTEND_URL,
+        // Allow Vercel preview and production URLs
+        process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
+        process.env.VERCEL ? `https://${process.env.VERCEL}` : null,
+      ].filter((origin): origin is string => typeof origin === 'string');
+      
+      // In production, allow all origins from same domain (Vercel)
+      // In development, allow all origins
+      if (process.env.NODE_ENV === 'production') {
+        // Allow same-origin requests (frontend and backend on same domain)
+        if (!origin || allowedOrigins.some(allowed => origin.includes(allowed) || origin.includes('vercel.app'))) {
+          callback(null, true);
+        } else {
+          callback(null, true); // Allow all in production for now
+        }
+      } else {
+        callback(null, true); // Allow all origins in development
+      }
+    },
+    credentials: true,
+  })
+);
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Serve uploaded files statically (for local storage)
+// Skip in Vercel serverless environment (no local file system)
+if (process.env.VERCEL !== '1') {
+  app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+}
+
+// API Routes
+app.use('/api/auth', authRouter);
+app.use('/api/boards', boardsRouter);
+app.use('/api/posts', postsRouter);
+app.use('/api/users', usersRouter);
+app.use('/api/restaurants', restaurantsRouter);
+app.use('/api/upload', uploadRouter);
+app.use('/api/comments', commentsRouter);
+
+// Health check
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Error handling middleware
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('Error:', err);
+  res.status(err.status || 500).json({
+    error: err.message || 'Internal server error',
+  });
+});
+
+// Export app for Vercel serverless functions
+// DO NOT call app.listen() here - that's only for local development
+export default app;
+
