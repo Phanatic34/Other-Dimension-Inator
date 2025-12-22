@@ -71,7 +71,7 @@ async function getUser(userId: string) {
 
 // Helper function to populate review post
 async function populateReviewPost(post: any, currentUserId?: string): Promise<ReviewPost> {
-  const author = await getUser(post.author_id);
+  const author = (await getUser(post.author_id)) ?? undefined;
   const board = await getBoard(post.board_id);
 
   // Get images (filter out blob URLs as they are temporary and won't persist)
@@ -135,7 +135,7 @@ async function populateReviewPost(post: any, currentUserId?: string): Promise<Re
 
 // Helper function to populate meetup post
 async function populateMeetupPost(post: any, currentUserId?: string): Promise<MeetupPost> {
-  const author = await getUser(post.author_id);
+  const author = (await getUser(post.author_id)) ?? undefined;
   const board = post.board_id ? await getBoard(post.board_id) : null;
 
   // Check if user follows author

@@ -220,6 +220,7 @@ router.get('/handle/:handle', requireDatabase, async (req: Request, res: Respons
 
     const profile: UserProfile = {
       id: user.id,
+      username: user.username || user.handle, // Use username if available, otherwise use handle
       displayName: user.display_name,
       handle: user.handle,
       bio: user.bio || '',

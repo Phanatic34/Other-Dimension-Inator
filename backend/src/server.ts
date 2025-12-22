@@ -25,7 +25,7 @@ app.use(
       // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) return callback(null, true);
       
-      const allowedOrigins = [
+      const allowedOrigins: string[] = [
         'http://localhost:3000',
         'http://localhost:3001',
         'http://localhost:3002',
@@ -35,7 +35,7 @@ app.use(
         // Allow Vercel preview and production URLs
         process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
         process.env.VERCEL ? `https://${process.env.VERCEL}` : null,
-      ].filter(Boolean);
+      ].filter((origin): origin is string => typeof origin === 'string');
       
       // In production, allow all origins from same domain (Vercel)
       // In development, allow all origins
