@@ -100,8 +100,8 @@ async function populateReviewPost(post: any, currentUserId?: string): Promise<Re
     author,
     restaurantName: post.restaurant_name,
     restaurantAddress: post.restaurant_address,
-    lat: post.restaurant_lat,
-    lng: post.restaurant_lng,
+    restaurantLat: post.restaurant_lat,
+    restaurantLng: post.restaurant_lng,
     locationArea: post.location_area,
     boardId: post.board_id,
     board: board
@@ -129,7 +129,6 @@ async function populateReviewPost(post: any, currentUserId?: string): Promise<Re
     createdAt: post.created_at,
     updatedAt: post.updated_at,
     isFromFollowedUser,
-    isArchived: post.is_archived === true,
   };
 }
 
@@ -182,7 +181,6 @@ async function populateMeetupPost(post: any, currentUserId?: string): Promise<Me
     createdAt: post.created_at,
     updatedAt: post.updated_at,
     isFromFollowedUser,
-    isArchived: post.is_archived === true,
   };
 }
 
