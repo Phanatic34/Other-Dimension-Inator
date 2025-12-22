@@ -61,6 +61,41 @@ const getHeaders = (): HeadersInit => {
   return headers;
 };
 
+// Helper function to safely parse JSON response
+// Detects HTML responses and provides better error messages
+async function safeJsonResponse(response: Response): Promise<any> {
+  const contentType = response.headers.get('content-type') || '';
+  const text = await response.text();
+  
+  // Check if response is HTML (usually means API route doesn't exist or was rewritten)
+  if (contentType.includes('text/html') || text.trim().startsWith('<!')) {
+    const errorMsg = `API returned HTML instead of JSON. This usually means the API route doesn't exist or was incorrectly routed. Status: ${response.status}`;
+    console.error(errorMsg, { url: response.url, status: response.status, preview: text.slice(0, 200) });
+    throw new Error(errorMsg);
+  }
+  
+  // Check if response is empty
+  if (!text || text.trim().length === 0) {
+    if (response.ok) {
+      return null; // Empty but successful response
+    }
+    throw new Error(`Empty response with status ${response.status}`);
+  }
+  
+  // Try to parse as JSON
+  try {
+    return JSON.parse(text);
+  } catch (parseError) {
+    console.error('Failed to parse JSON response:', {
+      url: response.url,
+      status: response.status,
+      contentType,
+      preview: text.slice(0, 200)
+    });
+    throw new Error(`Invalid JSON response: ${text.slice(0, 100)}`);
+  }
+}
+
 // ================== Users API ==================
 
 export async function fetchUserByHandle(handle: string) {
@@ -115,9 +150,12 @@ export async function fetchAllPosts(type?: 'review' | 'meetup') {
     const url = type ? `${API_URL}/posts?type=${type}` : `${API_URL}/posts`;
     const response = await fetch(url, {
       headers: getHeaders(),
+      credentials: 'include',
     });
-    if (!response.ok) throw new Error('Failed to fetch posts');
-    return await response.json();
+    if (!response.ok) {
+      throw new Error(`Failed to fetch posts: ${response.status} ${response.statusText}`);
+    }
+    return await safeJsonResponse(response);
   } catch (error) {
     console.error('Error fetching posts:', error);
     return [];
@@ -428,9 +466,12 @@ export async function fetchBoards() {
   try {
     const response = await fetch(`${API_URL}/boards`, {
       headers: getHeaders(),
+      credentials: 'include',
     });
-    if (!response.ok) throw new Error('Failed to fetch boards');
-    return await response.json();
+    if (!response.ok) {
+      throw new Error(`Failed to fetch boards: ${response.status} ${response.statusText}`);
+    }
+    return await safeJsonResponse(response);
   } catch (error) {
     console.error('Error fetching boards:', error);
     return [];
@@ -443,9 +484,12 @@ export async function fetchRecommendedUsers() {
   try {
     const response = await fetch(`${API_URL}/users/recommended`, {
       headers: getHeaders(),
+      credentials: 'include',
     });
-    if (!response.ok) throw new Error('Failed to fetch recommended users');
-    return await response.json();
+    if (!response.ok) {
+      throw new Error(`Failed to fetch recommended users: ${response.status} ${response.statusText}`);
+    }
+    return await safeJsonResponse(response);
   } catch (error) {
     console.error('Error fetching recommended users:', error);
     return [];

@@ -114,9 +114,35 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ email, password }),
+        credentials: 'include',
       });
 
-      const data = await response.json();
+      // Check content type first
+      const contentType = response.headers.get('content-type') || '';
+      const text = await response.text();
+      
+      // Handle HTML responses (usually means route doesn't exist)
+      if (contentType.includes('text/html') || text.trim().startsWith('<!')) {
+        console.error('Login API returned HTML instead of JSON. Route may not exist or was incorrectly routed.');
+        return { success: false, error: 'Login service unavailable. Please check API configuration.' };
+      }
+
+      // Handle empty response
+      if (!text || text.trim().length === 0) {
+        if (response.ok) {
+          return { success: false, error: 'Empty response from server' };
+        }
+        return { success: false, error: `Login failed: ${response.status} ${response.statusText}` };
+      }
+
+      // Parse JSON
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseError) {
+        console.error('Failed to parse login response:', text.slice(0, 200));
+        return { success: false, error: 'Invalid response from server' };
+      }
 
       if (response.ok) {
         localStorage.setItem('authToken', data.token);
@@ -124,7 +150,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setUser(data.user);
         return { success: true };
       } else {
-        return { success: false, error: data.error || 'Login failed' };
+        return { success: false, error: data.error || `Login failed: ${response.status}` };
       }
     } catch (error) {
       console.error('Login error:', error);

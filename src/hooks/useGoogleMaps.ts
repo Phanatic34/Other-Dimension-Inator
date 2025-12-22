@@ -71,8 +71,9 @@ export function useGoogleMaps(): UseGoogleMapsReturn {
     // Create and load script
     // language=zh-TW sets UI language to Chinese, region=TW sets region to Taiwan
     // User can still type English queries and get results
+    // Add loading=async parameter to suppress performance warning
     const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&language=zh-TW&region=TW`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&language=zh-TW&region=TW&loading=async`;
     script.async = true;
     script.defer = true;
 
