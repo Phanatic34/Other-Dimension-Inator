@@ -163,7 +163,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
         </div>
 
         {/* Replies */}
-        {comment.replies.length > 0 && (
+        {comment.replies && comment.replies.length > 0 && (
           <div className="mt-2">
             {!showReplies ? (
               <button
@@ -281,7 +281,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
   const findReplyTarget = (comments: Comment[], targetId: string): Comment | null => {
     for (const comment of comments) {
       if (comment.id === targetId) return comment;
-      const found = findReplyTarget(comment.replies, targetId);
+      const found = findReplyTarget(comment.replies || [], targetId);
       if (found) return found;
     }
     return null;
