@@ -944,6 +944,96 @@ app.get('/api/users/:id', async (req, res) => {
   }
 });
 
+// PATCH /api/users/:id/profile - Update user profile
+app.patch('/api/users/:id/profile', async (req, res) => {
+  try {
+    if (!db) return res.status(503).json({ error: 'Database not configured' });
+    
+    const currentUserId = getUserFromToken(req);
+    if (!currentUserId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    const { id } = req.params;
+    
+    // Verify user is updating their own profile
+    if (currentUserId !== id) {
+      return res.status(403).json({ error: 'Cannot update another user\'s profile' });
+    }
+    
+    const { displayName, bio, avatarUrl, coverImageUrl, favoriteStyles, favoriteCategories } = req.body;
+    
+    // Build update query dynamically
+    const updates = [];
+    const values = [];
+    let paramCount = 1;
+    
+    if (displayName !== undefined) {
+      updates.push(`display_name = $${paramCount++}`);
+      values.push(displayName);
+    }
+    if (bio !== undefined) {
+      updates.push(`bio = $${paramCount++}`);
+      values.push(bio);
+    }
+    if (avatarUrl !== undefined) {
+      updates.push(`avatar_url = $${paramCount++}`);
+      values.push(avatarUrl);
+    }
+    if (coverImageUrl !== undefined) {
+      updates.push(`cover_image_url = $${paramCount++}`);
+      values.push(coverImageUrl);
+    }
+    if (favoriteStyles !== undefined) {
+      updates.push(`favorite_styles = $${paramCount++}`);
+      values.push(favoriteStyles);
+    }
+    if (favoriteCategories !== undefined) {
+      updates.push(`favorite_categories = $${paramCount++}`);
+      values.push(favoriteCategories);
+    }
+    
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+    
+    updates.push(`updated_at = NOW()`);
+    values.push(id);
+    
+    const query = `UPDATE users SET ${updates.join(', ')} WHERE id = $${paramCount} RETURNING *`;
+    const result = await db.query(query, values);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const user = result.rows[0];
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        displayName: user.display_name,
+        handle: user.handle,
+        avatarUrl: user.avatar_url,
+        coverImageUrl: user.cover_image_url,
+        bio: user.bio,
+        favoriteStyles: user.favorite_styles || [],
+        favoriteCategories: user.favorite_categories || []
+      }
+    });
+  } catch (error) {
+    console.error('Error updating user profile:', error);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
+// PUT /api/users/:id/profile - Update user profile (alternative)
+app.put('/api/users/:id/profile', async (req, res) => {
+  // Forward to PATCH handler
+  req.method = 'PATCH';
+  return app._router.handle(req, res, () => {});
+});
+
 // GET /api/users/:id/posts - Get posts by user (supports both ID and handle)
 app.get('/api/users/:id/posts', async (req, res) => {
   try {

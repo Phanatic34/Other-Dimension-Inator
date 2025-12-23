@@ -144,6 +144,8 @@ export const UserProfilePage: React.FC = () => {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': token ? `Bearer ${token}` : '',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
         },
         body: JSON.stringify(updatedFields),
       });

@@ -94,23 +94,45 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   // Early return AFTER all hooks
   if (!isOpen) return null;
 
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (error) => reject(error);
+      reader.readAsDataURL(file);
+    });
+  };
+
   const uploadImage = async (file: File): Promise<string | null> => {
-    const formData = new FormData();
-    formData.append('image', file);
-    
     try {
       setIsUploading(true);
+      
+      // Convert file to base64
+      const base64Image = await fileToBase64(file);
+      
+      // Get auth token
+      const token = localStorage.getItem('authToken');
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
       const response = await fetch(`${API_URL}/upload/image`, {
         method: 'POST',
-        body: formData,
+        headers,
+        body: JSON.stringify({ image: base64Image }),
       });
       
       if (!response.ok) {
-        throw new Error('Upload failed');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Upload failed');
       }
       
       const data = await response.json();
-      return data.imageUrl;
+      return data.url || data.imageUrl;
     } catch (error) {
       console.error('Image upload error:', error);
       return null;
