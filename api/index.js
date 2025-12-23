@@ -204,6 +204,200 @@ app.get('/api/boards', async (req, res) => {
 });
 
 // ==================== POSTS ENDPOINTS ====================
+
+// POST /api/posts/review - Create a review post
+app.post('/api/posts/review', async (req, res) => {
+  try {
+    if (!db) return res.status(503).json({ error: 'Database not configured' });
+    
+    const userId = getUserFromToken(req);
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    const {
+      restaurantName,
+      restaurantAddress,
+      restaurantLat,
+      restaurantLng,
+      locationArea,
+      boardId,
+      styleType,
+      foodType,
+      title,
+      content,
+      rating,
+      priceLevel,
+      visibility,
+      images
+    } = req.body;
+    
+    if (!restaurantName || !boardId || !rating || !priceLevel) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    
+    const postId = uuidv4();
+    
+    await db.query(
+      `INSERT INTO review_posts (
+        id, author_id, restaurant_name, restaurant_address, restaurant_lat, restaurant_lng,
+        location_area, board_id, style_type, food_type, title, content, rating, price_level, visibility
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+      [postId, userId, restaurantName, restaurantAddress || '', restaurantLat || null, restaurantLng || null,
+       locationArea || '', boardId, styleType || '', foodType || '', title || '', content || '',
+       rating, priceLevel, visibility || 'PUBLIC']
+    );
+    
+    // Insert images if provided
+    if (images && images.length > 0) {
+      for (let i = 0; i < images.length; i++) {
+        const imageUrl = images[i];
+        if (imageUrl && !imageUrl.startsWith('blob:')) {
+          const imageId = uuidv4();
+          await db.query(
+            'INSERT INTO post_images (id, post_id, image_url, image_order) VALUES ($1, $2, $3, $4)',
+            [imageId, postId, imageUrl, i]
+          );
+        }
+      }
+    }
+    
+    // Get the created post with author info
+    const result = await db.query(`
+      SELECT rp.*, u.display_name, u.handle, u.avatar_url
+      FROM review_posts rp
+      LEFT JOIN users u ON rp.author_id = u.id
+      WHERE rp.id = $1
+    `, [postId]);
+    
+    const row = result.rows[0];
+    
+    res.status(201).json({
+      id: row.id,
+      type: 'review',
+      authorId: row.author_id,
+      author: {
+        id: row.author_id,
+        displayName: row.display_name,
+        handle: row.handle,
+        avatarUrl: row.avatar_url
+      },
+      restaurantName: row.restaurant_name,
+      restaurantAddress: row.restaurant_address,
+      restaurantLat: row.restaurant_lat,
+      restaurantLng: row.restaurant_lng,
+      locationArea: row.location_area,
+      boardId: row.board_id,
+      styleType: row.style_type,
+      foodType: row.food_type,
+      title: row.title,
+      content: row.content,
+      rating: row.rating,
+      priceLevel: row.price_level,
+      images: images || [],
+      visibility: row.visibility,
+      likeCount: 0,
+      commentCount: 0,
+      shareCount: 0,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    });
+  } catch (error) {
+    console.error('Error creating review post:', error);
+    res.status(500).json({ error: 'Failed to create post' });
+  }
+});
+
+// POST /api/posts/meetup - Create a meetup post
+app.post('/api/posts/meetup', async (req, res) => {
+  try {
+    if (!db) return res.status(503).json({ error: 'Database not configured' });
+    
+    const userId = getUserFromToken(req);
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    const {
+      restaurantName,
+      locationText,
+      address,
+      meetupTime,
+      foodTags,
+      maxHeadcount,
+      budgetDescription,
+      hasReservation,
+      description,
+      visibility,
+      imageUrl,
+      boardId,
+      locationArea
+    } = req.body;
+    
+    if (!restaurantName || !locationText || !meetupTime || !maxHeadcount || !budgetDescription) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    
+    const postId = uuidv4();
+    
+    await db.query(
+      `INSERT INTO meetup_posts (
+        id, author_id, restaurant_name, location_text, address, meetup_time,
+        food_tags, max_headcount, budget_description, has_reservation, description,
+        visibility, image_url, board_id, location_area
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+      [postId, userId, restaurantName, locationText, address || '', meetupTime,
+       foodTags || [], maxHeadcount, budgetDescription, hasReservation || false, description || '',
+       visibility || 'PUBLIC', imageUrl || null, boardId || null, locationArea || '']
+    );
+    
+    // Get the created post with author info
+    const result = await db.query(`
+      SELECT mp.*, u.display_name, u.handle, u.avatar_url
+      FROM meetup_posts mp
+      LEFT JOIN users u ON mp.author_id = u.id
+      WHERE mp.id = $1
+    `, [postId]);
+    
+    const row = result.rows[0];
+    
+    res.status(201).json({
+      id: row.id,
+      type: 'meetup',
+      authorId: row.author_id,
+      author: {
+        id: row.author_id,
+        displayName: row.display_name,
+        handle: row.handle,
+        avatarUrl: row.avatar_url
+      },
+      restaurantName: row.restaurant_name,
+      locationText: row.location_text,
+      address: row.address,
+      meetupTime: row.meetup_time,
+      foodTags: row.food_tags || [],
+      maxHeadcount: row.max_headcount,
+      currentHeadcount: row.current_headcount,
+      budgetDescription: row.budget_description,
+      hasReservation: row.has_reservation,
+      description: row.description,
+      visibility: row.visibility,
+      imageUrl: row.image_url,
+      status: row.status,
+      boardId: row.board_id,
+      locationArea: row.location_area,
+      likeCount: 0,
+      commentCount: 0,
+      shareCount: 0,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    });
+  } catch (error) {
+    console.error('Error creating meetup post:', error);
+    res.status(500).json({ error: 'Failed to create post' });
+  }
+});
+
 // GET /api/posts - Get all posts (review + meetup)
 app.get('/api/posts', async (req, res) => {
   try {
@@ -517,12 +711,18 @@ app.get('/api/users/:id', async (req, res) => {
   }
 });
 
-// GET /api/users/:id/posts - Get posts by user
+// GET /api/users/:id/posts - Get posts by user (supports both ID and handle)
 app.get('/api/users/:id/posts', async (req, res) => {
   try {
     if (!db) return res.status(503).json({ error: 'Database not configured' });
     
     const { id } = req.params;
+    
+    // Resolve the user ID (could be handle or UUID)
+    const userId = await resolveUserId(id);
+    if (!userId) {
+      return res.json([]); // Return empty array if user not found
+    }
     
     // Get review posts by this user
     const reviewResult = await db.query(`
@@ -531,7 +731,7 @@ app.get('/api/users/:id/posts', async (req, res) => {
       LEFT JOIN users u ON rp.author_id = u.id
       WHERE rp.author_id = $1
       ORDER BY rp.created_at DESC
-    `, [id]);
+    `, [userId]);
     
     // Get meetup posts by this user
     const meetupResult = await db.query(`
@@ -540,7 +740,7 @@ app.get('/api/users/:id/posts', async (req, res) => {
       LEFT JOIN users u ON mp.author_id = u.id
       WHERE mp.author_id = $1
       ORDER BY mp.created_at DESC
-    `, [id]);
+    `, [userId]);
     
     // Process review posts
     const reviewPosts = await Promise.all(reviewResult.rows.map(async (row) => {
@@ -627,19 +827,41 @@ app.get('/api/users/:id/posts', async (req, res) => {
   }
 });
 
+// Helper function to get user ID from either ID or handle
+const resolveUserId = async (idOrHandle) => {
+  // Check if it looks like a UUID
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (uuidRegex.test(idOrHandle)) {
+    return idOrHandle;
+  }
+  
+  // Otherwise, treat as handle and look up user
+  const result = await db.query('SELECT id FROM users WHERE handle = $1', [idOrHandle]);
+  if (result.rows.length > 0) {
+    return result.rows[0].id;
+  }
+  return null;
+};
+
 // POST /api/users/:id/follow
 app.post('/api/users/:id/follow', async (req, res) => {
   try {
     if (!db) return res.status(503).json({ error: 'Database not configured' });
     
-    const userId = getUserFromToken(req);
-    if (!userId) {
+    const currentUserId = getUserFromToken(req);
+    if (!currentUserId) {
       return res.status(401).json({ error: 'Authentication required' });
     }
     
     const { id } = req.params;
     
-    if (userId === id) {
+    // Resolve the target user ID (could be handle or UUID)
+    const targetUserId = await resolveUserId(id);
+    if (!targetUserId) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    if (currentUserId === targetUserId) {
       return res.status(400).json({ error: 'Cannot follow yourself' });
     }
     
@@ -647,10 +869,10 @@ app.post('/api/users/:id/follow', async (req, res) => {
     
     await db.query(
       'INSERT INTO follows (id, follower_id, following_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
-      [followId, userId, id]
+      [followId, currentUserId, targetUserId]
     );
     
-    res.json({ success: true });
+    res.json({ success: true, followed: true });
   } catch (error) {
     console.error('Error following user:', error);
     res.status(500).json({ error: 'Failed to follow user' });
@@ -662,19 +884,25 @@ app.delete('/api/users/:id/follow', async (req, res) => {
   try {
     if (!db) return res.status(503).json({ error: 'Database not configured' });
     
-    const userId = getUserFromToken(req);
-    if (!userId) {
+    const currentUserId = getUserFromToken(req);
+    if (!currentUserId) {
       return res.status(401).json({ error: 'Authentication required' });
     }
     
     const { id } = req.params;
     
+    // Resolve the target user ID (could be handle or UUID)
+    const targetUserId = await resolveUserId(id);
+    if (!targetUserId) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
     await db.query(
       'DELETE FROM follows WHERE follower_id = $1 AND following_id = $2',
-      [userId, id]
+      [currentUserId, targetUserId]
     );
     
-    res.json({ success: true });
+    res.json({ success: true, followed: false });
   } catch (error) {
     console.error('Error unfollowing user:', error);
     res.status(500).json({ error: 'Failed to unfollow user' });
