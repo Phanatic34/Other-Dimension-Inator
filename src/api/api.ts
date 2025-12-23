@@ -49,10 +49,12 @@ const getAuthToken = (): string | null => {
   return localStorage.getItem('authToken');
 };
 
-// Get headers with auth token
+// Get headers with auth token and cache control
 const getHeaders = (): HeadersInit => {
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma': 'no-cache',
   };
   const token = getAuthToken();
   if (token) {

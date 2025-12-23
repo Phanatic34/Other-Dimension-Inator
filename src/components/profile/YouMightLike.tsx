@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RecommendedUser } from '../../types/profile';
 import { followUser, unfollowUser } from '../../api/api';
@@ -11,15 +11,22 @@ interface YouMightLikeProps {
 export const YouMightLike: React.FC<YouMightLikeProps> = ({ recommendedUsers }) => {
   const navigate = useNavigate();
   const { user: currentUser, isAuthenticated } = useAuth();
-  const [followingStates, setFollowingStates] = useState<Record<string, boolean>>(() => {
-    // Initialize from the isFollowing property if available
-    const initial: Record<string, boolean> = {};
-    recommendedUsers.forEach(user => {
-      initial[user.id] = (user as any).isFollowing || false;
-    });
-    return initial;
-  });
+  const [followingStates, setFollowingStates] = useState<Record<string, boolean>>({});
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
+
+  // Sync followingStates when recommendedUsers changes
+  useEffect(() => {
+    const newStates: Record<string, boolean> = {};
+    recommendedUsers.forEach(user => {
+      // Keep existing state if available (for optimistic updates), otherwise use API value
+      if (followingStates[user.id] === undefined) {
+        newStates[user.id] = (user as any).isFollowedByCurrentUser || (user as any).isFollowing || false;
+      } else {
+        newStates[user.id] = followingStates[user.id];
+      }
+    });
+    setFollowingStates(prev => ({ ...prev, ...newStates }));
+  }, [recommendedUsers]);
 
   const handleFollow = async (userId: string) => {
     if (!isAuthenticated) {
