@@ -2,13 +2,8 @@
   "version": 2,
   "buildCommand": "npm run build",
   "outputDirectory": "build",
-  "installCommand": "npm install && cd backend && npm install",
+  "installCommand": "npm install",
   "framework": "create-react-app",
-  "functions": {
-    "api/index.ts": {
-      "includeFiles": "backend/**"
-    }
-  },
   "rewrites": [
     {
       "source": "/api/:path*",
