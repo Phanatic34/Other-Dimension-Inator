@@ -73,6 +73,9 @@ const RendezvousHomeContent: React.FC = () => {
   // Use context for location preview
   const { setSelectedLocation } = useLocationPreview();
 
+  // Get current user from auth context (needed early for following posts effect)
+  const { user: authUser, isAuthenticated } = useAuth();
+
   // Get initial search query from URL
   const urlSearchQuery = searchParams.get('search') || '';
 
@@ -376,9 +379,6 @@ const RendezvousHomeContent: React.FC = () => {
     // TODO: The form will submit to the backend API
   };
 
-  // Get current user from auth context
-  const { user: authUser, isAuthenticated } = useAuth();
-  
   // Current user for display purposes
   const currentUser: User = authUser ? {
     id: authUser.id,
