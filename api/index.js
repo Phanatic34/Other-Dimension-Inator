@@ -1452,209 +1452,151 @@ app.get('/api/users/:id/bookmarks', async (req, res) => {
   }
 });
 
-// GET /api/users/:id/reposts - Get posts reposted by user
+// NOTE: Repost functionality has been removed per user request
+// GET /api/users/:id/reposts - Returns empty array (feature deprecated)
 app.get('/api/users/:id/reposts', async (req, res) => {
+  res.json([]);
+});
+
+// GET /api/users/:id/replies - Get posts that user has replied to (as Post objects)
+app.get('/api/users/:id/replies', async (req, res) => {
   try {
     if (!db) return res.status(503).json({ error: 'Database not configured' });
     
     const { id } = req.params;
+    const currentUserId = getUserFromToken(req);
     const userId = await resolveUserId(id);
     if (!userId) {
       return res.json([]);
     }
     
-    // Get reposted review posts
-    const repostReviewResult = await db.query(`
-      SELECT rp.*, r.created_at as reposted_at, u.display_name, u.handle, u.avatar_url, 'review' as type
-      FROM reposts r
-      JOIN review_posts rp ON r.post_id = rp.id
+    // Get distinct posts that user has commented on
+    // First get review posts
+    const reviewResult = await db.query(`
+      SELECT DISTINCT ON (rp.id) rp.*, u.display_name, u.handle, u.avatar_url,
+             c.content as user_comment, c.created_at as comment_created_at
+      FROM comments c
+      JOIN review_posts rp ON c.post_id = rp.id AND c.post_type = 'review'
       LEFT JOIN users u ON rp.author_id = u.id
-      WHERE r.user_id = $1 AND r.post_type = 'review'
-      ORDER BY r.created_at DESC
+      WHERE c.author_id = $1
+      ORDER BY rp.id, c.created_at DESC
     `, [userId]);
     
-    // Get reposted meetup posts
-    const repostMeetupResult = await db.query(`
-      SELECT mp.*, r.created_at as reposted_at, u.display_name, u.handle, u.avatar_url, 'meetup' as type
-      FROM reposts r
-      JOIN meetup_posts mp ON r.post_id = mp.id
+    // Get meetup posts
+    const meetupResult = await db.query(`
+      SELECT DISTINCT ON (mp.id) mp.*, u.display_name, u.handle, u.avatar_url,
+             c.content as user_comment, c.created_at as comment_created_at
+      FROM comments c
+      JOIN meetup_posts mp ON c.post_id = mp.id AND c.post_type = 'meetup'
       LEFT JOIN users u ON mp.author_id = u.id
-      WHERE r.user_id = $1 AND r.post_type = 'meetup'
-      ORDER BY r.created_at DESC
+      WHERE c.author_id = $1
+      ORDER BY mp.id, c.created_at DESC
     `, [userId]);
     
-    // Process posts
-    const reviewPosts = await Promise.all(repostReviewResult.rows.map(async (row) => {
+    // Process review posts
+    const reviewPosts = await Promise.all(reviewResult.rows.map(async (row) => {
       const imagesResult = await db.query(
         'SELECT image_url FROM post_images WHERE post_id = $1 ORDER BY image_order',
         [row.id]
       );
       const images = imagesResult.rows.map(img => img.image_url).filter(url => url && !url.startsWith('blob:'));
       
+      let isLiked = false;
+      let isSaved = false;
+      if (currentUserId) {
+        const likedResult = await db.query(
+          'SELECT id FROM likes WHERE user_id = $1 AND post_id = $2',
+          [currentUserId, row.id]
+        );
+        isLiked = likedResult.rows.length > 0;
+        
+        const savedResult = await db.query(
+          'SELECT id FROM saved_posts WHERE user_id = $1 AND post_id = $2',
+          [currentUserId, row.id]
+        );
+        isSaved = savedResult.rows.length > 0;
+      }
+      
       return {
         id: row.id,
         type: 'review',
-        authorId: row.author_id,
-        author: row.author_id ? {
+        author: {
           id: row.author_id,
-          displayName: row.display_name,
-          handle: row.handle,
+          displayName: row.display_name || 'User',
+          handle: row.handle || 'user',
           avatarUrl: row.avatar_url
-        } : undefined,
-        restaurantName: row.restaurant_name,
+        },
+        restaurantName: row.restaurant_name || 'Unknown Restaurant',
+        board: {
+          id: row.board_id || 'others-style',
+          name: row.board_id || 'Others',
+          label: row.style_type || '其他 Others',
+          category: 'cuisine'
+        },
+        styleType: row.style_type || '其他 Others',
+        foodType: row.food_type || '其他 Others',
         title: row.title || '',
         content: row.content || '',
-        rating: row.rating,
-        priceLevel: row.price_level,
-        images: images.length > 0 ? images : undefined,
+        contentSnippet: row.content ? row.content.substring(0, 150) + '...' : '',
+        rating: row.rating || 0,
+        priceLevel: row.price_level || '$$',
+        priceMax: row.price_max,
+        locationArea: row.location_area || '',
+        restaurantAddress: row.restaurant_address,
+        restaurantLat: row.restaurant_lat,
+        restaurantLng: row.restaurant_lng,
+        createdAt: row.created_at,
         likeCount: row.like_count || 0,
         commentCount: row.comment_count || 0,
-        createdAt: row.created_at,
-        repostedAt: row.reposted_at
+        shareCount: row.share_count || 0,
+        images: images.length > 0 ? images : undefined,
+        imageUrl: images.length > 0 ? images[0] : undefined,
+        isLiked,
+        isSaved,
+        isArchived: row.is_archived || false,
+        userComment: row.user_comment,
+        commentCreatedAt: row.comment_created_at
       };
     }));
     
-    const meetupPosts = repostMeetupResult.rows.map(row => ({
+    // Process meetup posts
+    const meetupPosts = meetupResult.rows.map(row => ({
       id: row.id,
       type: 'meetup',
-      authorId: row.author_id,
-      author: row.author_id ? {
-        id: row.author_id,
-        displayName: row.display_name,
-        handle: row.handle,
-        avatarUrl: row.avatar_url
-      } : undefined,
-      restaurantName: row.restaurant_name,
-      locationText: row.location_text,
-      meetupTime: row.meetup_time,
-      description: row.description,
-      likeCount: row.like_count || 0,
-      commentCount: row.comment_count || 0,
-      createdAt: row.created_at,
-      repostedAt: row.reposted_at
-    }));
-    
-    res.json([...reviewPosts, ...meetupPosts]);
-  } catch (error) {
-    console.error('Error fetching user reposts:', error);
-    res.status(500).json({ error: 'Failed to fetch reposts' });
-  }
-});
-
-// POST /api/posts/:id/repost - Repost a post
-app.post('/api/posts/:id/repost', async (req, res) => {
-  try {
-    if (!db) return res.status(503).json({ error: 'Database not configured' });
-    
-    const userId = getUserFromToken(req);
-    if (!userId) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-    
-    const { id } = req.params;
-    const { type } = req.query;
-    const postType = type || 'review';
-    
-    // Check if already reposted
-    const existing = await db.query(
-      'SELECT id FROM reposts WHERE user_id = $1 AND post_id = $2 AND post_type = $3',
-      [userId, id, postType]
-    );
-    
-    if (existing.rows.length > 0) {
-      return res.json({ reposted: true, message: 'Already reposted' });
-    }
-    
-    const repostId = uuidv4();
-    await db.query(
-      'INSERT INTO reposts (id, user_id, post_id, post_type) VALUES ($1, $2, $3, $4)',
-      [repostId, userId, id, postType]
-    );
-    
-    // Update share count
-    if (postType === 'meetup') {
-      await db.query('UPDATE meetup_posts SET share_count = COALESCE(share_count, 0) + 1 WHERE id = $1', [id]);
-    } else {
-      await db.query('UPDATE review_posts SET share_count = COALESCE(share_count, 0) + 1 WHERE id = $1', [id]);
-    }
-    
-    res.json({ reposted: true });
-  } catch (error) {
-    console.error('Error reposting:', error);
-    res.status(500).json({ error: 'Failed to repost' });
-  }
-});
-
-// DELETE /api/posts/:id/repost - Un-repost a post
-app.delete('/api/posts/:id/repost', async (req, res) => {
-  try {
-    if (!db) return res.status(503).json({ error: 'Database not configured' });
-    
-    const userId = getUserFromToken(req);
-    if (!userId) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-    
-    const { id } = req.params;
-    const { type } = req.query;
-    const postType = type || 'review';
-    
-    await db.query(
-      'DELETE FROM reposts WHERE user_id = $1 AND post_id = $2 AND post_type = $3',
-      [userId, id, postType]
-    );
-    
-    res.json({ reposted: false });
-  } catch (error) {
-    console.error('Error un-reposting:', error);
-    res.status(500).json({ error: 'Failed to un-repost' });
-  }
-});
-
-// GET /api/users/:id/replies - Get replies (comments) by user
-app.get('/api/users/:id/replies', async (req, res) => {
-  try {
-    if (!db) return res.status(503).json({ error: 'Database not configured' });
-    
-    const { id } = req.params;
-    const userId = await resolveUserId(id);
-    if (!userId) {
-      return res.json([]);
-    }
-    
-    // Get user's comments with post info
-    const result = await db.query(`
-      SELECT c.*, u.display_name, u.handle, u.avatar_url,
-             rp.restaurant_name as review_restaurant_name, rp.title as review_title,
-             mp.restaurant_name as meetup_restaurant_name, mp.description as meetup_description
-      FROM comments c
-      LEFT JOIN users u ON c.author_id = u.id
-      LEFT JOIN review_posts rp ON c.post_id = rp.id AND c.post_type = 'review'
-      LEFT JOIN meetup_posts mp ON c.post_id = mp.id AND c.post_type = 'meetup'
-      WHERE c.author_id = $1
-      ORDER BY c.created_at DESC
-    `, [userId]);
-    
-    const replies = result.rows.map(row => ({
-      id: row.id,
-      postId: row.post_id,
-      postType: row.post_type,
-      content: row.content,
-      likeCount: row.like_count || 0,
-      createdAt: row.created_at,
       author: {
         id: row.author_id,
-        displayName: row.display_name,
-        handle: row.handle,
+        displayName: row.display_name || 'User',
+        handle: row.handle || 'user',
         avatarUrl: row.avatar_url
       },
-      post: {
-        restaurantName: row.review_restaurant_name || row.meetup_restaurant_name,
-        title: row.review_title || row.meetup_description
-      }
+      restaurantName: row.restaurant_name || 'Unknown Restaurant',
+      locationText: row.location_text || '',
+      address: row.address,
+      meetupTime: row.meetup_time,
+      foodTags: row.food_tags || [],
+      maxHeadcount: row.max_headcount || 1,
+      currentHeadcount: row.current_headcount || 1,
+      budgetDescription: row.budget_description || '',
+      hasReservation: row.has_reservation || false,
+      description: row.description || '',
+      visibility: row.visibility || 'PUBLIC',
+      imageUrl: row.image_url,
+      status: row.status || 'OPEN',
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      likeCount: row.like_count || 0,
+      commentCount: row.comment_count || 0,
+      shareCount: row.share_count || 0,
+      isArchived: row.is_archived || false,
+      userComment: row.user_comment,
+      commentCreatedAt: row.comment_created_at
     }));
     
-    res.json(replies);
+    // Combine and sort by comment date
+    const allPosts = [...reviewPosts, ...meetupPosts];
+    allPosts.sort((a, b) => new Date(b.commentCreatedAt) - new Date(a.commentCreatedAt));
+    
+    res.json(allPosts);
   } catch (error) {
     console.error('Error fetching user replies:', error);
     res.status(500).json({ error: 'Failed to fetch replies' });
@@ -2703,10 +2645,13 @@ app.get('/api/posts/:id/enrollment', async (req, res) => {
     const capacity = post.max_headcount;
     const isFull = enrolledCount >= capacity;
     const eventTime = post.meetup_time;
-    const eventStarted = new Date(eventTime) < new Date();
+    const eventDate = new Date(eventTime);
+    const now = new Date();
+    const twoHoursBeforeEvent = new Date(eventDate.getTime() - 2 * 60 * 60 * 1000);
+    const eventStarted = eventDate < now;
     
-    // Can cancel if enrolled and event hasn't started
-    const canCancel = isEnrolled && !eventStarted;
+    // Can cancel if enrolled and more than 2 hours before event
+    const canCancel = isEnrolled && now < twoHoursBeforeEvent;
     
     res.json({
       postId: id,
@@ -2843,10 +2788,16 @@ app.delete('/api/posts/:id/enroll', async (req, res) => {
     }
     
     const post = postResult.rows[0];
+    const eventTime = new Date(post.meetup_time);
+    const now = new Date();
+    const twoHoursBeforeEvent = new Date(eventTime.getTime() - 2 * 60 * 60 * 1000);
     
-    // Check if event has started
-    if (new Date(post.meetup_time) < new Date()) {
-      return res.status(400).json({ error: 'Cannot cancel after event has started' });
+    // Check if within 2 hours of event (cannot cancel within 2 hours)
+    if (now >= twoHoursBeforeEvent) {
+      return res.status(400).json({ 
+        error: 'Cannot cancel within 2 hours of the event',
+        canCancel: false
+      });
     }
     
     // Delete enrollment

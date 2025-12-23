@@ -27,12 +27,11 @@ export interface RecommendedUser {
   isFollowing?: boolean;
 }
 
-export type ProfileTab = 'posts' | 'likes' | 'replies' | 'reposts' | 'bookmarks';
+export type ProfileTab = 'posts' | 'likes' | 'replies' | 'bookmarks';
 
 export interface ProfileTabData {
   posts: Post[];
   likes: Post[];
   replies: Post[];
-  reposts: Post[];
   bookmarks: Post[];
 }

@@ -171,17 +171,10 @@ export async function fetchUserBookmarks(userId: string) {
   }
 }
 
+// NOTE: Repost functionality has been removed per user request
 export async function fetchUserReposts(userId: string) {
-  try {
-    const response = await fetch(`${API_URL}/users/${userId}/reposts`, {
-      headers: getHeaders(),
-    });
-    if (!response.ok) throw new Error('Failed to fetch reposts');
-    return await response.json();
-  } catch (error) {
-    console.error('Error fetching reposts:', error);
-    return [];
-  }
+  // Returns empty array - feature deprecated
+  return [];
 }
 
 export async function fetchUserReplies(userId: string) {
@@ -952,39 +945,5 @@ export async function checkFollowingStatus(userId: string): Promise<boolean> {
   }
 }
 
-// ================== Repost API ==================
-
-export async function repostPost(postId: string, postType: 'review' | 'meetup') {
-  try {
-    const response = await fetch(`${API_URL}/posts/${postId}/repost?type=${postType}`, {
-      method: 'POST',
-      headers: getHeaders(),
-    });
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to repost');
-    }
-    return await response.json();
-  } catch (error) {
-    console.error('Error reposting:', error);
-    throw error;
-  }
-}
-
-export async function unrepostPost(postId: string, postType: 'review' | 'meetup') {
-  try {
-    const response = await fetch(`${API_URL}/posts/${postId}/repost?type=${postType}`, {
-      method: 'DELETE',
-      headers: getHeaders(),
-    });
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to unrepost');
-    }
-    return await response.json();
-  } catch (error) {
-    console.error('Error unreposting:', error);
-    throw error;
-  }
-}
+// NOTE: Repost API has been removed per user request
 

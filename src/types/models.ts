@@ -43,7 +43,6 @@ export interface ReviewPost {
   isArchived?: boolean; // Whether the post is archived
   isLiked?: boolean;
   isSaved?: boolean;
-  isReposted?: boolean;
 }
 
 export type Visibility = 'PUBLIC' | 'FOLLOWERS';

@@ -8,7 +8,6 @@ interface ProfileTabsProps {
     posts: number;
     likes: number;
     replies: number;
-    reposts: number;
     bookmarks: number;
   };
 }
@@ -22,7 +21,6 @@ export const ProfileTabs: React.FC<ProfileTabsProps> = ({
     { key: 'posts', label: 'Posts' },
     { key: 'likes', label: 'Likes' },
     { key: 'replies', label: 'Replies' },
-    { key: 'reposts', label: 'Reposts' },
     { key: 'bookmarks', label: 'Bookmarks' },
   ];
 

@@ -7,7 +7,6 @@ import {
   fetchUserPosts, 
   fetchUserLikes,
   fetchUserReplies,
-  fetchUserReposts,
   fetchUserBookmarks,
   fetchRecommendedUsers,
   deleteReviewPost,
@@ -62,11 +61,10 @@ export const UserProfilePage: React.FC = () => {
           setProfile(userProfile);
           
           // Fetch user's posts and related tabs
-          const [userPosts, likedPosts, replies, reposts, bookmarks] = await Promise.all([
+          const [userPosts, likedPosts, replies, bookmarks] = await Promise.all([
             fetchUserPosts(userProfile.id),
             fetchUserLikes(userProfile.id),
             fetchUserReplies(userProfile.id),
-            fetchUserReposts(userProfile.id),
             fetchUserBookmarks(userProfile.id),
           ]);
           setPosts(userPosts);
@@ -75,7 +73,6 @@ export const UserProfilePage: React.FC = () => {
             posts: userPosts,
             likes: likedPosts,
             replies: replies,
-            reposts: reposts,
             bookmarks: bookmarks,
           });
         }
@@ -326,7 +323,6 @@ export const UserProfilePage: React.FC = () => {
         posts: tabData.posts.length,
         likes: tabData.likes.length,
         replies: tabData.replies.length,
-        reposts: tabData.reposts.length,
         bookmarks: tabData.bookmarks.length,
       }
     : undefined;
