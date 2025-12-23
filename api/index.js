@@ -807,12 +807,33 @@ app.get('/api/users/recommended', async (req, res) => {
   try {
     if (!db) return res.status(503).json({ error: 'Database not configured' });
     
-    const result = await db.query(`
+    const currentUserId = getUserFromToken(req);
+    
+    // Get recommended users (excluding current user if logged in)
+    let query = `
       SELECT id, display_name, handle, avatar_url, bio 
-      FROM users 
-      ORDER BY RANDOM() 
-      LIMIT 5
-    `);
+      FROM users
+    `;
+    let params = [];
+    
+    if (currentUserId) {
+      query += ` WHERE id != $1`;
+      params.push(currentUserId);
+    }
+    
+    query += ` ORDER BY RANDOM() LIMIT 10`;
+    
+    const result = await db.query(query, params);
+    
+    // Check which users the current user is following
+    let followingSet = new Set();
+    if (currentUserId) {
+      const followingResult = await db.query(
+        'SELECT following_id FROM follows WHERE follower_id = $1',
+        [currentUserId]
+      );
+      followingSet = new Set(followingResult.rows.map(row => row.following_id));
+    }
     
     const users = result.rows.map(user => ({
       id: user.id,
@@ -820,7 +841,7 @@ app.get('/api/users/recommended', async (req, res) => {
       handle: user.handle,
       avatarUrl: user.avatar_url,
       bio: user.bio,
-      isFollowedByCurrentUser: false
+      isFollowedByCurrentUser: followingSet.has(user.id)
     }));
     
     res.json(users);
@@ -1030,17 +1051,18 @@ app.get('/api/users/:id/posts', async (req, res) => {
 
 // Helper function to get user ID from either ID or handle
 const resolveUserId = async (idOrHandle) => {
-  // Check if it looks like a UUID
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (uuidRegex.test(idOrHandle)) {
-    return idOrHandle;
+  // First, check if this ID exists directly in the users table
+  const directResult = await db.query('SELECT id FROM users WHERE id = $1', [idOrHandle]);
+  if (directResult.rows.length > 0) {
+    return directResult.rows[0].id;
   }
   
-  // Otherwise, treat as handle and look up user
-  const result = await db.query('SELECT id FROM users WHERE handle = $1', [idOrHandle]);
-  if (result.rows.length > 0) {
-    return result.rows[0].id;
+  // If not found by ID, try looking up by handle
+  const handleResult = await db.query('SELECT id FROM users WHERE handle = $1', [idOrHandle]);
+  if (handleResult.rows.length > 0) {
+    return handleResult.rows[0].id;
   }
+  
   return null;
 };
 

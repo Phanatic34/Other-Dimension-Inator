@@ -745,23 +745,28 @@ export async function uploadImage(file: File): Promise<string> {
   }
 }
 
+// Helper function to convert File to base64
+const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      resolve(result);
+    };
+    reader.onerror = (error) => reject(error);
+    reader.readAsDataURL(file);
+  });
+};
+
 export async function uploadImages(files: File[]): Promise<string[]> {
   try {
-    const formData = new FormData();
-    files.forEach((file) => {
-      formData.append('images', file);
-    });
-
-    const token = getAuthToken();
-    const headers: HeadersInit = {};
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
+    // Convert files to base64 strings
+    const base64Images = await Promise.all(files.map(file => fileToBase64(file)));
 
     const response = await fetch(`${API_URL}/upload/images`, {
       method: 'POST',
-      headers: headers,
-      body: formData,
+      headers: getHeaders(),
+      body: JSON.stringify({ images: base64Images }),
     });
 
     if (!response.ok) {
@@ -770,7 +775,7 @@ export async function uploadImages(files: File[]): Promise<string[]> {
     }
 
     const data = await response.json();
-    return data.imageUrls || [];
+    return data.urls || data.imageUrls || [];
   } catch (error) {
     console.error('Error uploading images:', error);
     throw error;
