@@ -517,6 +517,116 @@ app.get('/api/users/:id', async (req, res) => {
   }
 });
 
+// GET /api/users/:id/posts - Get posts by user
+app.get('/api/users/:id/posts', async (req, res) => {
+  try {
+    if (!db) return res.status(503).json({ error: 'Database not configured' });
+    
+    const { id } = req.params;
+    
+    // Get review posts by this user
+    const reviewResult = await db.query(`
+      SELECT rp.*, u.display_name, u.handle, u.avatar_url, 'review' as type
+      FROM review_posts rp
+      LEFT JOIN users u ON rp.author_id = u.id
+      WHERE rp.author_id = $1
+      ORDER BY rp.created_at DESC
+    `, [id]);
+    
+    // Get meetup posts by this user
+    const meetupResult = await db.query(`
+      SELECT mp.*, u.display_name, u.handle, u.avatar_url, 'meetup' as type
+      FROM meetup_posts mp
+      LEFT JOIN users u ON mp.author_id = u.id
+      WHERE mp.author_id = $1
+      ORDER BY mp.created_at DESC
+    `, [id]);
+    
+    // Process review posts
+    const reviewPosts = await Promise.all(reviewResult.rows.map(async (row) => {
+      const imagesResult = await db.query(
+        'SELECT image_url FROM post_images WHERE post_id = $1 ORDER BY image_order',
+        [row.id]
+      );
+      const images = imagesResult.rows.map(img => img.image_url).filter(url => url && !url.startsWith('blob:'));
+      
+      return {
+        id: row.id,
+        type: 'review',
+        authorId: row.author_id,
+        author: row.author_id ? {
+          id: row.author_id,
+          displayName: row.display_name,
+          handle: row.handle,
+          avatarUrl: row.avatar_url
+        } : undefined,
+        restaurantName: row.restaurant_name,
+        restaurantAddress: row.restaurant_address,
+        restaurantLat: row.restaurant_lat,
+        restaurantLng: row.restaurant_lng,
+        locationArea: row.location_area,
+        boardId: row.board_id,
+        styleType: row.style_type,
+        foodType: row.food_type,
+        title: row.title || '',
+        content: row.content || '',
+        rating: row.rating,
+        priceLevel: row.price_level,
+        images: images.length > 0 ? images : undefined,
+        visibility: row.visibility,
+        likeCount: row.like_count || 0,
+        commentCount: row.comment_count || 0,
+        shareCount: row.share_count || 0,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at
+      };
+    }));
+    
+    // Process meetup posts
+    const meetupPosts = meetupResult.rows.map(row => ({
+      id: row.id,
+      type: 'meetup',
+      authorId: row.author_id,
+      author: row.author_id ? {
+        id: row.author_id,
+        displayName: row.display_name,
+        handle: row.handle,
+        avatarUrl: row.avatar_url
+      } : undefined,
+      restaurantName: row.restaurant_name,
+      locationText: row.location_text,
+      address: row.address,
+      meetupTime: row.meetup_time,
+      foodTags: row.food_tags || [],
+      maxHeadcount: row.max_headcount,
+      currentHeadcount: row.current_headcount,
+      budgetDescription: row.budget_description,
+      hasReservation: row.has_reservation,
+      description: row.description,
+      visibility: row.visibility,
+      imageUrl: row.image_url,
+      status: row.status,
+      boardId: row.board_id,
+      locationArea: row.location_area,
+      likeCount: row.like_count || 0,
+      commentCount: row.comment_count || 0,
+      shareCount: row.share_count || 0,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    }));
+    
+    // Combine and sort by created_at
+    const allPosts = [...reviewPosts, ...meetupPosts].sort(
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+    );
+    
+    res.json(allPosts);
+  } catch (error) {
+    console.error('Error fetching user posts:', error);
+    res.status(500).json({ error: 'Failed to fetch user posts' });
+  }
+});
+
 // POST /api/users/:id/follow
 app.post('/api/users/:id/follow', async (req, res) => {
   try {

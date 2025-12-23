@@ -88,7 +88,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           
           if (response.ok) {
             const data = await response.json();
-            setUser(data.user);
+            // Backend returns user object directly, not wrapped in { user: ... }
+            const userData = data.user || data;
+            setUser(userData);
+            // Update localStorage with fresh data
+            localStorage.setItem('user', JSON.stringify(userData));
           } else {
             // Token invalid, clear storage
             localStorage.removeItem('authToken');
