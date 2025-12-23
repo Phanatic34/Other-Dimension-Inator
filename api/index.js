@@ -218,17 +218,25 @@ app.get('/api/auth/me', async (req, res) => {
 app.get('/api/boards', async (req, res) => {
   try {
     // Style options (cuisine types) - 風格
+    // Keep in sync with src/config/taxonomy.ts STYLE_OPTIONS_RAW
     const STYLES = [
       { id: 'american', name: 'American', label: '美式 American', category: 'cuisine' },
+      { id: 'chinese', name: 'Chinese', label: '中式 Chinese', category: 'cuisine' },
       { id: 'french', name: 'French', label: '法式 French', category: 'cuisine' },
       { id: 'hongkong', name: 'Hong Kong', label: '港式 Hong Kong', category: 'cuisine' },
       { id: 'indian', name: 'Indian', label: '印度 Indian', category: 'cuisine' },
+      { id: 'italian', name: 'Italian', label: '義式 Italian', category: 'cuisine' },
+      { id: 'japanese', name: 'Japanese', label: '日式 Japanese', category: 'cuisine' },
+      { id: 'korean', name: 'Korean', label: '韓式 Korean', category: 'cuisine' },
       { id: 'mexican', name: 'Mexican', label: '墨西哥 Mexican', category: 'cuisine' },
+      { id: 'taiwanese', name: 'Taiwanese', label: '台菜 Taiwanese', category: 'cuisine' },
+      { id: 'thai', name: 'Thai', label: '泰式 Thai', category: 'cuisine' },
       { id: 'vietnamese', name: 'Vietnamese', label: '越式 Vietnamese', category: 'cuisine' },
       { id: 'others-style', name: 'Others', label: '其他 Others', category: 'cuisine' },
     ];
     
     // Category options (food types) - 類別
+    // Keep in sync with src/config/taxonomy.ts CATEGORY_OPTIONS_RAW
     const CATEGORIES = [
       { id: 'beverages', name: 'Beverages', label: '飲料 Beverages', category: 'type' },
       { id: 'breakfast', name: 'Breakfast', label: '早餐 Breakfast', category: 'type' },

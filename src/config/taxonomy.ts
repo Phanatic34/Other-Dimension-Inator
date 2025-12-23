@@ -36,13 +36,7 @@ export interface BoardOption extends TaxonomyOption {
 // ============================================================================
 
 export const REMOVED_STYLE_KEYS = new Set([
-  'chinese',    // 中式料理
-  'italian',    // 義式料理
-  'japanese',   // 日式料理
-  'korean',     // 韓式料理
-  'taiwanese',  // 台灣小吃
-  'thai',       // 泰式料理
-  'western',    // 西式料理
+  'western',    // 西式料理 - only this one is still removed
 ]);
 
 // Legacy label mapping (old Chinese-only labels → current key)
@@ -69,10 +63,16 @@ export const LEGACY_STYLE_LABELS: Record<string, string> = {
 
 const STYLE_OPTIONS_RAW: TaxonomyOption[] = [
   { key: 'american', zh: '美式', en: 'American', label: '美式 American', sortKey: 'American' },
+  { key: 'chinese', zh: '中式', en: 'Chinese', label: '中式 Chinese', sortKey: 'Chinese' },
   { key: 'french', zh: '法式', en: 'French', label: '法式 French', sortKey: 'French' },
   { key: 'hongkong', zh: '港式', en: 'Hong Kong', label: '港式 Hong Kong', sortKey: 'Hong Kong' },
   { key: 'indian', zh: '印度', en: 'Indian', label: '印度 Indian', sortKey: 'Indian' },
+  { key: 'italian', zh: '義式', en: 'Italian', label: '義式 Italian', sortKey: 'Italian' },
+  { key: 'japanese', zh: '日式', en: 'Japanese', label: '日式 Japanese', sortKey: 'Japanese' },
+  { key: 'korean', zh: '韓式', en: 'Korean', label: '韓式 Korean', sortKey: 'Korean' },
   { key: 'mexican', zh: '墨西哥', en: 'Mexican', label: '墨西哥 Mexican', sortKey: 'Mexican' },
+  { key: 'taiwanese', zh: '台菜', en: 'Taiwanese', label: '台菜 Taiwanese', sortKey: 'Taiwanese' },
+  { key: 'thai', zh: '泰式', en: 'Thai', label: '泰式 Thai', sortKey: 'Thai' },
   { key: 'vietnamese', zh: '越式', en: 'Vietnamese', label: '越式 Vietnamese', sortKey: 'Vietnamese' },
   { key: 'others-style', zh: '其他', en: 'Others', label: '其他 Others', sortKey: 'Others' },
 ];
