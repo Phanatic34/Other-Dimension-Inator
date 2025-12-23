@@ -1,4 +1,4 @@
-// Vercel serverless function handler with catch-all route
+// Vercel serverless function handler
 // This handles all /api/* routes through the Express app
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import app from '../backend/src/app';

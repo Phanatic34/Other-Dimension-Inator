@@ -5,13 +5,17 @@
   "installCommand": "npm install && cd backend && npm install",
   "framework": "create-react-app",
   "functions": {
-    "api/[...slug].ts": {
+    "api/index.ts": {
       "includeFiles": "backend/**"
     }
   },
   "rewrites": [
     {
-      "source": "/((?!api).*)",
+      "source": "/api/:path*",
+      "destination": "/api"
+    },
+    {
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ],
