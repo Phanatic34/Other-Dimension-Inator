@@ -398,6 +398,115 @@ app.post('/api/posts/meetup', async (req, res) => {
   }
 });
 
+// DELETE /api/posts/review/:id - Delete a review post
+app.delete('/api/posts/review/:id', async (req, res) => {
+  try {
+    if (!db) return res.status(503).json({ error: 'Database not configured' });
+    
+    const userId = getUserFromToken(req);
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    const { id } = req.params;
+    
+    // Verify the post belongs to the user
+    const postResult = await db.query('SELECT author_id FROM review_posts WHERE id = $1', [id]);
+    if (postResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+    
+    if (postResult.rows[0].author_id !== userId) {
+      return res.status(403).json({ error: 'Not authorized to delete this post' });
+    }
+    
+    // Delete related data first (foreign key constraints)
+    await db.query('DELETE FROM post_images WHERE post_id = $1', [id]);
+    await db.query('DELETE FROM comments WHERE post_id = $1', [id]);
+    await db.query('DELETE FROM likes WHERE post_id = $1', [id]);
+    await db.query('DELETE FROM review_posts WHERE id = $1', [id]);
+    
+    res.json({ success: true, message: 'Post deleted' });
+  } catch (error) {
+    console.error('Error deleting review post:', error);
+    res.status(500).json({ error: 'Failed to delete post' });
+  }
+});
+
+// DELETE /api/posts/meetup/:id - Delete a meetup post
+app.delete('/api/posts/meetup/:id', async (req, res) => {
+  try {
+    if (!db) return res.status(503).json({ error: 'Database not configured' });
+    
+    const userId = getUserFromToken(req);
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    const { id } = req.params;
+    
+    // Verify the post belongs to the user
+    const postResult = await db.query('SELECT author_id FROM meetup_posts WHERE id = $1', [id]);
+    if (postResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+    
+    if (postResult.rows[0].author_id !== userId) {
+      return res.status(403).json({ error: 'Not authorized to delete this post' });
+    }
+    
+    // Delete related data first
+    await db.query('DELETE FROM comments WHERE post_id = $1', [id]);
+    await db.query('DELETE FROM meetup_likes WHERE post_id = $1', [id]);
+    await db.query('DELETE FROM meetup_posts WHERE id = $1', [id]);
+    
+    res.json({ success: true, message: 'Post deleted' });
+  } catch (error) {
+    console.error('Error deleting meetup post:', error);
+    res.status(500).json({ error: 'Failed to delete post' });
+  }
+});
+
+// ==================== IMAGE UPLOAD ====================
+// POST /api/upload/images - Upload images
+// Note: For production, you should use Cloudinary or similar service
+// This endpoint returns a placeholder that accepts the image data
+app.post('/api/upload/images', async (req, res) => {
+  try {
+    const userId = getUserFromToken(req);
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    // In a real implementation, you would:
+    // 1. Accept multipart form data with the image
+    // 2. Upload to Cloudinary/S3/etc.
+    // 3. Return the URL
+    
+    // For now, we'll check if CLOUDINARY_URL is configured
+    const cloudinaryUrl = process.env.CLOUDINARY_URL;
+    
+    if (cloudinaryUrl) {
+      // If Cloudinary is configured, we can use it
+      // But we need the cloudinary package which may not be installed
+      // For now, return an error suggesting to use direct URL
+      return res.status(501).json({ 
+        error: 'Direct image upload not implemented. Please use external image URLs.',
+        suggestion: 'You can upload images to imgur.com or similar and paste the URL'
+      });
+    }
+    
+    // Without cloud storage, we can't store images on Vercel (serverless)
+    return res.status(501).json({ 
+      error: 'Image upload requires cloud storage configuration',
+      suggestion: 'Please use external image URLs (e.g., upload to imgur.com first)'
+    });
+  } catch (error) {
+    console.error('Error uploading image:', error);
+    res.status(500).json({ error: 'Failed to upload image' });
+  }
+});
+
 // GET /api/posts - Get all posts (review + meetup)
 app.get('/api/posts', async (req, res) => {
   try {
