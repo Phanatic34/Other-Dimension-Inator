@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MeetupPost } from '../../types/models';
 import { PostActions } from './PostActions';
-import { Edit3, Archive, Trash2, Bookmark, BookmarkCheck, Flag } from 'lucide-react';
+import { Edit3, Archive, Trash2, Bookmark, BookmarkCheck, Flag, Users } from 'lucide-react';
 import { CommentsSection } from '../comments/CommentsSection';
-import { likePost, unlikePost, savePost, unsavePost, sharePost } from '../../api/api';
+import { likePost, unlikePost, savePost, unsavePost, sharePost, fetchEnrollmentInfo, enrollInMeetup, cancelEnrollment, EnrollmentInfo } from '../../api/api';
 import { ReportModal } from '../modals/ReportModal';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface MeetupPostCardProps {
   post: MeetupPost;
@@ -141,19 +142,18 @@ const parseBudget = (budgetDescription: string): {
 
 export const MeetupPostCard: React.FC<MeetupPostCardProps> = ({ post, onClick, onTagClick, isOwnPost = false, onEdit, onDelete, onArchive }) => {
   const navigate = useNavigate();
-  const isFull = post.currentHeadcount >= post.maxHeadcount;
-  const isClosed = post.status === 'CLOSED' || isFull;
+  const { user: currentUser } = useAuth();
   const budgetInfo = parseBudget(post.budgetDescription);
   
   // Menu state
   const [menuOpen, setMenuOpen] = useState(false);
 
   // Like state
-  const [isLiked, setIsLiked] = useState(false);
+  const [isLiked, setIsLiked] = useState(!!post.isLiked);
   const [currentLikeCount, setCurrentLikeCount] = useState(post.likeCount);
 
   // Save state
-  const [isSaved, setIsSaved] = useState(false);
+  const [isSaved, setIsSaved] = useState(!!post.isSaved);
   const [isSaving, setIsSaving] = useState(false);
 
   // Report modal state
@@ -161,6 +161,109 @@ export const MeetupPostCard: React.FC<MeetupPostCardProps> = ({ post, onClick, o
 
   // Share state
   const [shareCount, setShareCount] = useState(post.shareCount || 0);
+
+  // Enrollment state
+  const [enrollmentInfo, setEnrollmentInfo] = useState<EnrollmentInfo | null>(null);
+  const [isEnrolling, setIsEnrolling] = useState(false);
+  const [enrollmentError, setEnrollmentError] = useState<string | null>(null);
+  const [showMembersPopover, setShowMembersPopover] = useState(false);
+  const membersPopoverRef = useRef<HTMLDivElement>(null);
+
+  // Derived state from enrollment info
+  const enrolledCount = enrollmentInfo?.enrolledCount ?? post.currentHeadcount;
+  const isFull = enrollmentInfo?.isFull ?? (post.currentHeadcount >= post.maxHeadcount);
+  const isEnrolled = enrollmentInfo?.isEnrolled ?? false;
+  const canCancel = enrollmentInfo?.canCancel ?? false;
+  const eventStarted = enrollmentInfo?.eventStarted ?? false;
+  const isClosed = post.status === 'CLOSED' || isFull || eventStarted;
+
+  // Fetch enrollment info on mount
+  useEffect(() => {
+    const loadEnrollmentInfo = async () => {
+      try {
+        const info = await fetchEnrollmentInfo(post.id);
+        setEnrollmentInfo(info);
+      } catch (error) {
+        console.error('Error loading enrollment info:', error);
+      }
+    };
+    loadEnrollmentInfo();
+  }, [post.id]);
+
+  useEffect(() => {
+    setIsLiked(!!post.isLiked);
+    setIsSaved(!!post.isSaved);
+    setShareCount(post.shareCount || 0);
+  }, [post.isLiked, post.isSaved, post.shareCount]);
+
+  // Close members popover when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (membersPopoverRef.current && !membersPopoverRef.current.contains(event.target as Node)) {
+        setShowMembersPopover(false);
+      }
+    };
+    if (showMembersPopover) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showMembersPopover]);
+
+  // Handle join/cancel enrollment
+  const handleEnrollmentClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (!currentUser) {
+      // Redirect to login or show message
+      navigate('/login');
+      return;
+    }
+
+    if (isEnrolling) return;
+    setIsEnrolling(true);
+    setEnrollmentError(null);
+
+    try {
+      if (isEnrolled) {
+        // Cancel enrollment
+        if (!canCancel) {
+          setEnrollmentError('活動開始前 2 小時內無法取消報名');
+          setIsEnrolling(false);
+          return;
+        }
+        const result = await cancelEnrollment(post.id);
+        setEnrollmentInfo(prev => prev ? {
+          ...prev,
+          enrolledCount: result.enrolledCount,
+          isEnrolled: result.isEnrolled,
+          canCancel: result.canCancel,
+          isFull: result.isFull,
+          enrolledMembers: result.enrolledMembers || prev.enrolledMembers,
+        } : null);
+      } else {
+        // Join
+        const result = await enrollInMeetup(post.id);
+        setEnrollmentInfo(prev => prev ? {
+          ...prev,
+          enrolledCount: result.enrolledCount,
+          isEnrolled: result.isEnrolled,
+          canCancel: result.canCancel,
+          isFull: result.isFull,
+          enrolledMembers: result.enrolledMembers || prev.enrolledMembers,
+        } : null);
+      }
+    } catch (error: any) {
+      console.error('Enrollment action failed:', error);
+      setEnrollmentError(error.message || '操作失敗，請稍後再試');
+      // Refresh enrollment info to get accurate state
+      try {
+        const info = await fetchEnrollmentInfo(post.id);
+        setEnrollmentInfo(info);
+      } catch {}
+    } finally {
+      setIsEnrolling(false);
+    }
+  };
 
   // Navigate to author's profile
   const handleAuthorClick = (e: React.MouseEvent) => {
@@ -458,9 +561,65 @@ export const MeetupPostCard: React.FC<MeetupPostCardProps> = ({ post, onClick, o
           </div>
           <div className="flex items-center justify-between text-sm">
             <span className="text-text-secondary">人數</span>
-            <span className="font-semibold text-text-primary">
-              {post.currentHeadcount} / {post.maxHeadcount} 已加入
-            </span>
+            <div className="relative" ref={membersPopoverRef}>
+              <button
+                type="button"
+                className="font-semibold text-text-primary hover:text-accent-primary hover:underline cursor-pointer flex items-center gap-1"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowMembersPopover(!showMembersPopover);
+                }}
+                onMouseEnter={() => setShowMembersPopover(true)}
+              >
+                {enrolledCount} / {post.maxHeadcount} 已加入
+                <Users className="w-3.5 h-3.5 text-text-secondary" />
+              </button>
+              
+              {/* Enrolled Members Popover */}
+              {showMembersPopover && enrollmentInfo?.enrolledMembers && (
+                <div 
+                  className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-30 max-h-60 overflow-y-auto"
+                  onMouseLeave={() => setShowMembersPopover(false)}
+                >
+                  <div className="p-3 border-b border-gray-100">
+                    <h4 className="text-sm font-semibold text-text-primary">已報名成員</h4>
+                  </div>
+                  {enrollmentInfo.enrolledMembers.length === 0 ? (
+                    <div className="p-3 text-sm text-text-secondary text-center">
+                      目前尚無人報名
+                    </div>
+                  ) : (
+                    <div className="py-2">
+                      {enrollmentInfo.enrolledMembers.map((member) => (
+                        <div 
+                          key={member.id}
+                          className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const handle = member.handle?.replace('@', '') || member.id;
+                            navigate(`/user/${handle}`);
+                          }}
+                        >
+                          <div className="w-8 h-8 rounded-full bg-accent-gold bg-opacity-40 flex items-center justify-center overflow-hidden flex-shrink-0">
+                            {member.avatarUrl ? (
+                              <img src={member.avatarUrl} alt={member.displayName} className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="text-text-primary text-sm">👤</span>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-text-primary truncate">{member.displayName}</p>
+                            {member.handle && (
+                              <p className="text-xs text-text-secondary truncate">{member.handle}</p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
           <div className="flex items-center justify-between text-sm">
             <span className="text-text-secondary">預計</span>
@@ -519,21 +678,54 @@ export const MeetupPostCard: React.FC<MeetupPostCardProps> = ({ post, onClick, o
         </div>
 
         {/* Status Bar - Bottom of card */}
-        {isClosed ? (
+        {eventStarted ? (
           <div className="w-full py-3 rounded-lg bg-gray-200 text-gray-600 text-center text-sm font-semibold mb-3">
-            Closed
+            活動已開始
+          </div>
+        ) : post.status === 'CLOSED' ? (
+          <div className="w-full py-3 rounded-lg bg-gray-200 text-gray-600 text-center text-sm font-semibold mb-3">
+            活動已關閉
+          </div>
+        ) : isFull && !isEnrolled ? (
+          <div className="w-full py-3 rounded-lg bg-gray-200 text-gray-600 text-center text-sm font-semibold mb-3">
+            已額滿 / Full
+          </div>
+        ) : isEnrolled ? (
+          <div className="flex flex-col gap-2 mb-3">
+            <button 
+              onClick={handleEnrollmentClick}
+              disabled={isEnrolling || (!canCancel)}
+              title={!canCancel ? '活動開始前 2 小時內無法取消報名' : ''}
+              className={`w-full py-3 rounded-lg text-center text-sm font-bold transition-all duration-200 ${
+                !canCancel 
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                  : 'bg-red-100 text-red-700 border border-red-300 hover:bg-red-200'
+              }`}
+            >
+              {isEnrolling ? '處理中...' : '取消報名 / Cancel'}
+            </button>
+            {!canCancel && (
+              <p className="text-xs text-text-secondary text-center">
+                活動開始前 2 小時內無法取消報名
+              </p>
+            )}
+            {enrollmentError && (
+              <p className="text-xs text-red-600 text-center">{enrollmentError}</p>
+            )}
           </div>
         ) : (
-          <button 
-            onClick={(e) => {
-              e.stopPropagation();
-              // TODO: Implement join functionality
-              console.log('Join meetup clicked');
-            }}
-            className="w-full py-3 rounded-lg bg-green-600 text-white text-center text-sm font-bold hover:bg-green-700 transition-all duration-200 mb-3"
-          >
-            報名 / Join
-          </button>
+          <div className="flex flex-col gap-2 mb-3">
+            <button 
+              onClick={handleEnrollmentClick}
+              disabled={isEnrolling}
+              className="w-full py-3 rounded-lg bg-green-600 text-white text-center text-sm font-bold hover:bg-green-700 transition-all duration-200 disabled:opacity-50"
+            >
+              {isEnrolling ? '處理中...' : '報名 / Join'}
+            </button>
+            {enrollmentError && (
+              <p className="text-xs text-red-600 text-center">{enrollmentError}</p>
+            )}
+          </div>
         )}
 
         {/* BOTTOM ACTION BAR - Reuse shared component */}

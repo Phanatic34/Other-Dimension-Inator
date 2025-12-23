@@ -12,6 +12,7 @@ import boardsRouter from './routes/boards';
 import postsRouter from './routes/posts';
 import usersRouter from './routes/users';
 import restaurantsRouter from './routes/restaurants';
+import favoritesRouter from './routes/favorites';
 import uploadRouter from './routes/upload';
 import commentsRouter from './routes/comments';
 
@@ -67,6 +68,7 @@ app.use('/api/boards', boardsRouter);
 app.use('/api/posts', postsRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/restaurants', restaurantsRouter);
+app.use('/api/favorites', favoritesRouter);
 app.use('/api/upload', uploadRouter);
 app.use('/api/comments', commentsRouter);
 

@@ -5,6 +5,10 @@ import { Post, ReviewPost, MeetupPost } from '../types/models';
 import { 
   fetchUserByHandle, 
   fetchUserPosts, 
+  fetchUserLikes,
+  fetchUserReplies,
+  fetchUserReposts,
+  fetchUserBookmarks,
   fetchRecommendedUsers,
   deleteReviewPost,
   deleteMeetupPost,
@@ -57,17 +61,22 @@ export const UserProfilePage: React.FC = () => {
         if (userProfile) {
           setProfile(userProfile);
           
-          // Fetch user's posts
-          const userPosts = await fetchUserPosts(userProfile.id);
+          // Fetch user's posts and related tabs
+          const [userPosts, likedPosts, replies, reposts, bookmarks] = await Promise.all([
+            fetchUserPosts(userProfile.id),
+            fetchUserLikes(userProfile.id),
+            fetchUserReplies(userProfile.id),
+            fetchUserReposts(userProfile.id),
+            fetchUserBookmarks(userProfile.id),
+          ]);
           setPosts(userPosts);
           
-          // Create tab data structure
           setTabData({
             posts: userPosts,
-            likes: [], // TODO: Fetch liked posts
-            replies: [], // TODO: Fetch replies
-            reposts: [], // TODO: Fetch reposts
-            bookmarks: [], // TODO: Fetch bookmarks
+            likes: likedPosts,
+            replies: replies,
+            reposts: reposts,
+            bookmarks: bookmarks,
           });
         }
         

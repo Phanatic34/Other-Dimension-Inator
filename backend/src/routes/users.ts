@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import { query, isDatabaseAvailable } from '../db/database';
 import { UserProfile, RecommendedUser } from '../types/models';
+import { populateReviewPost, populateMeetupPost } from './posts';
 
 const router = Router();
 
@@ -238,6 +239,140 @@ router.get('/handle/:handle', requireDatabase, async (req: Request, res: Respons
   } catch (error) {
     console.error('Error fetching user by handle:', error);
     res.status(500).json({ error: 'Failed to fetch user' });
+  }
+});
+
+// GET /api/users/:id/likes - list liked posts
+router.get('/:id/likes', requireDatabase, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const currentUserId = getUserFromToken(req) || undefined;
+
+    // Review likes
+    const reviewLikes = await query(
+      `SELECT rp.* FROM likes l
+       JOIN review_posts rp ON l.post_id = rp.id
+       WHERE l.user_id = $1
+       ORDER BY l.created_at DESC`,
+      [id]
+    );
+
+    // Meetup likes
+    const meetupLikes = await query(
+      `SELECT mp.* FROM meetup_likes l
+       JOIN meetup_posts mp ON l.post_id = mp.id
+       WHERE l.user_id = $1
+       ORDER BY l.created_at DESC`,
+      [id]
+    );
+
+    const populatedReviews = await Promise.all(reviewLikes.rows.map((p) => populateReviewPost(p, currentUserId)));
+    const populatedMeetups = await Promise.all(meetupLikes.rows.map((p) => populateMeetupPost(p, currentUserId)));
+
+    const all = [...populatedReviews, ...populatedMeetups].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+    res.json(all);
+  } catch (error) {
+    console.error('Error fetching liked posts:', error);
+    res.status(500).json({ error: 'Failed to fetch liked posts' });
+  }
+});
+
+// GET /api/users/:id/bookmarks - list saved/bookmarked posts
+router.get('/:id/bookmarks', requireDatabase, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const currentUserId = getUserFromToken(req) || undefined;
+
+    const saved = await query(
+      `SELECT post_id, post_type FROM saved_posts WHERE user_id = $1 ORDER BY created_at DESC`,
+      [id]
+    );
+
+    const posts: any[] = [];
+    for (const row of saved.rows) {
+      if (row.post_type === 'review') {
+        const result = await query('SELECT * FROM review_posts WHERE id = $1', [row.post_id]);
+        if (result.rows.length) posts.push(await populateReviewPost(result.rows[0], currentUserId));
+      } else {
+        const result = await query('SELECT * FROM meetup_posts WHERE id = $1', [row.post_id]);
+        if (result.rows.length) posts.push(await populateMeetupPost(result.rows[0], currentUserId));
+      }
+    }
+
+    res.json(posts);
+  } catch (error) {
+    console.error('Error fetching bookmarks:', error);
+    res.status(500).json({ error: 'Failed to fetch bookmarks' });
+  }
+});
+
+// GET /api/users/:id/reposts - list reposted posts
+router.get('/:id/reposts', requireDatabase, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const currentUserId = getUserFromToken(req) || undefined;
+
+    const reposts = await query(
+      `SELECT post_id, post_type FROM reposts WHERE user_id = $1 ORDER BY created_at DESC`,
+      [id]
+    );
+
+    const posts: any[] = [];
+    for (const row of reposts.rows) {
+      if (row.post_type === 'review') {
+        const result = await query('SELECT * FROM review_posts WHERE id = $1', [row.post_id]);
+        if (result.rows.length) posts.push(await populateReviewPost(result.rows[0], currentUserId));
+      } else {
+        const result = await query('SELECT * FROM meetup_posts WHERE id = $1', [row.post_id]);
+        if (result.rows.length) posts.push(await populateMeetupPost(result.rows[0], currentUserId));
+      }
+    }
+
+    res.json(posts);
+  } catch (error) {
+    console.error('Error fetching reposts:', error);
+    res.status(500).json({ error: 'Failed to fetch reposts' });
+  }
+});
+
+// GET /api/users/:id/replies - list replies/comments authored by user
+router.get('/:id/replies', requireDatabase, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const currentUserId = getUserFromToken(req) || undefined;
+
+    const comments = await query(
+      `SELECT * FROM comments WHERE author_id = $1 ORDER BY created_at DESC`,
+      [id]
+    );
+
+    const payload = [];
+    for (const c of comments.rows) {
+      let parentPost: any = null;
+      if (c.post_type === 'review') {
+        const result = await query('SELECT * FROM review_posts WHERE id = $1', [c.post_id]);
+        if (result.rows.length) parentPost = await populateReviewPost(result.rows[0], currentUserId);
+      } else {
+        const result = await query('SELECT * FROM meetup_posts WHERE id = $1', [c.post_id]);
+        if (result.rows.length) parentPost = await populateMeetupPost(result.rows[0], currentUserId);
+      }
+
+      payload.push({
+        id: c.id,
+        postId: c.post_id,
+        postType: c.post_type,
+        content: c.content,
+        createdAt: c.created_at,
+        parentPost,
+      });
+    }
+
+    res.json(payload);
+  } catch (error) {
+    console.error('Error fetching replies:', error);
+    res.status(500).json({ error: 'Failed to fetch replies' });
   }
 });
 

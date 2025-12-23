@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SavedRestaurant } from '../types/savedRestaurants';
 import { PlaceSuggestion } from '../types/placeSearch';
-import { fetchAllRestaurants } from '../api/mockSavedRestaurants';
+import { fetchSavedRestaurants, saveRestaurant as saveRestaurantAPI, unsaveRestaurant as unsaveRestaurantAPI } from '../api/api';
 import { SavedRestaurantsMap } from '../components/savedRestaurants/SavedRestaurantsMap';
 import { SavedRestaurantsList } from '../components/savedRestaurants/SavedRestaurantsList';
 import { RestaurantDetailPanel } from '../components/savedRestaurants/RestaurantDetailPanel';
@@ -25,8 +25,10 @@ export const SavedRestaurantsPage: React.FC = () => {
     const loadRestaurants = async () => {
       setIsLoading(true);
       try {
-        const data = await fetchAllRestaurants();
-        setRestaurants(data);
+        const data = await fetchSavedRestaurants();
+        // Ensure isSaved flag
+        const normalized = data.map((r: SavedRestaurant) => ({ ...r, isSaved: true }));
+        setRestaurants(normalized);
       } catch (error) {
         console.error('Error loading restaurants:', error);
       } finally {
@@ -118,69 +120,67 @@ export const SavedRestaurantsPage: React.FC = () => {
   };
 
   // Handle save restaurant
-  const handleSave = (restaurant: SavedRestaurant, styles: string[], categories: string[]) => {
-    // TODO: In production, call API to save restaurant
-    // await saveRestaurant(restaurant.id, styles, categories);
+  const handleSave = async (restaurant: SavedRestaurant, styles: string[], categories: string[]) => {
+    const restaurantId = restaurant.id;
+    // Optimistic update
+    setRestaurants((prev) => {
+      const existingIndex = prev.findIndex((r) => r.id === restaurantId);
+      if (existingIndex >= 0) {
+        const updated = [...prev];
+        updated[existingIndex] = { ...prev[existingIndex], isSaved: true, styles, categories };
+        return updated;
+      }
+      return [...prev, { ...restaurant, isSaved: true, styles, categories }];
+    });
 
-    // Check if restaurant already exists in list
-    const existingIndex = restaurants.findIndex((r) => r.id === restaurant.id);
-
-    if (existingIndex >= 0) {
-      // Update existing restaurant
-      setRestaurants((prev) =>
-        prev.map((r) =>
-          r.id === restaurant.id
-            ? {
-                ...r,
-                isSaved: true,
-                styles,
-                categories,
-              }
-            : r
-        )
-      );
-    } else {
-      // Add new restaurant to list
-      setRestaurants((prev) => [
-        ...prev,
-        {
-          ...restaurant,
-          isSaved: true,
-          styles,
-          categories,
-        },
-      ]);
-    }
-
-    // Update selected restaurant
     setSelectedRestaurant((prev) =>
-      prev && prev.id === restaurant.id
-        ? {
-            ...prev,
-            isSaved: true,
-            styles,
-            categories,
-          }
-        : prev
+      prev && prev.id === restaurantId ? { ...prev, isSaved: true, styles, categories } : prev
     );
 
-    // Clear map center to let it use restaurant's position
-    setMapCenter(null);
+    try {
+      await saveRestaurantAPI({
+        restaurantId,
+        name: restaurant.name,
+        address: restaurant.address,
+        lat: restaurant.lat,
+        lng: restaurant.lng,
+        styles,
+        categories,
+        rating: restaurant.rating,
+        priceLevel: restaurant.priceLevel,
+        savedFromPostId: restaurant.savedFromPostId,
+      });
+    } catch (error) {
+      console.error('Error saving restaurant:', error);
+      alert('收藏失敗，請稍後再試');
+      // revert on error
+      setRestaurants((prev) => prev.map((r) => (r.id === restaurantId ? { ...r, isSaved: false } : r)));
+    } finally {
+      setMapCenter(null);
+    }
   };
 
   // Handle unsave restaurant
-  const handleUnsave = (restaurant: SavedRestaurant) => {
-    // TODO: In production, call API to unsave restaurant
-    // await unsaveRestaurant(restaurant.id);
-
-    // Update local state
+  const handleUnsave = async (restaurant: SavedRestaurant) => {
+    const restaurantId = restaurant.id;
+    // Optimistic update
     setRestaurants((prev) =>
-      prev.map((r) => (r.id === restaurant.id ? { ...r, isSaved: false } : r))
+      prev.map((r) => (r.id === restaurantId ? { ...r, isSaved: false } : r))
     );
 
-    // Clear selection if unsaved restaurant was selected
-    if (selectedRestaurant?.id === restaurant.id) {
-      setSelectedRestaurant(null);
+    if (selectedRestaurant?.id === restaurantId) {
+      setSelectedRestaurant((prev) => (prev ? { ...prev, isSaved: false } : prev));
+    }
+
+    try {
+      await unsaveRestaurantAPI(restaurantId);
+    } catch (error) {
+      console.error('Error unsaving restaurant:', error);
+      alert('取消收藏失敗，請稍後再試');
+      // revert on error
+      setRestaurants((prev) =>
+        prev.map((r) => (r.id === restaurantId ? { ...r, isSaved: true } : r))
+      );
     }
   };
 

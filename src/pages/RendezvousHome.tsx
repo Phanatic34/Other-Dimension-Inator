@@ -12,7 +12,6 @@ import {
   archiveReviewPost as archiveReviewPostAPI,
   archiveMeetupPost as archiveMeetupPostAPI
 } from '../api/api';
-import { fetchBoards as fetchMockBoards, fetchPosts as fetchMockPosts } from '../api/mock';
 import { useAuth } from '../contexts/AuthContext';
 import { RestaurantLocation } from '../types/location';
 import { TopNavBar } from '../components/layout/TopNavBar';
@@ -60,6 +59,7 @@ const RendezvousHomeContent: React.FC = () => {
   type PostType = 'review' | 'meetup';
   const [postType, setPostType] = useState<PostType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [recommendedUsers, setRecommendedUsers] = useState<any[]>([]);
   
   // Edit modal state
@@ -133,60 +133,24 @@ const RendezvousHomeContent: React.FC = () => {
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
+      setLoadError(null);
       try {
-        // Try to fetch from API first, fallback to mock data
-        let boardsData: Board[] = [];
-        let postsData: Post[] = [];
-        let recommended: any[] = [];
+        const results = await Promise.allSettled([
+          fetchBoardsAPI(),
+          fetchAllPosts(),
+          fetchRecommendedUsersAPI(),
+        ]);
 
-        try {
-          // Use Promise.allSettled to handle partial failures
-          const results = await Promise.allSettled([
-            fetchBoardsAPI(),
-            fetchAllPosts(),
-            fetchRecommendedUsersAPI(),
-          ]);
-
-          // Process results, using fallback for failed requests
-          boardsData = results[0].status === 'fulfilled' ? results[0].value : [];
-          postsData = results[1].status === 'fulfilled' ? results[1].value : [];
-          recommended = results[2].status === 'fulfilled' ? results[2].value : [];
-
-          // If API failed or returned empty data, use mock data
-          if (boardsData.length === 0 || postsData.length === 0) {
-            console.warn('API returned empty data or failed, using mock data');
-            const [mockBoards, mockPosts] = await Promise.all([
-              fetchMockBoards(),
-              fetchMockPosts(),
-            ]);
-            
-            // Only use mock data if API didn't return anything
-            if (boardsData.length === 0) boardsData = mockBoards;
-            if (postsData.length === 0) postsData = mockPosts;
-          }
-        } catch (apiError) {
-          console.warn('API not available, using mock data:', apiError);
-          // Fallback to mock data
-          try {
-            const [mockBoards, mockPosts] = await Promise.all([
-              fetchMockBoards(),
-              fetchMockPosts(),
-            ]);
-            boardsData = mockBoards;
-            postsData = mockPosts;
-          } catch (mockError) {
-            console.error('Failed to load mock data:', mockError);
-            // Set empty arrays as last resort
-            boardsData = [];
-            postsData = [];
-          }
-        }
+        const boardsData = results[0].status === 'fulfilled' ? results[0].value : [];
+        const postsData = results[1].status === 'fulfilled' ? results[1].value : [];
+        const recommended = results[2].status === 'fulfilled' ? results[2].value : [];
 
         setBoards(boardsData);
         setPosts(postsData);
         setRecommendedUsers(recommended);
       } catch (error) {
         console.error('Error loading data:', error);
+        setLoadError('資料載入失敗，請稍後再試。');
         // Ensure we still set empty arrays to prevent rendering issues
         setBoards([]);
         setPosts([]);
@@ -701,6 +665,22 @@ const RendezvousHomeContent: React.FC = () => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent-primary mx-auto mb-4 shadow-premium"></div>
           <p className="text-text-secondary" style={{ fontFamily: 'Garamond, Baskerville, Georgia, Times New Roman, serif', fontWeight: 900 }}>Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-bg-primary transition-colors duration-300">
+        <div className="text-center space-y-4">
+          <p className="text-text-primary text-lg font-semibold">{loadError}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 rounded-md bg-accent-primary text-white font-semibold hover:brightness-105 transition-all"
+          >
+            重新嘗試
+          </button>
         </div>
       </div>
     );

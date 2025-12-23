@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import jwt from 'jsonwebtoken';
 import { query, isDatabaseAvailable } from '../db/database';
 import { ReviewPost, MeetupPost } from '../types/models';
+import { normalizeStyleLabel, normalizeCategoryLabel } from '../config/taxonomy';
 
 const router = Router();
 
@@ -70,7 +71,7 @@ async function getUser(userId: string) {
 }
 
 // Helper function to populate review post
-async function populateReviewPost(post: any, currentUserId?: string): Promise<ReviewPost> {
+export async function populateReviewPost(post: any, currentUserId?: string): Promise<ReviewPost> {
   const author = (await getUser(post.author_id)) ?? undefined;
   const board = await getBoard(post.board_id);
 
@@ -85,12 +86,33 @@ async function populateReviewPost(post: any, currentUserId?: string): Promise<Re
 
   // Check if user follows author
   let isFromFollowedUser = false;
+  let isLikedByCurrentUser = false;
+  let isSavedByCurrentUser = false;
+  let isRepostedByCurrentUser = false;
   if (currentUserId && author) {
     const followResult = await query(
-      'SELECT * FROM follows WHERE follower_id = $1 AND following_id = $2',
+      'SELECT 1 FROM follows WHERE follower_id = $1 AND following_id = $2',
       [currentUserId, post.author_id]
     );
     isFromFollowedUser = followResult.rows.length > 0;
+
+    const likeResult = await query(
+      'SELECT 1 FROM likes WHERE post_id = $1 AND user_id = $2',
+      [post.id, currentUserId]
+    );
+    isLikedByCurrentUser = likeResult.rows.length > 0;
+
+    const savedResult = await query(
+      'SELECT 1 FROM saved_posts WHERE post_id = $1 AND post_type = $2 AND user_id = $3',
+      [post.id, 'review', currentUserId]
+    );
+    isSavedByCurrentUser = savedResult.rows.length > 0;
+
+    const repostResult = await query(
+      'SELECT 1 FROM reposts WHERE post_id = $1 AND post_type = $2 AND user_id = $3',
+      [post.id, 'review', currentUserId]
+    );
+    isRepostedByCurrentUser = repostResult.rows.length > 0;
   }
 
   return {
@@ -112,8 +134,8 @@ async function populateReviewPost(post: any, currentUserId?: string): Promise<Re
           category: board.category,
         }
       : undefined,
-    styleType: post.style_type,
-    foodType: post.food_type,
+    styleType: normalizeStyleLabel(post.style_type),
+    foodType: normalizeCategoryLabel(post.food_type),
     title: post.title || '',
     content: post.content || '',
     contentSnippet: post.content && post.content.length > 100 ? post.content.substring(0, 100) + '...' : (post.content || ''),
@@ -129,22 +151,46 @@ async function populateReviewPost(post: any, currentUserId?: string): Promise<Re
     createdAt: post.created_at,
     updatedAt: post.updated_at,
     isFromFollowedUser,
+    isLiked: isLikedByCurrentUser,
+    isSaved: isSavedByCurrentUser,
+    isReposted: isRepostedByCurrentUser,
   };
 }
 
 // Helper function to populate meetup post
-async function populateMeetupPost(post: any, currentUserId?: string): Promise<MeetupPost> {
+export async function populateMeetupPost(post: any, currentUserId?: string): Promise<MeetupPost> {
   const author = (await getUser(post.author_id)) ?? undefined;
   const board = post.board_id ? await getBoard(post.board_id) : null;
 
   // Check if user follows author
   let isFromFollowedUser = false;
+  let isLikedByCurrentUser = false;
+  let isSavedByCurrentUser = false;
+  let isRepostedByCurrentUser = false;
   if (currentUserId && author) {
     const followResult = await query(
-      'SELECT * FROM follows WHERE follower_id = $1 AND following_id = $2',
+      'SELECT 1 FROM follows WHERE follower_id = $1 AND following_id = $2',
       [currentUserId, post.author_id]
     );
     isFromFollowedUser = followResult.rows.length > 0;
+
+    const likeResult = await query(
+      'SELECT 1 FROM meetup_likes WHERE post_id = $1 AND user_id = $2',
+      [post.id, currentUserId]
+    );
+    isLikedByCurrentUser = likeResult.rows.length > 0;
+
+    const savedResult = await query(
+      'SELECT 1 FROM saved_posts WHERE post_id = $1 AND post_type = $2 AND user_id = $3',
+      [post.id, 'meetup', currentUserId]
+    );
+    isSavedByCurrentUser = savedResult.rows.length > 0;
+
+    const repostResult = await query(
+      'SELECT 1 FROM reposts WHERE post_id = $1 AND post_type = $2 AND user_id = $3',
+      [post.id, 'meetup', currentUserId]
+    );
+    isRepostedByCurrentUser = repostResult.rows.length > 0;
   }
 
   return {
@@ -181,6 +227,9 @@ async function populateMeetupPost(post: any, currentUserId?: string): Promise<Me
     createdAt: post.created_at,
     updatedAt: post.updated_at,
     isFromFollowedUser,
+    isLiked: isLikedByCurrentUser,
+    isSaved: isSavedByCurrentUser,
+    isReposted: isRepostedByCurrentUser,
   };
 }
 
@@ -349,6 +398,10 @@ router.post('/review', requireDatabase, requireAuth, async (req: Request, res: R
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
+    // Normalize style and category values using taxonomy
+    const normalizedStyleType = normalizeStyleLabel(styleType);
+    const normalizedFoodType = normalizeCategoryLabel(foodType);
+
     const postId = uuidv4();
 
     await query(
@@ -359,7 +412,7 @@ router.post('/review', requireDatabase, requireAuth, async (req: Request, res: R
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, 'PUBLIC', 0, 0, 0)`,
       [
         postId, userId, restaurantName, restaurantAddress, restaurantLat, restaurantLng,
-        locationArea, boardId, styleType, foodType, title, content, rating, priceLevel,
+        locationArea, boardId, normalizedStyleType, normalizedFoodType, title, content, rating, priceLevel,
         priceMin, priceMax
       ]
     );
@@ -478,7 +531,7 @@ router.post('/:id/like', requireDatabase, requireAuth, async (req: Request, res:
       );
 
       if (existingLike.rows.length > 0) {
-        return res.status(400).json({ error: 'Already liked this post' });
+        return res.json({ success: true, message: 'Already liked' });
       }
 
       // Create like
@@ -500,7 +553,7 @@ router.post('/:id/like', requireDatabase, requireAuth, async (req: Request, res:
       );
 
       if (existingLike.rows.length > 0) {
-        return res.status(400).json({ error: 'Already liked this post' });
+        return res.json({ success: true, message: 'Already liked' });
       }
 
       // Create like
@@ -602,6 +655,10 @@ router.put('/review/:id', requireDatabase, requireAuth, async (req: Request, res
       images,
     } = req.body;
 
+    // Normalize style and category values using taxonomy
+    const normalizedStyleType = styleType ? normalizeStyleLabel(styleType) : undefined;
+    const normalizedFoodType = foodType ? normalizeCategoryLabel(foodType) : undefined;
+
     await query(
       `UPDATE review_posts SET 
         restaurant_name = COALESCE($1, restaurant_name),
@@ -622,7 +679,7 @@ router.put('/review/:id', requireDatabase, requireAuth, async (req: Request, res
       WHERE id = $15`,
       [
         restaurantName, restaurantAddress, restaurantLat, restaurantLng,
-        locationArea, boardId, styleType, foodType, title, content,
+        locationArea, boardId, normalizedStyleType, normalizedFoodType, title, content,
         rating, priceLevel, priceMin, priceMax, id
       ]
     );
@@ -810,7 +867,7 @@ router.post('/:id/save', requireDatabase, requireAuth, async (req: Request, res:
       [userId, id, postType]
     );
     if (existingSave.rows.length > 0) {
-      return res.status(400).json({ error: 'Post already saved' });
+      return res.json({ success: true, message: 'Post already saved' });
     }
 
     // Save the post
@@ -840,7 +897,7 @@ router.delete('/:id/save', requireDatabase, requireAuth, async (req: Request, re
     );
 
     if (result.rowCount === 0) {
-      return res.status(404).json({ error: 'Saved post not found' });
+      return res.json({ success: true, message: 'Already unsaved' });
     }
 
     res.json({ success: true, message: 'Post unsaved' });
@@ -1081,6 +1138,370 @@ router.post('/:id/share', requireDatabase, async (req: Request, res: Response) =
   } catch (error) {
     console.error('Error recording share:', error);
     res.status(500).json({ error: 'Failed to record share' });
+  }
+});
+
+// ================== REPOST (RETWEET) ==================
+
+// POST /api/posts/:id/repost - Repost a post (idempotent)
+router.post('/:id/repost', requireDatabase, requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { type } = req.query; // 'review' or 'meetup'
+    const userId = (req as any).userId;
+    const postType = type === 'meetup' ? 'meetup' : 'review';
+    const table = postType === 'meetup' ? 'meetup_posts' : 'review_posts';
+
+    // Ensure post exists
+    const postExists = await query(`SELECT id, share_count FROM ${table} WHERE id = $1`, [id]);
+    if (postExists.rows.length === 0) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    // Idempotent check
+    const existing = await query(
+      'SELECT id FROM reposts WHERE post_id = $1 AND post_type = $2 AND user_id = $3',
+      [id, postType, userId]
+    );
+    if (existing.rows.length > 0) {
+      return res.json({ success: true, message: 'Already reposted' });
+    }
+
+    await query(
+      'INSERT INTO reposts (id, user_id, post_id, post_type) VALUES ($1, $2, $3, $4)',
+      [uuidv4(), userId, id, postType]
+    );
+
+    await query(
+      `UPDATE ${table} SET share_count = COALESCE(share_count, 0) + 1 WHERE id = $1`,
+      [id]
+    );
+
+    res.status(201).json({ success: true, message: 'Reposted' });
+  } catch (error) {
+    console.error('Error reposting post:', error);
+    res.status(500).json({ error: 'Failed to repost' });
+  }
+});
+
+// DELETE /api/posts/:id/repost - Remove repost (idempotent)
+router.delete('/:id/repost', requireDatabase, requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { type } = req.query; // 'review' or 'meetup'
+    const userId = (req as any).userId;
+    const postType = type === 'meetup' ? 'meetup' : 'review';
+    const table = postType === 'meetup' ? 'meetup_posts' : 'review_posts';
+
+    const result = await query(
+      'DELETE FROM reposts WHERE post_id = $1 AND post_type = $2 AND user_id = $3',
+      [id, postType, userId]
+    );
+
+    if (result.rowCount > 0) {
+      await query(
+        `UPDATE ${table} SET share_count = GREATEST(0, COALESCE(share_count, 0) - 1) WHERE id = $1`,
+        [id]
+      );
+    }
+
+    res.json({ success: true, message: 'Repost removed' });
+  } catch (error) {
+    console.error('Error removing repost:', error);
+    res.status(500).json({ error: 'Failed to remove repost' });
+  }
+});
+
+// ============================================================================
+// MEETUP ENROLLMENT ENDPOINTS
+// ============================================================================
+
+// GET /api/posts/:id/enrollment - Get enrollment info for a meetup post
+router.get('/:id/enrollment', requireDatabase, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const currentUserId = getUserFromToken(req);
+
+    // Verify post exists and is a meetup
+    const postResult = await query('SELECT * FROM meetup_posts WHERE id = $1', [id]);
+    if (postResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Meetup post not found' });
+    }
+    const post = postResult.rows[0];
+
+    // Get enrolled members count
+    const countResult = await query(
+      'SELECT COUNT(*) as count FROM meetup_enrollments WHERE post_id = $1',
+      [id]
+    );
+    const enrolledCount = parseInt(countResult.rows[0].count) || 0;
+
+    // Check if current user is enrolled
+    let isEnrolled = false;
+    if (currentUserId) {
+      const enrollmentResult = await query(
+        'SELECT 1 FROM meetup_enrollments WHERE post_id = $1 AND user_id = $2',
+        [id, currentUserId]
+      );
+      isEnrolled = enrollmentResult.rows.length > 0;
+    }
+
+    // Calculate canCancel (only if enrolled and more than 2 hours before event)
+    const eventTime = new Date(post.meetup_time);
+    const now = new Date();
+    const twoHoursBeforeEvent = new Date(eventTime.getTime() - 2 * 60 * 60 * 1000);
+    const canCancel = isEnrolled && now < twoHoursBeforeEvent;
+
+    // Get enrolled members (public info: id, displayName, avatarUrl)
+    const membersResult = await query(
+      `SELECT u.id, u.display_name, u.avatar_url, u.handle
+       FROM meetup_enrollments me
+       JOIN users u ON me.user_id = u.id
+       WHERE me.post_id = $1
+       ORDER BY me.created_at ASC`,
+      [id]
+    );
+    const enrolledMembers = membersResult.rows.map((row: any) => ({
+      id: row.id,
+      displayName: row.display_name,
+      avatarUrl: row.avatar_url,
+      handle: row.handle,
+    }));
+
+    // Determine if post is full
+    const capacity = post.max_headcount;
+    const isFull = enrolledCount >= capacity;
+
+    // Check if event has already started
+    const eventStarted = now >= eventTime;
+
+    res.json({
+      postId: id,
+      capacity,
+      enrolledCount,
+      isEnrolled,
+      canCancel,
+      isFull,
+      eventStarted,
+      eventTime: post.meetup_time,
+      enrolledMembers,
+    });
+  } catch (error) {
+    console.error('Error fetching enrollment info:', error);
+    res.status(500).json({ error: 'Failed to fetch enrollment info' });
+  }
+});
+
+// POST /api/posts/:id/enroll - Join a meetup post
+router.post('/:id/enroll', requireDatabase, requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = (req as any).userId;
+
+    // Verify post exists and is a meetup
+    const postResult = await query('SELECT * FROM meetup_posts WHERE id = $1', [id]);
+    if (postResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Meetup post not found' });
+    }
+    const post = postResult.rows[0];
+
+    // Check if event has already started
+    const eventTime = new Date(post.meetup_time);
+    const now = new Date();
+    if (now >= eventTime) {
+      return res.status(400).json({ error: '活動已開始，無法報名', code: 'EVENT_STARTED' });
+    }
+
+    // Check if post is closed
+    if (post.status === 'CLOSED') {
+      return res.status(400).json({ error: '活動已關閉，無法報名', code: 'POST_CLOSED' });
+    }
+
+    // Check capacity with a transaction to prevent race conditions
+    // Use advisory lock based on post_id to prevent concurrent enrollments exceeding capacity
+    const lockKey = Math.abs(Buffer.from(id).readInt32BE(0) % 2147483647);
+    
+    await query('BEGIN');
+    
+    try {
+      // Acquire advisory lock for this post
+      await query('SELECT pg_advisory_xact_lock($1)', [lockKey]);
+
+      // Get current enrollment count
+      const countResult = await query(
+        'SELECT COUNT(*) as count FROM meetup_enrollments WHERE post_id = $1',
+        [id]
+      );
+      const enrolledCount = parseInt(countResult.rows[0].count) || 0;
+
+      if (enrolledCount >= post.max_headcount) {
+        await query('ROLLBACK');
+        return res.status(400).json({ error: '活動已額滿', code: 'CAPACITY_FULL' });
+      }
+
+      // Check if already enrolled (idempotent - just return success)
+      const existingResult = await query(
+        'SELECT 1 FROM meetup_enrollments WHERE post_id = $1 AND user_id = $2',
+        [id, userId]
+      );
+      
+      if (existingResult.rows.length === 0) {
+        // Insert enrollment
+        await query(
+          'INSERT INTO meetup_enrollments (id, post_id, user_id) VALUES ($1, $2, $3)',
+          [uuidv4(), id, userId]
+        );
+
+        // Update current_headcount
+        await query(
+          'UPDATE meetup_posts SET current_headcount = current_headcount + 1 WHERE id = $1',
+          [id]
+        );
+      }
+
+      await query('COMMIT');
+
+      // Get updated enrollment info
+      const updatedCountResult = await query(
+        'SELECT COUNT(*) as count FROM meetup_enrollments WHERE post_id = $1',
+        [id]
+      );
+      const newEnrolledCount = parseInt(updatedCountResult.rows[0].count) || 0;
+
+      // Get enrolled members
+      const membersResult = await query(
+        `SELECT u.id, u.display_name, u.avatar_url, u.handle
+         FROM meetup_enrollments me
+         JOIN users u ON me.user_id = u.id
+         WHERE me.post_id = $1
+         ORDER BY me.created_at ASC`,
+        [id]
+      );
+      const enrolledMembers = membersResult.rows.map((row: any) => ({
+        id: row.id,
+        displayName: row.display_name,
+        avatarUrl: row.avatar_url,
+        handle: row.handle,
+      }));
+
+      const twoHoursBeforeEvent = new Date(eventTime.getTime() - 2 * 60 * 60 * 1000);
+      const canCancel = now < twoHoursBeforeEvent;
+
+      res.json({
+        success: true,
+        postId: id,
+        enrolledCount: newEnrolledCount,
+        isEnrolled: true,
+        canCancel,
+        isFull: newEnrolledCount >= post.max_headcount,
+        enrolledMembers,
+      });
+    } catch (innerError) {
+      await query('ROLLBACK');
+      throw innerError;
+    }
+  } catch (error) {
+    console.error('Error enrolling in meetup:', error);
+    res.status(500).json({ error: 'Failed to enroll in meetup' });
+  }
+});
+
+// DELETE /api/posts/:id/enroll - Cancel enrollment from a meetup post
+router.delete('/:id/enroll', requireDatabase, requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = (req as any).userId;
+
+    // Verify post exists and is a meetup
+    const postResult = await query('SELECT * FROM meetup_posts WHERE id = $1', [id]);
+    if (postResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Meetup post not found' });
+    }
+    const post = postResult.rows[0];
+
+    // Check 2-hour cancellation rule (server-side enforcement)
+    const eventTime = new Date(post.meetup_time);
+    const now = new Date();
+    const twoHoursBeforeEvent = new Date(eventTime.getTime() - 2 * 60 * 60 * 1000);
+    
+    if (now >= twoHoursBeforeEvent) {
+      return res.status(400).json({ 
+        error: '活動開始前 2 小時內無法取消報名', 
+        code: 'CANCEL_TOO_LATE' 
+      });
+    }
+
+    // Check if actually enrolled
+    const enrollmentResult = await query(
+      'SELECT 1 FROM meetup_enrollments WHERE post_id = $1 AND user_id = $2',
+      [id, userId]
+    );
+    
+    if (enrollmentResult.rows.length === 0) {
+      // Not enrolled, just return success (idempotent)
+      const countResult = await query(
+        'SELECT COUNT(*) as count FROM meetup_enrollments WHERE post_id = $1',
+        [id]
+      );
+      const enrolledCount = parseInt(countResult.rows[0].count) || 0;
+
+      return res.json({
+        success: true,
+        postId: id,
+        enrolledCount,
+        isEnrolled: false,
+        canCancel: false,
+        isFull: enrolledCount >= post.max_headcount,
+      });
+    }
+
+    // Delete enrollment
+    await query(
+      'DELETE FROM meetup_enrollments WHERE post_id = $1 AND user_id = $2',
+      [id, userId]
+    );
+
+    // Update current_headcount
+    await query(
+      'UPDATE meetup_posts SET current_headcount = GREATEST(1, current_headcount - 1) WHERE id = $1',
+      [id]
+    );
+
+    // Get updated enrollment info
+    const countResult = await query(
+      'SELECT COUNT(*) as count FROM meetup_enrollments WHERE post_id = $1',
+      [id]
+    );
+    const enrolledCount = parseInt(countResult.rows[0].count) || 0;
+
+    // Get enrolled members
+    const membersResult = await query(
+      `SELECT u.id, u.display_name, u.avatar_url, u.handle
+       FROM meetup_enrollments me
+       JOIN users u ON me.user_id = u.id
+       WHERE me.post_id = $1
+       ORDER BY me.created_at ASC`,
+      [id]
+    );
+    const enrolledMembers = membersResult.rows.map((row: any) => ({
+      id: row.id,
+      displayName: row.display_name,
+      avatarUrl: row.avatar_url,
+      handle: row.handle,
+    }));
+
+    res.json({
+      success: true,
+      postId: id,
+      enrolledCount,
+      isEnrolled: false,
+      canCancel: false,
+      isFull: enrolledCount >= post.max_headcount,
+      enrolledMembers,
+    });
+  } catch (error) {
+    console.error('Error canceling enrollment:', error);
+    res.status(500).json({ error: 'Failed to cancel enrollment' });
   }
 });
 

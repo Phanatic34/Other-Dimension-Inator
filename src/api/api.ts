@@ -145,6 +145,58 @@ export async function fetchUserPosts(userId: string) {
   }
 }
 
+export async function fetchUserLikes(userId: string) {
+  try {
+    const response = await fetch(`${API_URL}/users/${userId}/likes`, {
+      headers: getHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to fetch likes');
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching likes:', error);
+    return [];
+  }
+}
+
+export async function fetchUserBookmarks(userId: string) {
+  try {
+    const response = await fetch(`${API_URL}/users/${userId}/bookmarks`, {
+      headers: getHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to fetch bookmarks');
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching bookmarks:', error);
+    return [];
+  }
+}
+
+export async function fetchUserReposts(userId: string) {
+  try {
+    const response = await fetch(`${API_URL}/users/${userId}/reposts`, {
+      headers: getHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to fetch reposts');
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching reposts:', error);
+    return [];
+  }
+}
+
+export async function fetchUserReplies(userId: string) {
+  try {
+    const response = await fetch(`${API_URL}/users/${userId}/replies`, {
+      headers: getHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to fetch replies');
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching replies:', error);
+    return [];
+  }
+}
+
 // ================== Posts API ==================
 
 export async function fetchAllPosts(type?: 'review' | 'meetup') {
@@ -666,8 +718,9 @@ export async function deleteComment(commentId: string) {
 
 export async function fetchSavedRestaurants() {
   try {
-    const response = await fetch(`${API_URL}/restaurants/saved`, {
+    const response = await fetch(`${API_URL}/favorites`, {
       headers: getHeaders(),
+      credentials: 'include',
     });
     if (!response.ok) throw new Error('Failed to fetch saved restaurants');
     return await response.json();
@@ -678,6 +731,7 @@ export async function fetchSavedRestaurants() {
 }
 
 export async function saveRestaurant(restaurant: {
+  restaurantId: string;
   name: string;
   address: string;
   lat: number;
@@ -686,14 +740,19 @@ export async function saveRestaurant(restaurant: {
   categories?: string[];
   rating?: number;
   priceLevel?: string;
+  savedFromPostId?: string;
 }) {
   try {
-    const response = await fetch(`${API_URL}/restaurants/save`, {
+    const response = await fetch(`${API_URL}/favorites/${encodeURIComponent(restaurant.restaurantId)}`, {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify(restaurant),
+      credentials: 'include',
     });
-    if (!response.ok) throw new Error('Failed to save restaurant');
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Failed to save restaurant');
+    }
     return await response.json();
   } catch (error) {
     console.error('Error saving restaurant:', error);
@@ -703,12 +762,13 @@ export async function saveRestaurant(restaurant: {
 
 export async function unsaveRestaurant(restaurantId: string) {
   try {
-    const response = await fetch(`${API_URL}/restaurants/${restaurantId}`, {
+    const response = await fetch(`${API_URL}/favorites/${encodeURIComponent(restaurantId)}`, {
       method: 'DELETE',
       headers: getHeaders(),
+      credentials: 'include',
     });
     if (!response.ok) throw new Error('Failed to unsave restaurant');
-    return true;
+    return await response.json();
   } catch (error) {
     console.error('Error unsaving restaurant:', error);
     throw error;
@@ -780,6 +840,78 @@ export async function uploadImages(files: File[]): Promise<string[]> {
     return data.urls || data.imageUrls || [];
   } catch (error) {
     console.error('Error uploading images:', error);
+    throw error;
+  }
+}
+
+// ================== Meetup Enrollment API ==================
+
+export interface EnrollmentInfo {
+  postId: string;
+  capacity: number;
+  enrolledCount: number;
+  isEnrolled: boolean;
+  canCancel: boolean;
+  isFull: boolean;
+  eventStarted: boolean;
+  eventTime: string;
+  enrolledMembers: Array<{
+    id: string;
+    displayName: string;
+    avatarUrl?: string;
+    handle?: string;
+  }>;
+}
+
+export async function fetchEnrollmentInfo(postId: string): Promise<EnrollmentInfo> {
+  try {
+    const response = await fetch(`${API_URL}/posts/${postId}/enrollment`, {
+      headers: getHeaders(),
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      const error = await safeJsonResponse(response);
+      throw new Error(error?.error || 'Failed to fetch enrollment info');
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching enrollment info:', error);
+    throw error;
+  }
+}
+
+export async function enrollInMeetup(postId: string): Promise<EnrollmentInfo & { success: boolean }> {
+  try {
+    const response = await fetch(`${API_URL}/posts/${postId}/enroll`, {
+      method: 'POST',
+      headers: getHeaders(),
+      credentials: 'include',
+    });
+    const data = await safeJsonResponse(response);
+    if (!response.ok) {
+      throw new Error(data?.error || 'Failed to enroll in meetup');
+    }
+    return data;
+  } catch (error) {
+    console.error('Error enrolling in meetup:', error);
+    throw error;
+  }
+}
+
+export async function cancelEnrollment(postId: string): Promise<EnrollmentInfo & { success: boolean }> {
+  try {
+    const response = await fetch(`${API_URL}/posts/${postId}/enroll`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+      credentials: 'include',
+    });
+    const data = await safeJsonResponse(response);
+    if (!response.ok) {
+      throw new Error(data?.error || 'Failed to cancel enrollment');
+    }
+    return data;
+  } catch (error) {
+    console.error('Error canceling enrollment:', error);
     throw error;
   }
 }

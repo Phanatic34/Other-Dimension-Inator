@@ -56,7 +56,7 @@ router.get('/', requireDatabase, async (req: Request, res: Response) => {
     // Get user's saved restaurants
     const result = await query(
       `SELECT 
-        id, user_id, name, address, lat, lng, styles, categories,
+        id, user_id, restaurant_id, name, address, lat, lng, styles, categories,
         rating, price_level, saved_from_post_id, saved_at
       FROM saved_restaurants
       WHERE user_id = $1
@@ -65,7 +65,7 @@ router.get('/', requireDatabase, async (req: Request, res: Response) => {
     );
 
     const restaurants: SavedRestaurant[] = result.rows.map((row: any) => ({
-      id: row.id,
+      id: row.restaurant_id || row.id,
       userId: row.user_id,
       name: row.name,
       address: row.address,
@@ -77,6 +77,7 @@ router.get('/', requireDatabase, async (req: Request, res: Response) => {
       priceLevel: row.price_level,
       savedAt: row.saved_at,
       savedFromPostId: row.saved_from_post_id,
+      isSaved: true,
     }));
 
     res.json(restaurants);
@@ -86,51 +87,53 @@ router.get('/', requireDatabase, async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/restaurants/save - Save a restaurant
+// POST /api/restaurants/save - Save a restaurant (legacy path, now uses restaurant_id for idempotency)
 router.post('/save', requireDatabase, requireAuth, async (req: Request, res: Response) => {
   try {
     const userId = (req as any).userId;
-    const { name, address, lat, lng, styles, categories, rating, priceLevel, savedFromPostId } = req.body;
+    const { restaurantId, name, address, lat, lng, styles, categories, rating, priceLevel, savedFromPostId, id: legacyId } = req.body;
 
-    if (!name || !address) {
-      return res.status(400).json({ error: 'Name and address are required' });
+    const stableRestaurantId = restaurantId || legacyId || name;
+
+    if (!name || !address || !stableRestaurantId) {
+      return res.status(400).json({ error: 'restaurantId, name, and address are required' });
+    }
+
+    // Check if already saved by this user with same restaurant_id
+    const existing = await query(
+      'SELECT id, restaurant_id FROM saved_restaurants WHERE user_id = $1 AND restaurant_id = $2',
+      [userId, stableRestaurantId]
+    );
+
+    if (existing.rows.length > 0) {
+      return res.json({ message: 'Restaurant already saved', id: existing.rows[0].restaurant_id });
     }
 
     const id = uuidv4();
 
-    // Check if already saved by this user with same name and address
-    const existing = await query(
-      'SELECT id FROM saved_restaurants WHERE user_id = $1 AND name = $2 AND address = $3',
-      [userId, name, address]
-    );
-
-    if (existing.rows.length > 0) {
-      return res.json({ message: 'Restaurant already saved', id: existing.rows[0].id });
-    }
-
     await query(
       `INSERT INTO saved_restaurants (
-        id, user_id, name, address, lat, lng, styles, categories, rating, price_level, saved_from_post_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-      [id, userId, name, address, lat, lng, styles || [], categories || [], rating, priceLevel, savedFromPostId]
+        id, user_id, restaurant_id, name, address, lat, lng, styles, categories, rating, price_level, saved_from_post_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+      [id, userId, stableRestaurantId, name, address, lat, lng, styles || [], categories || [], rating, priceLevel, savedFromPostId]
     );
 
-    res.status(201).json({ message: 'Restaurant saved successfully', id });
+    res.status(201).json({ message: 'Restaurant saved successfully', id: stableRestaurantId });
   } catch (error) {
     console.error('Error saving restaurant:', error);
     res.status(500).json({ error: 'Failed to save restaurant' });
   }
 });
 
-// DELETE /api/restaurants/:id - Unsave a restaurant
-router.delete('/:id', requireDatabase, requireAuth, async (req: Request, res: Response) => {
+// DELETE /api/restaurants/:restaurantId - Unsave a restaurant
+router.delete('/:restaurantId', requireDatabase, requireAuth, async (req: Request, res: Response) => {
   try {
     const userId = (req as any).userId;
-    const { id } = req.params;
+    const { restaurantId } = req.params;
 
     const result = await query(
-      'DELETE FROM saved_restaurants WHERE id = $1 AND user_id = $2',
-      [id, userId]
+      'DELETE FROM saved_restaurants WHERE restaurant_id = $1 AND user_id = $2',
+      [restaurantId, userId]
     );
 
     if (result.rowCount === 0) {

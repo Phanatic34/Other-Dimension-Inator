@@ -1,5 +1,5 @@
 export interface SavedRestaurant {
-  id: string;
+  id: string; // stable restaurant identifier (restaurantId/placeId/postId)
   name: string;
   address: string;
   lat: number;
@@ -10,5 +10,8 @@ export interface SavedRestaurant {
   rating?: number; // Optional rating
   priceLevel?: '$' | '$$' | '$$$'; // Optional price level
   imageUrl?: string; // Optional restaurant image
+  savedAt?: string;
+  savedFromPostId?: string;
+  userId?: string;
 }
 

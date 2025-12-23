@@ -77,11 +77,11 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick, o
   const [menuOpen, setMenuOpen] = useState(false);
 
   // Like state
-  const [isLiked, setIsLiked] = useState(false);
+  const [isLiked, setIsLiked] = useState(!!post.isLiked);
   const [currentLikeCount, setCurrentLikeCount] = useState(post.likeCount);
 
   // Save state
-  const [isSaved, setIsSaved] = useState(false);
+  const [isSaved, setIsSaved] = useState(!!post.isSaved);
   const [isSaving, setIsSaving] = useState(false);
 
   // Report modal state
@@ -89,6 +89,14 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick, o
 
   // Share state
   const [shareCount, setShareCount] = useState(post.shareCount || 0);
+  // Sync incoming flags when post changes
+  useEffect(() => {
+    setIsLiked(!!post.isLiked);
+    setIsSaved(!!post.isSaved);
+    setCurrentLikeCount(post.likeCount);
+    setShareCount(post.shareCount || 0);
+  }, [post.isLiked, post.isSaved, post.likeCount, post.shareCount]);
+
 
   // Location preview context (optional - only available in RendezvousHome)
   const { setSelectedLocation, setPendingSaveLocation, isProviderAvailable } = useLocationPreview();

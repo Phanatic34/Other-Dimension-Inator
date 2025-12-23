@@ -1,38 +1,40 @@
 // Database seed script
-// Populates the database with initial data from frontend mocks
+// Populates the database with initial data for development/testing
 import dotenv from 'dotenv';
 dotenv.config();
 
 import { query, closePool } from './database';
 import { v4 as uuidv4 } from 'uuid';
 
+// Unified taxonomy boards (removed: japanese, korean, taiwanese, thai, chinese, italian, western)
 const boards = [
+  // Style boards (cuisine)
   { id: 'american', name: 'American', label: '美式 American', category: 'cuisine' },
-  { id: 'japanese', name: 'Japanese', label: '日式 Japanese', category: 'cuisine' },
-  { id: 'korean', name: 'Korean', label: '韓式 Korean', category: 'cuisine' },
-  { id: 'taiwanese', name: 'Taiwanese', label: '台菜 Taiwanese', category: 'cuisine' },
-  { id: 'thai', name: 'Thai', label: '泰式 Thai', category: 'cuisine' },
-  { id: 'hongkong', name: 'Hong Kong', label: '港式 Hong Kong', category: 'cuisine' },
-  { id: 'italian', name: 'Italian', label: '義式 Italian', category: 'cuisine' },
   { id: 'french', name: 'French', label: '法式 French', category: 'cuisine' },
-  { id: 'chinese', name: 'Chinese', label: '中式 Chinese', category: 'cuisine' },
-  { id: 'vietnamese', name: 'Vietnamese', label: '越式 Vietnamese', category: 'cuisine' },
+  { id: 'hongkong', name: 'Hong Kong', label: '港式 Hong Kong', category: 'cuisine' },
   { id: 'indian', name: 'Indian', label: '印度 Indian', category: 'cuisine' },
   { id: 'mexican', name: 'Mexican', label: '墨西哥 Mexican', category: 'cuisine' },
+  { id: 'vietnamese', name: 'Vietnamese', label: '越式 Vietnamese', category: 'cuisine' },
   { id: 'others-style', name: 'Others', label: '其他 Others', category: 'cuisine' },
-  { id: 'desserts', name: 'Desserts', label: '甜點 Desserts', category: 'type' },
-  { id: 'breakfast', name: 'Breakfast', label: '早餐 Breakfast', category: 'type' },
-  { id: 'streetfood', name: 'Street Food', label: '街頭小吃 Street Food', category: 'type' },
+  // Category boards (type)
   { id: 'beverages', name: 'Beverages', label: '飲料 Beverages', category: 'type' },
-  { id: 'vegetarian', name: 'Vegetarian', label: '素食 Vegetarian', category: 'type' },
+  { id: 'breakfast', name: 'Breakfast', label: '早餐 Breakfast', category: 'type' },
+  { id: 'brunch', name: 'Brunch', label: '早午餐 Brunch', category: 'type' },
+  { id: 'cafe', name: 'Cafe', label: '咖啡廳 Cafe', category: 'type' },
+  { id: 'desserts', name: 'Desserts', label: '甜點 Desserts', category: 'type' },
   { id: 'fastfood', name: 'Fast Food', label: '速食 Fast Food', category: 'type' },
-  { id: 'noodles', name: 'Noodles', label: '麵食 Noodles', category: 'type' },
-  { id: 'rice', name: 'Rice', label: '米飯 Rice', category: 'type' },
-  { id: 'lunch_din', name: 'Lunch / Dinner', label: '午晚餐 Lunch / Dinner', category: 'type' },
+  { id: 'hotpot', name: 'Hotpot', label: '火鍋 Hotpot', category: 'type' },
   { id: 'late_night', name: 'Late Night', label: '宵夜 Late Night', category: 'type' },
+  { id: 'lunch_din', name: 'Lunch / Dinner', label: '午晚餐 Lunch / Dinner', category: 'type' },
+  { id: 'noodles', name: 'Noodles', label: '麵食 Noodles', category: 'type' },
+  { id: 'ramen', name: 'Ramen', label: '拉麵 Ramen', category: 'type' },
+  { id: 'rice', name: 'Rice', label: '米飯 Rice', category: 'type' },
+  { id: 'streetfood', name: 'Street Food', label: '街頭小吃 Street Food', category: 'type' },
+  { id: 'vegetarian', name: 'Vegetarian', label: '素食 Vegetarian', category: 'type' },
   { id: 'others-category', name: 'Others', label: '其他 Others', category: 'type' },
 ];
 
+// Users with updated favorite styles using valid taxonomy keys
 const users = [
   { 
     id: 'user1', 
@@ -42,8 +44,8 @@ const users = [
     email: 'foodie@example.com',
     avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=faces',
     bio: '台大學生，專門探索公館周邊美食！每週發掘新餐廳 🍜',
-    favoriteStyles: ['日式 Japanese', '台菜 Taiwanese', '韓式 Korean'],
-    favoriteCategories: ['拉麵 Ramen', '小籠包', '炸雞'],
+    favoriteStyles: ['美式 American', '港式 Hong Kong', '法式 French'],
+    favoriteCategories: ['拉麵 Ramen', '午晚餐 Lunch / Dinner'],
     joinedDate: 'January 2024'
   },
   { 
@@ -54,8 +56,8 @@ const users = [
     email: 'eater@example.com',
     avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop&crop=faces',
     bio: '台北美食部落客，專門挖掘隱藏版美食 📸',
-    favoriteStyles: ['台菜 Taiwanese', '法式 French', '義式 Italian'],
-    favoriteCategories: ['甜點 Desserts', '咖啡', '早午餐'],
+    favoriteStyles: ['法式 French', '越式 Vietnamese'],
+    favoriteCategories: ['甜點 Desserts', '咖啡廳 Cafe', '早午餐 Brunch'],
     joinedDate: 'February 2024'
   },
   { 
@@ -66,8 +68,8 @@ const users = [
     email: 'ramen@example.com',
     avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&crop=faces',
     bio: '拉麵狂熱者！目標是吃遍台北所有拉麵店 🍜',
-    favoriteStyles: ['日式 Japanese'],
-    favoriteCategories: ['拉麵 Ramen', '沾麵', '豚骨'],
+    favoriteStyles: ['其他 Others'],
+    favoriteCategories: ['拉麵 Ramen', '麵食 Noodles'],
     joinedDate: 'March 2024'
   },
   { 
@@ -208,11 +210,11 @@ async function seed() {
         restaurantLat: 25.1185,
         restaurantLng: 121.5274,
         locationArea: 'Tianmu',
-        boardId: 'japanese',
-        styleType: '日式 Japanese',
-        foodType: '炸豬排 Tonkatsu',
-        title: '天母勝博殿的日式炸豬排超讚！',
-        content: '跟朋友跑來天母新光三越的勝博殿吃炸豬排，外皮酥脆但不會刮嘴，肉超嫩又多汁，味噌湯和高麗菜可以續到飽，超適合周末犒賞自己！ #勝博殿 #天母 #炸豬排 #日式料理 #百貨公司美食',
+        boardId: 'others-style',
+        styleType: '其他 Others',
+        foodType: '午晚餐 Lunch / Dinner',
+        title: '天母勝博殿的炸豬排超讚！',
+        content: '跟朋友跑來天母新光三越的勝博殿吃炸豬排，外皮酥脆但不會刮嘴，肉超嫩又多汁，味噌湯和高麗菜可以續到飽，超適合周末犒賞自己！ #勝博殿 #天母 #炸豬排 #百貨公司美食',
         rating: 4.4,
         priceLevel: '$$',
         priceMax: 800,
@@ -234,8 +236,8 @@ async function seed() {
         restaurantLat: 25.0330,
         restaurantLng: 121.5654,
         locationArea: 'Xinyi',
-        boardId: 'japanese',
-        styleType: '日式 Japanese',
+        boardId: 'others-style',
+        styleType: '其他 Others',
         foodType: '拉麵 Ramen',
         title: '超濃郁的拉麵體驗！',
         content: '今天去了信義區的Ichiran，湯頭真的超濃郁，麵條Q彈有嚼勁。雖然價格偏高，但絕對值得一試！',
@@ -260,9 +262,9 @@ async function seed() {
         restaurantLat: 25.0339,
         restaurantLng: 121.5325,
         locationArea: 'Gongguan',
-        boardId: 'taiwanese',
-        styleType: '台菜 Taiwanese',
-        foodType: null,
+        boardId: 'others-style',
+        styleType: '其他 Others',
+        foodType: '午晚餐 Lunch / Dinner',
         title: '小籠包還是這裡最經典',
         content: '每次來都必點小籠包和炒飯，品質穩定，服務也很好。雖然要排隊，但等待是值得的。',
         rating: 4.8,
@@ -308,8 +310,8 @@ async function seed() {
         restaurantLng: 121.5333,
         locationArea: 'Gongguan',
         boardId: 'breakfast',
-        styleType: null,
-        foodType: null,
+        styleType: '其他 Others',
+        foodType: '早餐 Breakfast',
         title: '傳統早餐的溫暖',
         content: '早上六點就來排隊，燒餅油條配豆漿，簡單卻滿足。價格親民，是學生族的最愛。',
         rating: 4.2,
@@ -324,15 +326,15 @@ async function seed() {
       {
         id: 'review5',
         authorId: 'user5',
-        restaurantName: '韓式炸雞店',
+        restaurantName: '炸雞店',
         restaurantAddress: '台北市信義區松仁路58號',
         restaurantLat: 25.0380,
         restaurantLng: 121.5700,
         locationArea: 'Xinyi',
-        boardId: 'korean',
-        styleType: '韓式 Korean',
-        foodType: null,
-        title: '超酥脆的韓式炸雞',
+        boardId: 'others-style',
+        styleType: '其他 Others',
+        foodType: '速食 Fast Food',
+        title: '超酥脆的炸雞',
         content: '點了原味和辣味雙拼，外皮超酥脆，肉質多汁。配啤酒超搭！適合朋友聚餐。',
         rating: 4.6,
         priceLevel: '$$',

@@ -161,6 +161,7 @@ CREATE TABLE IF NOT EXISTS follows (
 CREATE TABLE IF NOT EXISTS saved_restaurants (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
+  restaurant_id TEXT NOT NULL, -- stable restaurant identifier (e.g., placeId or postId)
   name TEXT NOT NULL,
   address TEXT NOT NULL,
   lat DOUBLE PRECISION NOT NULL,
@@ -174,6 +175,23 @@ CREATE TABLE IF NOT EXISTS saved_restaurants (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+-- Add restaurant_id column for legacy databases
+ALTER TABLE saved_restaurants ADD COLUMN IF NOT EXISTS restaurant_id TEXT;
+
+-- Backfill restaurant_id for existing records to keep compatibility
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'saved_restaurants' AND column_name = 'restaurant_id') THEN
+    UPDATE saved_restaurants
+    SET restaurant_id = COALESCE(restaurant_id, id);
+    -- Enforce NOT NULL after backfill
+    ALTER TABLE saved_restaurants ALTER COLUMN restaurant_id SET NOT NULL;
+  END IF;
+END $$;
+
+-- Ensure favorites are unique per user+restaurant
+CREATE UNIQUE INDEX IF NOT EXISTS idx_saved_restaurants_user_restaurant ON saved_restaurants(user_id, restaurant_id);
+
 -- Saved Posts table (bookmarks)
 CREATE TABLE IF NOT EXISTS saved_posts (
   id TEXT PRIMARY KEY,
@@ -184,6 +202,20 @@ CREATE TABLE IF NOT EXISTS saved_posts (
   UNIQUE(user_id, post_id, post_type),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+-- Reposts table (user re-shares)
+CREATE TABLE IF NOT EXISTS reposts (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  post_id TEXT NOT NULL,
+  post_type TEXT NOT NULL CHECK(post_type IN ('review', 'meetup')),
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  UNIQUE(user_id, post_id, post_type),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_reposts_user ON reposts(user_id);
+CREATE INDEX IF NOT EXISTS idx_reposts_post ON reposts(post_id, post_type);
 
 -- Reported Posts table
 CREATE TABLE IF NOT EXISTS reported_posts (
@@ -220,4 +252,18 @@ CREATE INDEX IF NOT EXISTS idx_follows_following ON follows(following_id);
 CREATE INDEX IF NOT EXISTS idx_saved_restaurants_user ON saved_restaurants(user_id);
 CREATE INDEX IF NOT EXISTS idx_saved_posts_user ON saved_posts(user_id);
 CREATE INDEX IF NOT EXISTS idx_reported_posts_status ON reported_posts(status);
+
+-- Meetup Enrollments table (for tracking who joins meal gatherings)
+CREATE TABLE IF NOT EXISTS meetup_enrollments (
+  id TEXT PRIMARY KEY,
+  post_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  UNIQUE(post_id, user_id),
+  FOREIGN KEY (post_id) REFERENCES meetup_posts(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_meetup_enrollments_post ON meetup_enrollments(post_id);
+CREATE INDEX IF NOT EXISTS idx_meetup_enrollments_user ON meetup_enrollments(user_id);
 

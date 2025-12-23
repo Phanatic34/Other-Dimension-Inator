@@ -7,9 +7,16 @@ export const LocationSavePrompt: React.FC = () => {
 
   if (!pendingSaveLocation) return null;
 
-  const handleConfirm = () => {
-    addSavedLocation(pendingSaveLocation);
-    setPendingSaveLocation(null);
+  const handleConfirm = async () => {
+    try {
+      await addSavedLocation(pendingSaveLocation);
+    } catch (error) {
+      console.error('Failed to save location', error);
+      alert('收藏失敗，請稍後再試');
+      return;
+    } finally {
+      setPendingSaveLocation(null);
+    }
   };
 
   const handleCancel = () => {

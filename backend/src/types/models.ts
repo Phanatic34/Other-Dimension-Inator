@@ -49,6 +49,9 @@ export interface ReviewPost {
   createdAt: string;
   updatedAt: string;
   isFromFollowedUser?: boolean; // Computed field
+  isLiked?: boolean;
+  isSaved?: boolean;
+  isReposted?: boolean;
 }
 
 export interface MeetupPost {
@@ -75,6 +78,9 @@ export interface MeetupPost {
   commentCount: number;
   shareCount?: number;
   isFromFollowedUser?: boolean; // Computed field
+  isLiked?: boolean;
+  isSaved?: boolean;
+  isReposted?: boolean;
   boardId?: string; // Optional for backward compatibility
   board?: Board;
   locationArea?: string;

@@ -212,6 +212,17 @@ CREATE TABLE IF NOT EXISTS reported_posts (
   FOREIGN KEY (reporter_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+-- 14. Meetup Enrollments table (for tracking who joins meal gatherings)
+CREATE TABLE IF NOT EXISTS meetup_enrollments (
+  id TEXT PRIMARY KEY,
+  post_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  UNIQUE(post_id, user_id),
+  FOREIGN KEY (post_id) REFERENCES meetup_posts(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 -- =====================================================
 -- INDEXES for better performance
 -- =====================================================
@@ -229,39 +240,51 @@ CREATE INDEX IF NOT EXISTS idx_meetup_likes_post ON meetup_likes(post_id);
 CREATE INDEX IF NOT EXISTS idx_meetup_likes_user ON meetup_likes(user_id);
 CREATE INDEX IF NOT EXISTS idx_follows_follower ON follows(follower_id);
 CREATE INDEX IF NOT EXISTS idx_follows_following ON follows(following_id);
+CREATE INDEX IF NOT EXISTS idx_meetup_enrollments_post ON meetup_enrollments(post_id);
+CREATE INDEX IF NOT EXISTS idx_meetup_enrollments_user ON meetup_enrollments(user_id);
 
 -- =====================================================
 -- REAL SEED DATA - All accounts can login with password: test123
 -- Password hash is bcrypt hash of "test123"
 -- =====================================================
 
--- Insert default boards
+-- Insert default boards (unified taxonomy - removed styles: japanese, korean, taiwanese, thai, chinese, italian, western)
+-- Style boards (cuisine)
 INSERT INTO boards (id, name, label, category) VALUES
-  ('board-japanese', 'japanese', '日式料理', 'cuisine'),
-  ('board-taiwanese', 'taiwanese', '台灣小吃', 'cuisine'),
-  ('board-western', 'western', '西式料理', 'cuisine'),
-  ('board-korean', 'korean', '韓式料理', 'cuisine'),
-  ('board-chinese', 'chinese', '中式料理', 'cuisine'),
-  ('board-thai', 'thai', '泰式料理', 'cuisine'),
-  ('board-italian', 'italian', '義式料理', 'cuisine'),
-  ('board-fastfood', 'fastfood', '速食', 'type'),
-  ('board-dessert', 'dessert', '甜點', 'type'),
-  ('board-cafe', 'cafe', '咖啡廳', 'type'),
-  ('board-brunch', 'brunch', '早午餐', 'type'),
-  ('board-hotpot', 'hotpot', '火鍋', 'type'),
-  ('board-bbq', 'bbq', '燒烤', 'type'),
-  ('board-seafood', 'seafood', '海鮮', 'type'),
-  ('board-vegetarian', 'vegetarian', '素食', 'type')
+  ('board-american', 'american', '美式 American', 'cuisine'),
+  ('board-french', 'french', '法式 French', 'cuisine'),
+  ('board-hongkong', 'hongkong', '港式 Hong Kong', 'cuisine'),
+  ('board-indian', 'indian', '印度 Indian', 'cuisine'),
+  ('board-mexican', 'mexican', '墨西哥 Mexican', 'cuisine'),
+  ('board-vietnamese', 'vietnamese', '越式 Vietnamese', 'cuisine'),
+  ('board-others-style', 'others-style', '其他 Others', 'cuisine'),
+  -- Category boards (type)
+  ('board-beverages', 'beverages', '飲料 Beverages', 'type'),
+  ('board-breakfast', 'breakfast', '早餐 Breakfast', 'type'),
+  ('board-brunch', 'brunch', '早午餐 Brunch', 'type'),
+  ('board-cafe', 'cafe', '咖啡廳 Cafe', 'type'),
+  ('board-desserts', 'desserts', '甜點 Desserts', 'type'),
+  ('board-fastfood', 'fastfood', '速食 Fast Food', 'type'),
+  ('board-hotpot', 'hotpot', '火鍋 Hotpot', 'type'),
+  ('board-late_night', 'late_night', '宵夜 Late Night', 'type'),
+  ('board-lunch_din', 'lunch_din', '午晚餐 Lunch / Dinner', 'type'),
+  ('board-noodles', 'noodles', '麵食 Noodles', 'type'),
+  ('board-ramen', 'ramen', '拉麵 Ramen', 'type'),
+  ('board-rice', 'rice', '米飯 Rice', 'type'),
+  ('board-streetfood', 'streetfood', '街頭小吃 Street Food', 'type'),
+  ('board-vegetarian', 'vegetarian', '素食 Vegetarian', 'type'),
+  ('board-others-category', 'others-category', '其他 Others', 'type')
 ON CONFLICT (id) DO NOTHING;
 
 -- Insert REAL users (password: test123 for all)
 -- bcrypt hash of "test123" = $2a$10$N9qo8uLOickgx2ZMRZoMy.Mrq2rFT6op.HqGd.7aS1ohL6hLSe.Uu
+-- Note: favorite_styles updated to use valid taxonomy keys only
 INSERT INTO users (id, display_name, handle, username, email, password_hash, avatar_url, bio, favorite_styles, favorite_categories) VALUES
-  ('user1', '美食獵人小明', 'foodhunter', 'foodhunter', 'foodhunter@test.com', '$2a$10$N9qo8uLOickgx2ZMRZoMy.Mrq2rFT6op.HqGd.7aS1ohL6hLSe.Uu', 'https://api.dicebear.com/7.x/avataaars/svg?seed=foodhunter', '熱愛探索台北各種美食，專攻日式料理和甜點！每週至少發現一家新餐廳 🍣🍰', ARRAY['japanese', 'dessert'], ARRAY['cafe', 'brunch']),
-  ('user2', '吃貨小美', 'foodielisa', 'foodielisa', 'lisa@test.com', '$2a$10$N9qo8uLOickgx2ZMRZoMy.Mrq2rFT6op.HqGd.7aS1ohL6hLSe.Uu', 'https://api.dicebear.com/7.x/avataaars/svg?seed=lisa', '台北在地人，最愛夜市小吃和火鍋！歡迎一起約吃飯 🔥', ARRAY['taiwanese', 'hotpot'], ARRAY['fastfood']),
-  ('user3', '咖啡控阿傑', 'coffeejay', 'coffeejay', 'jay@test.com', '$2a$10$N9qo8uLOickgx2ZMRZoMy.Mrq2rFT6op.HqGd.7aS1ohL6hLSe.Uu', 'https://api.dicebear.com/7.x/avataaars/svg?seed=jay', '咖啡成癮者 ☕ 踏遍台北大小咖啡廳，專門寫咖啡廳評測', ARRAY['western', 'italian'], ARRAY['cafe', 'brunch']),
-  ('user4', '韓食愛好者', 'koreafan', 'koreafan', 'korea@test.com', '$2a$10$N9qo8uLOickgx2ZMRZoMy.Mrq2rFT6op.HqGd.7aS1ohL6hLSe.Uu', 'https://api.dicebear.com/7.x/avataaars/svg?seed=korea', '韓國料理專家！從炸雞到烤肉通通愛 🍗', ARRAY['korean'], ARRAY['bbq']),
-  ('user5', '素食天使', 'vegangel', 'vegangel', 'vegan@test.com', '$2a$10$N9qo8uLOickgx2ZMRZoMy.Mrq2rFT6op.HqGd.7aS1ohL6hLSe.Uu', 'https://api.dicebear.com/7.x/avataaars/svg?seed=vegan', '推廣健康素食生活，分享好吃的素食餐廳 🌱', ARRAY['vegetarian'], ARRAY['cafe'])
+  ('user1', '美食獵人小明', 'foodhunter', 'foodhunter', 'foodhunter@test.com', '$2a$10$N9qo8uLOickgx2ZMRZoMy.Mrq2rFT6op.HqGd.7aS1ohL6hLSe.Uu', 'https://api.dicebear.com/7.x/avataaars/svg?seed=foodhunter', '熱愛探索台北各種美食，專攻各國料理和甜點！每週至少發現一家新餐廳 🍣🍰', ARRAY['french', 'american'], ARRAY['cafe', 'brunch']),
+  ('user2', '吃貨小美', 'foodielisa', 'foodielisa', 'lisa@test.com', '$2a$10$N9qo8uLOickgx2ZMRZoMy.Mrq2rFT6op.HqGd.7aS1ohL6hLSe.Uu', 'https://api.dicebear.com/7.x/avataaars/svg?seed=lisa', '台北在地人，最愛夜市小吃和火鍋！歡迎一起約吃飯 🔥', ARRAY['hongkong'], ARRAY['hotpot', 'fastfood']),
+  ('user3', '咖啡控阿傑', 'coffeejay', 'coffeejay', 'jay@test.com', '$2a$10$N9qo8uLOickgx2ZMRZoMy.Mrq2rFT6op.HqGd.7aS1ohL6hLSe.Uu', 'https://api.dicebear.com/7.x/avataaars/svg?seed=jay', '咖啡成癮者 ☕ 踏遍台北大小咖啡廳，專門寫咖啡廳評測', ARRAY['french'], ARRAY['cafe', 'brunch']),
+  ('user4', '美食愛好者', 'foodfan', 'foodfan', 'food@test.com', '$2a$10$N9qo8uLOickgx2ZMRZoMy.Mrq2rFT6op.HqGd.7aS1ohL6hLSe.Uu', 'https://api.dicebear.com/7.x/avataaars/svg?seed=food', '各國料理專家！從炸雞到烤肉通通愛 🍗', ARRAY['american', 'mexican'], ARRAY['fastfood']),
+  ('user5', '素食天使', 'vegangel', 'vegangel', 'vegan@test.com', '$2a$10$N9qo8uLOickgx2ZMRZoMy.Mrq2rFT6op.HqGd.7aS1ohL6hLSe.Uu', 'https://api.dicebear.com/7.x/avataaars/svg?seed=vegan', '推廣健康素食生活，分享好吃的素食餐廳 🌱', ARRAY['indian'], ARRAY['vegetarian', 'cafe'])
 ON CONFLICT (id) DO UPDATE SET
   display_name = EXCLUDED.display_name,
   handle = EXCLUDED.handle,
@@ -270,13 +293,13 @@ ON CONFLICT (id) DO UPDATE SET
   avatar_url = EXCLUDED.avatar_url,
   bio = EXCLUDED.bio;
 
--- Insert REAL review posts
+-- Insert REAL review posts (updated to use valid taxonomy: removed styles mapped to 'others-style')
 INSERT INTO review_posts (id, author_id, restaurant_name, restaurant_address, restaurant_lat, restaurant_lng, location_area, board_id, style_type, food_type, title, content, rating, price_level, visibility, like_count, comment_count, share_count, created_at) VALUES
-  ('post-sample-1', 'user1', '鼎泰豐 信義店', '台北市信義區信義路二段194號', 25.0330, 121.5654, 'Xinyi', 'board-taiwanese', 'taiwanese', 'dumplings', '小籠包超好吃！', '來台北一定要吃的小籠包，皮薄餡多汁，18摺的完美工藝讓人驚艷！服務也很棒，雖然要排隊但絕對值得。推薦必點：小籠包、炒飯、酸辣湯 #鼎泰豐 #小籠包 #台北美食 #米其林', 4.8, '$$', 'PUBLIC', 0, 0, 0, NOW() - INTERVAL '2 days'),
-  ('post-sample-2', 'user1', '一蘭拉麵 台北本店', '台北市信義區松壽路12號', 25.0360, 121.5680, 'Xinyi', 'board-japanese', 'japanese', 'ramen', '一個人吃拉麵的好地方', '湯頭濃郁，麵條Q彈，調味可以自己選擇濃淡，超推薦給喜歡一個人用餐的朋友！個人座位設計很有隱私感，可以專心品嚐美食。 #一蘭拉麵 #日式拉麵 #台北', 4.5, '$$', 'PUBLIC', 0, 0, 0, NOW() - INTERVAL '3 days'),
-  ('post-sample-3', 'user3', 'Starbucks Reserve 時代寓所', '台北市大安區敦化南路一段187號', 25.0420, 121.5490, 'Daan', 'board-cafe', 'western', 'coffee', '超美的星巴克臻選門市', '環境超美，挑高設計搭配大片落地窗，咖啡也很好喝！這裡有很多臻選限定飲品，適合約會或遠端工作。二樓座位區更安靜，推薦！ #星巴克 #咖啡廳 #大安區 #約會景點', 4.3, '$$', 'PUBLIC', 0, 0, 0, NOW() - INTERVAL '1 day'),
-  ('saboten-tianmu', 'user1', '勝博殿 天母店', '台北市士林區中山北路六段77號', 25.1150, 121.5290, 'Tianmu', 'board-japanese', 'japanese', 'tonkatsu', '炸豬排超酥脆！', '來天母一定要來吃勝博殿！炸豬排外酥內嫩，搭配他們的高麗菜絲和味噌湯，完美的一餐。價格雖然偏高但品質很穩定，約會聚餐都適合。 #勝博殿 #炸豬排 #天母 #日式料理', 4.6, '$$$', 'PUBLIC', 0, 0, 0, NOW() - INTERVAL '4 hours'),
-  ('post-korean-bbq', 'user4', '姜滿堂 韓式烤肉', '台北市大安區忠孝東路四段216巷27弄3號', 25.0415, 121.5520, 'Daan', 'board-korean', 'korean', 'bbq', '超道地的韓式烤肉！', '肉質新鮮，小菜無限續，服務態度也很好！特別推薦他們的牛五花和豬頸肉，配上生菜包著吃超滿足。記得要先訂位，不然要等很久！ #韓式烤肉 #姜滿堂 #大安區', 4.7, '$$', 'PUBLIC', 0, 0, 0, NOW() - INTERVAL '5 hours'),
+  ('post-sample-1', 'user1', '鼎泰豐 信義店', '台北市信義區信義路二段194號', 25.0330, 121.5654, 'Xinyi', 'board-others-style', '其他 Others', '午晚餐 Lunch / Dinner', '小籠包超好吃！', '來台北一定要吃的小籠包，皮薄餡多汁，18摺的完美工藝讓人驚艷！服務也很棒，雖然要排隊但絕對值得。推薦必點：小籠包、炒飯、酸辣湯 #鼎泰豐 #小籠包 #台北美食 #米其林', 4.8, '$$', 'PUBLIC', 0, 0, 0, NOW() - INTERVAL '2 days'),
+  ('post-sample-2', 'user1', '一蘭拉麵 台北本店', '台北市信義區松壽路12號', 25.0360, 121.5680, 'Xinyi', 'board-others-style', '其他 Others', '拉麵 Ramen', '一個人吃拉麵的好地方', '湯頭濃郁，麵條Q彈，調味可以自己選擇濃淡，超推薦給喜歡一個人用餐的朋友！個人座位設計很有隱私感，可以專心品嚐美食。 #一蘭拉麵 #拉麵 #台北', 4.5, '$$', 'PUBLIC', 0, 0, 0, NOW() - INTERVAL '3 days'),
+  ('post-sample-3', 'user3', 'Starbucks Reserve 時代寓所', '台北市大安區敦化南路一段187號', 25.0420, 121.5490, 'Daan', 'board-cafe', '美式 American', '咖啡廳 Cafe', '超美的星巴克臻選門市', '環境超美，挑高設計搭配大片落地窗，咖啡也很好喝！這裡有很多臻選限定飲品，適合約會或遠端工作。二樓座位區更安靜，推薦！ #星巴克 #咖啡廳 #大安區 #約會景點', 4.3, '$$', 'PUBLIC', 0, 0, 0, NOW() - INTERVAL '1 day'),
+  ('saboten-tianmu', 'user1', '勝博殿 天母店', '台北市士林區中山北路六段77號', 25.1150, 121.5290, 'Tianmu', 'board-others-style', '其他 Others', '午晚餐 Lunch / Dinner', '炸豬排超酥脆！', '來天母一定要來吃勝博殿！炸豬排外酥內嫩，搭配他們的高麗菜絲和味噌湯，完美的一餐。價格雖然偏高但品質很穩定，約會聚餐都適合。 #勝博殿 #炸豬排 #天母', 4.6, '$$$', 'PUBLIC', 0, 0, 0, NOW() - INTERVAL '4 hours'),
+  ('post-korean-bbq', 'user4', '姜滿堂 烤肉', '台北市大安區忠孝東路四段216巷27弄3號', 25.0415, 121.5520, 'Daan', 'board-others-style', '其他 Others', '午晚餐 Lunch / Dinner', '超道地的烤肉！', '肉質新鮮，小菜無限續，服務態度也很好！特別推薦他們的牛五花和豬頸肉，配上生菜包著吃超滿足。記得要先訂位，不然要等很久！ #烤肉 #姜滿堂 #大安區', 4.7, '$$', 'PUBLIC', 0, 0, 0, NOW() - INTERVAL '5 hours'),
   ('post-vegan-cafe', 'user5', '小蔬杭 蔬食餐廳', '台北市中山區中山北路二段39巷3號', 25.0530, 121.5230, 'Zhongshan', 'board-vegetarian', 'vegetarian', 'chinese', '超好吃的素食餐廳！', '終於找到一家素食也能吃得很滿足的餐廳！這裡的素食料理創意十足，完全不會覺得在吃素。推薦他們的宮保素雞丁和麻婆豆腐，味道超正！ #素食 #蔬食 #中山區 #健康飲食', 4.8, '$$', 'PUBLIC', 0, 0, 0, NOW() - INTERVAL '6 hours')
 ON CONFLICT (id) DO UPDATE SET
   author_id = EXCLUDED.author_id,
