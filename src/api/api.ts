@@ -916,3 +916,75 @@ export async function cancelEnrollment(postId: string): Promise<EnrollmentInfo &
   }
 }
 
+// ================== Following Posts API ==================
+
+export async function fetchFollowingPosts() {
+  try {
+    const response = await fetch(`${API_URL}/posts/following`, {
+      headers: getHeaders(),
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      if (response.status === 401) return [];
+      throw new Error('Failed to fetch following posts');
+    }
+    return await safeJsonResponse(response);
+  } catch (error) {
+    console.error('Error fetching following posts:', error);
+    return [];
+  }
+}
+
+// ================== Check Following Status API ==================
+
+export async function checkFollowingStatus(userId: string): Promise<boolean> {
+  try {
+    const response = await fetch(`${API_URL}/users/${userId}/following-check`, {
+      headers: getHeaders(),
+      credentials: 'include',
+    });
+    if (!response.ok) return false;
+    const data = await response.json();
+    return data.isFollowing || false;
+  } catch (error) {
+    console.error('Error checking following status:', error);
+    return false;
+  }
+}
+
+// ================== Repost API ==================
+
+export async function repostPost(postId: string, postType: 'review' | 'meetup') {
+  try {
+    const response = await fetch(`${API_URL}/posts/${postId}/repost?type=${postType}`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to repost');
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error reposting:', error);
+    throw error;
+  }
+}
+
+export async function unrepostPost(postId: string, postType: 'review' | 'meetup') {
+  try {
+    const response = await fetch(`${API_URL}/posts/${postId}/repost?type=${postType}`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to unrepost');
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error unreposting:', error);
+    throw error;
+  }
+}
+

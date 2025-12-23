@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserProfile } from '../../types/profile';
+import { followUser, unfollowUser, checkFollowingStatus } from '../../api/api';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface ProfileHeaderProps {
   profile: UserProfile;
@@ -18,10 +20,51 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   isOwnProfile = false,
   onEditClick,
 }) => {
+  const { isAuthenticated } = useAuth();
   const displayName = profile.displayName || 'User';
   const username = profile.username || profile.handle || '';
-  const followerCount = profile.followersCount ?? profile.followerCount ?? 0;
+  const [followerCount, setFollowerCount] = useState(profile.followersCount ?? profile.followerCount ?? 0);
   const followingCount = profile.followingCount ?? 0;
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [isFollowLoading, setIsFollowLoading] = useState(false);
+
+  // Check if current user is following this profile
+  useEffect(() => {
+    const checkFollow = async () => {
+      if (!isOwnProfile && isAuthenticated && profile.id) {
+        const status = await checkFollowingStatus(profile.id);
+        setIsFollowing(status);
+      }
+    };
+    checkFollow();
+  }, [profile.id, isOwnProfile, isAuthenticated]);
+
+  // Update follower count when profile changes
+  useEffect(() => {
+    setFollowerCount(profile.followersCount ?? profile.followerCount ?? 0);
+  }, [profile]);
+
+  // Handle follow/unfollow
+  const handleFollowToggle = async () => {
+    if (!isAuthenticated || !profile.id) return;
+    
+    setIsFollowLoading(true);
+    try {
+      if (isFollowing) {
+        await unfollowUser(profile.id);
+        setIsFollowing(false);
+        setFollowerCount(prev => Math.max(0, prev - 1));
+      } else {
+        await followUser(profile.id);
+        setIsFollowing(true);
+        setFollowerCount(prev => prev + 1);
+      }
+    } catch (error) {
+      console.error('Error toggling follow:', error);
+    } finally {
+      setIsFollowLoading(false);
+    }
+  };
 
   return (
     <div className="bg-bg-card border-b border-border-color">
@@ -96,13 +139,25 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
             </div>
           </div>
 
-          {/* Edit Profile Button */}
-          {isOwnProfile && (
+          {/* Edit Profile or Follow Button */}
+          {isOwnProfile ? (
             <button
               onClick={onEditClick}
               className="px-4 py-2 rounded-full border border-border-color bg-bg-card text-text-primary font-semibold hover:bg-bg-hover transition-colors"
             >
               Edit profile
+            </button>
+          ) : isAuthenticated && (
+            <button
+              onClick={handleFollowToggle}
+              disabled={isFollowLoading}
+              className={`px-6 py-2 rounded-full font-semibold transition-colors ${
+                isFollowing
+                  ? 'border border-border-color bg-bg-card text-text-primary hover:bg-red-50 hover:text-red-600 hover:border-red-300'
+                  : 'bg-[#722F37] text-white hover:bg-[#5C252C]'
+              } ${isFollowLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              {isFollowLoading ? '...' : isFollowing ? 'Unfollow' : 'Follow'}
             </button>
           )}
         </div>

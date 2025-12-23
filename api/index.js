@@ -1233,6 +1233,434 @@ app.delete('/api/users/:id/follow', async (req, res) => {
   }
 });
 
+// GET /api/users/:id/following-check - Check if current user is following target user
+app.get('/api/users/:id/following-check', async (req, res) => {
+  try {
+    if (!db) return res.status(503).json({ error: 'Database not configured' });
+    
+    const currentUserId = getUserFromToken(req);
+    if (!currentUserId) {
+      return res.json({ isFollowing: false });
+    }
+    
+    const { id } = req.params;
+    const targetUserId = await resolveUserId(id);
+    if (!targetUserId) {
+      return res.json({ isFollowing: false });
+    }
+    
+    const result = await db.query(
+      'SELECT id FROM follows WHERE follower_id = $1 AND following_id = $2',
+      [currentUserId, targetUserId]
+    );
+    
+    res.json({ isFollowing: result.rows.length > 0 });
+  } catch (error) {
+    console.error('Error checking follow status:', error);
+    res.json({ isFollowing: false });
+  }
+});
+
+// GET /api/users/:id/likes - Get posts liked by user
+app.get('/api/users/:id/likes', async (req, res) => {
+  try {
+    if (!db) return res.status(503).json({ error: 'Database not configured' });
+    
+    const { id } = req.params;
+    const userId = await resolveUserId(id);
+    if (!userId) {
+      return res.json([]);
+    }
+    
+    // Get liked review posts
+    const reviewResult = await db.query(`
+      SELECT rp.*, u.display_name, u.handle, u.avatar_url, 'review' as type
+      FROM likes l
+      JOIN review_posts rp ON l.post_id = rp.id
+      LEFT JOIN users u ON rp.author_id = u.id
+      WHERE l.user_id = $1
+      ORDER BY l.created_at DESC
+    `, [userId]);
+    
+    // Get liked meetup posts
+    const meetupResult = await db.query(`
+      SELECT mp.*, u.display_name, u.handle, u.avatar_url, 'meetup' as type
+      FROM meetup_likes ml
+      JOIN meetup_posts mp ON ml.post_id = mp.id
+      LEFT JOIN users u ON mp.author_id = u.id
+      WHERE ml.user_id = $1
+      ORDER BY ml.created_at DESC
+    `, [userId]);
+    
+    // Process review posts
+    const reviewPosts = await Promise.all(reviewResult.rows.map(async (row) => {
+      const imagesResult = await db.query(
+        'SELECT image_url FROM post_images WHERE post_id = $1 ORDER BY image_order',
+        [row.id]
+      );
+      const images = imagesResult.rows.map(img => img.image_url).filter(url => url && !url.startsWith('blob:'));
+      
+      return {
+        id: row.id,
+        type: 'review',
+        authorId: row.author_id,
+        author: row.author_id ? {
+          id: row.author_id,
+          displayName: row.display_name,
+          handle: row.handle,
+          avatarUrl: row.avatar_url
+        } : undefined,
+        restaurantName: row.restaurant_name,
+        restaurantAddress: row.restaurant_address,
+        locationArea: row.location_area,
+        boardId: row.board_id,
+        title: row.title || '',
+        content: row.content || '',
+        rating: row.rating,
+        priceLevel: row.price_level,
+        images: images.length > 0 ? images : undefined,
+        likeCount: row.like_count || 0,
+        commentCount: row.comment_count || 0,
+        createdAt: row.created_at
+      };
+    }));
+    
+    // Process meetup posts
+    const meetupPosts = meetupResult.rows.map(row => ({
+      id: row.id,
+      type: 'meetup',
+      authorId: row.author_id,
+      author: row.author_id ? {
+        id: row.author_id,
+        displayName: row.display_name,
+        handle: row.handle,
+        avatarUrl: row.avatar_url
+      } : undefined,
+      restaurantName: row.restaurant_name,
+      locationText: row.location_text,
+      meetupTime: row.meetup_time,
+      maxHeadcount: row.max_headcount,
+      currentHeadcount: row.current_headcount,
+      budgetDescription: row.budget_description,
+      description: row.description,
+      likeCount: row.like_count || 0,
+      commentCount: row.comment_count || 0,
+      createdAt: row.created_at
+    }));
+    
+    const allPosts = [...reviewPosts, ...meetupPosts].sort(
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+    );
+    
+    res.json(allPosts);
+  } catch (error) {
+    console.error('Error fetching user likes:', error);
+    res.status(500).json({ error: 'Failed to fetch likes' });
+  }
+});
+
+// GET /api/users/:id/bookmarks - Get posts bookmarked/saved by user
+app.get('/api/users/:id/bookmarks', async (req, res) => {
+  try {
+    if (!db) return res.status(503).json({ error: 'Database not configured' });
+    
+    const { id } = req.params;
+    const userId = await resolveUserId(id);
+    if (!userId) {
+      return res.json([]);
+    }
+    
+    // Get saved review posts
+    const savedReviewResult = await db.query(`
+      SELECT sp.*, rp.*, u.display_name, u.handle, u.avatar_url, 'review' as type
+      FROM saved_posts sp
+      JOIN review_posts rp ON sp.post_id = rp.id
+      LEFT JOIN users u ON rp.author_id = u.id
+      WHERE sp.user_id = $1 AND sp.post_type = 'review'
+      ORDER BY sp.created_at DESC
+    `, [userId]);
+    
+    // Get saved meetup posts
+    const savedMeetupResult = await db.query(`
+      SELECT sp.*, mp.*, u.display_name, u.handle, u.avatar_url, 'meetup' as type
+      FROM saved_posts sp
+      JOIN meetup_posts mp ON sp.post_id = mp.id
+      LEFT JOIN users u ON mp.author_id = u.id
+      WHERE sp.user_id = $1 AND sp.post_type = 'meetup'
+      ORDER BY sp.created_at DESC
+    `, [userId]);
+    
+    // Process saved posts
+    const reviewPosts = await Promise.all(savedReviewResult.rows.map(async (row) => {
+      const imagesResult = await db.query(
+        'SELECT image_url FROM post_images WHERE post_id = $1 ORDER BY image_order',
+        [row.post_id]
+      );
+      const images = imagesResult.rows.map(img => img.image_url).filter(url => url && !url.startsWith('blob:'));
+      
+      return {
+        id: row.post_id,
+        type: 'review',
+        authorId: row.author_id,
+        author: row.author_id ? {
+          id: row.author_id,
+          displayName: row.display_name,
+          handle: row.handle,
+          avatarUrl: row.avatar_url
+        } : undefined,
+        restaurantName: row.restaurant_name,
+        restaurantAddress: row.restaurant_address,
+        locationArea: row.location_area,
+        boardId: row.board_id,
+        title: row.title || '',
+        content: row.content || '',
+        rating: row.rating,
+        priceLevel: row.price_level,
+        images: images.length > 0 ? images : undefined,
+        likeCount: row.like_count || 0,
+        commentCount: row.comment_count || 0,
+        createdAt: row.created_at
+      };
+    }));
+    
+    const meetupPosts = savedMeetupResult.rows.map(row => ({
+      id: row.post_id,
+      type: 'meetup',
+      authorId: row.author_id,
+      author: row.author_id ? {
+        id: row.author_id,
+        displayName: row.display_name,
+        handle: row.handle,
+        avatarUrl: row.avatar_url
+      } : undefined,
+      restaurantName: row.restaurant_name,
+      locationText: row.location_text,
+      meetupTime: row.meetup_time,
+      maxHeadcount: row.max_headcount,
+      currentHeadcount: row.current_headcount,
+      budgetDescription: row.budget_description,
+      description: row.description,
+      likeCount: row.like_count || 0,
+      commentCount: row.comment_count || 0,
+      createdAt: row.created_at
+    }));
+    
+    res.json([...reviewPosts, ...meetupPosts]);
+  } catch (error) {
+    console.error('Error fetching user bookmarks:', error);
+    res.status(500).json({ error: 'Failed to fetch bookmarks' });
+  }
+});
+
+// GET /api/users/:id/reposts - Get posts reposted by user
+app.get('/api/users/:id/reposts', async (req, res) => {
+  try {
+    if (!db) return res.status(503).json({ error: 'Database not configured' });
+    
+    const { id } = req.params;
+    const userId = await resolveUserId(id);
+    if (!userId) {
+      return res.json([]);
+    }
+    
+    // Get reposted review posts
+    const repostReviewResult = await db.query(`
+      SELECT rp.*, r.created_at as reposted_at, u.display_name, u.handle, u.avatar_url, 'review' as type
+      FROM reposts r
+      JOIN review_posts rp ON r.post_id = rp.id
+      LEFT JOIN users u ON rp.author_id = u.id
+      WHERE r.user_id = $1 AND r.post_type = 'review'
+      ORDER BY r.created_at DESC
+    `, [userId]);
+    
+    // Get reposted meetup posts
+    const repostMeetupResult = await db.query(`
+      SELECT mp.*, r.created_at as reposted_at, u.display_name, u.handle, u.avatar_url, 'meetup' as type
+      FROM reposts r
+      JOIN meetup_posts mp ON r.post_id = mp.id
+      LEFT JOIN users u ON mp.author_id = u.id
+      WHERE r.user_id = $1 AND r.post_type = 'meetup'
+      ORDER BY r.created_at DESC
+    `, [userId]);
+    
+    // Process posts
+    const reviewPosts = await Promise.all(repostReviewResult.rows.map(async (row) => {
+      const imagesResult = await db.query(
+        'SELECT image_url FROM post_images WHERE post_id = $1 ORDER BY image_order',
+        [row.id]
+      );
+      const images = imagesResult.rows.map(img => img.image_url).filter(url => url && !url.startsWith('blob:'));
+      
+      return {
+        id: row.id,
+        type: 'review',
+        authorId: row.author_id,
+        author: row.author_id ? {
+          id: row.author_id,
+          displayName: row.display_name,
+          handle: row.handle,
+          avatarUrl: row.avatar_url
+        } : undefined,
+        restaurantName: row.restaurant_name,
+        title: row.title || '',
+        content: row.content || '',
+        rating: row.rating,
+        priceLevel: row.price_level,
+        images: images.length > 0 ? images : undefined,
+        likeCount: row.like_count || 0,
+        commentCount: row.comment_count || 0,
+        createdAt: row.created_at,
+        repostedAt: row.reposted_at
+      };
+    }));
+    
+    const meetupPosts = repostMeetupResult.rows.map(row => ({
+      id: row.id,
+      type: 'meetup',
+      authorId: row.author_id,
+      author: row.author_id ? {
+        id: row.author_id,
+        displayName: row.display_name,
+        handle: row.handle,
+        avatarUrl: row.avatar_url
+      } : undefined,
+      restaurantName: row.restaurant_name,
+      locationText: row.location_text,
+      meetupTime: row.meetup_time,
+      description: row.description,
+      likeCount: row.like_count || 0,
+      commentCount: row.comment_count || 0,
+      createdAt: row.created_at,
+      repostedAt: row.reposted_at
+    }));
+    
+    res.json([...reviewPosts, ...meetupPosts]);
+  } catch (error) {
+    console.error('Error fetching user reposts:', error);
+    res.status(500).json({ error: 'Failed to fetch reposts' });
+  }
+});
+
+// POST /api/posts/:id/repost - Repost a post
+app.post('/api/posts/:id/repost', async (req, res) => {
+  try {
+    if (!db) return res.status(503).json({ error: 'Database not configured' });
+    
+    const userId = getUserFromToken(req);
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    const { id } = req.params;
+    const { type } = req.query;
+    const postType = type || 'review';
+    
+    // Check if already reposted
+    const existing = await db.query(
+      'SELECT id FROM reposts WHERE user_id = $1 AND post_id = $2 AND post_type = $3',
+      [userId, id, postType]
+    );
+    
+    if (existing.rows.length > 0) {
+      return res.json({ reposted: true, message: 'Already reposted' });
+    }
+    
+    const repostId = uuidv4();
+    await db.query(
+      'INSERT INTO reposts (id, user_id, post_id, post_type) VALUES ($1, $2, $3, $4)',
+      [repostId, userId, id, postType]
+    );
+    
+    // Update share count
+    if (postType === 'meetup') {
+      await db.query('UPDATE meetup_posts SET share_count = COALESCE(share_count, 0) + 1 WHERE id = $1', [id]);
+    } else {
+      await db.query('UPDATE review_posts SET share_count = COALESCE(share_count, 0) + 1 WHERE id = $1', [id]);
+    }
+    
+    res.json({ reposted: true });
+  } catch (error) {
+    console.error('Error reposting:', error);
+    res.status(500).json({ error: 'Failed to repost' });
+  }
+});
+
+// DELETE /api/posts/:id/repost - Un-repost a post
+app.delete('/api/posts/:id/repost', async (req, res) => {
+  try {
+    if (!db) return res.status(503).json({ error: 'Database not configured' });
+    
+    const userId = getUserFromToken(req);
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    const { id } = req.params;
+    const { type } = req.query;
+    const postType = type || 'review';
+    
+    await db.query(
+      'DELETE FROM reposts WHERE user_id = $1 AND post_id = $2 AND post_type = $3',
+      [userId, id, postType]
+    );
+    
+    res.json({ reposted: false });
+  } catch (error) {
+    console.error('Error un-reposting:', error);
+    res.status(500).json({ error: 'Failed to un-repost' });
+  }
+});
+
+// GET /api/users/:id/replies - Get replies (comments) by user
+app.get('/api/users/:id/replies', async (req, res) => {
+  try {
+    if (!db) return res.status(503).json({ error: 'Database not configured' });
+    
+    const { id } = req.params;
+    const userId = await resolveUserId(id);
+    if (!userId) {
+      return res.json([]);
+    }
+    
+    // Get user's comments with post info
+    const result = await db.query(`
+      SELECT c.*, u.display_name, u.handle, u.avatar_url,
+             rp.restaurant_name as review_restaurant_name, rp.title as review_title,
+             mp.restaurant_name as meetup_restaurant_name, mp.description as meetup_description
+      FROM comments c
+      LEFT JOIN users u ON c.author_id = u.id
+      LEFT JOIN review_posts rp ON c.post_id = rp.id AND c.post_type = 'review'
+      LEFT JOIN meetup_posts mp ON c.post_id = mp.id AND c.post_type = 'meetup'
+      WHERE c.author_id = $1
+      ORDER BY c.created_at DESC
+    `, [userId]);
+    
+    const replies = result.rows.map(row => ({
+      id: row.id,
+      postId: row.post_id,
+      postType: row.post_type,
+      content: row.content,
+      likeCount: row.like_count || 0,
+      createdAt: row.created_at,
+      author: {
+        id: row.author_id,
+        displayName: row.display_name,
+        handle: row.handle,
+        avatarUrl: row.avatar_url
+      },
+      post: {
+        restaurantName: row.review_restaurant_name || row.meetup_restaurant_name,
+        title: row.review_title || row.meetup_description
+      }
+    }));
+    
+    res.json(replies);
+  } catch (error) {
+    console.error('Error fetching user replies:', error);
+    res.status(500).json({ error: 'Failed to fetch replies' });
+  }
+});
+
 // ==================== COMMENTS ENDPOINTS ====================
 // POST /api/comments - Create a comment (frontend uses this path)
 app.post('/api/comments', async (req, res) => {
@@ -1609,7 +2037,8 @@ app.post('/api/posts/:postId/comments', async (req, res) => {
 });
 
 // ==================== SAVED RESTAURANTS ====================
-app.get('/api/restaurants/saved', async (req, res) => {
+// GET /api/favorites - Get saved restaurants (primary endpoint used by frontend)
+app.get('/api/favorites', async (req, res) => {
   try {
     if (!db) return res.status(503).json({ error: 'Database not configured' });
     
@@ -1625,6 +2054,7 @@ app.get('/api/restaurants/saved', async (req, res) => {
     
     const restaurants = result.rows.map(row => ({
       id: row.id,
+      restaurantId: row.restaurant_id || row.id,
       userId: row.user_id,
       name: row.name,
       address: row.address,
@@ -1645,8 +2075,8 @@ app.get('/api/restaurants/saved', async (req, res) => {
   }
 });
 
-// POST /api/restaurants/save - Save a restaurant
-app.post('/api/restaurants/save', async (req, res) => {
+// POST /api/favorites/:restaurantId - Save a restaurant
+app.post('/api/favorites/:restaurantId', async (req, res) => {
   try {
     if (!db) return res.status(503).json({ error: 'Database not configured' });
     
@@ -1655,22 +2085,35 @@ app.post('/api/restaurants/save', async (req, res) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
     
+    const { restaurantId } = req.params;
     const { name, address, lat, lng, styles, categories, rating, priceLevel, savedFromPostId } = req.body;
     
     if (!name || !address || lat === undefined || lng === undefined) {
       return res.status(400).json({ error: 'Name, address, lat, and lng are required' });
     }
     
-    const restaurantId = uuidv4();
+    // Check if already saved
+    const existing = await db.query(
+      'SELECT id FROM saved_restaurants WHERE user_id = $1 AND restaurant_id = $2',
+      [userId, restaurantId]
+    );
+    
+    if (existing.rows.length > 0) {
+      return res.json({ success: true, message: 'Already saved', id: existing.rows[0].id });
+    }
+    
+    const id = uuidv4();
     
     await db.query(
-      `INSERT INTO saved_restaurants (id, user_id, name, address, lat, lng, styles, categories, rating, price_level, saved_from_post_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-      [restaurantId, userId, name, address, lat, lng, styles || [], categories || [], rating || null, priceLevel || null, savedFromPostId || null]
+      `INSERT INTO saved_restaurants (id, user_id, restaurant_id, name, address, lat, lng, styles, categories, rating, price_level, saved_from_post_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+      [id, userId, restaurantId, name, address, lat, lng, styles || [], categories || [], rating || null, priceLevel || null, savedFromPostId || null]
     );
     
     res.status(201).json({
-      id: restaurantId,
+      success: true,
+      id,
+      restaurantId,
       userId,
       name,
       address,
@@ -1689,7 +2132,127 @@ app.post('/api/restaurants/save', async (req, res) => {
   }
 });
 
-// DELETE /api/restaurants/:id - Unsave a restaurant
+// DELETE /api/favorites/:restaurantId - Unsave a restaurant
+app.delete('/api/favorites/:restaurantId', async (req, res) => {
+  try {
+    if (!db) return res.status(503).json({ error: 'Database not configured' });
+    
+    const userId = getUserFromToken(req);
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    const { restaurantId } = req.params;
+    
+    // Try to delete by restaurant_id first, then by id
+    const result = await db.query(
+      'DELETE FROM saved_restaurants WHERE user_id = $1 AND (restaurant_id = $2 OR id = $2)',
+      [userId, restaurantId]
+    );
+    
+    res.json({ success: true, deleted: result.rowCount > 0 });
+  } catch (error) {
+    console.error('Error unsaving restaurant:', error);
+    res.status(500).json({ error: 'Failed to unsave restaurant' });
+  }
+});
+
+// Legacy endpoint aliases
+app.get('/api/restaurants/saved', async (req, res) => {
+  try {
+    if (!db) return res.status(503).json({ error: 'Database not configured' });
+    
+    const userId = getUserFromToken(req);
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    const result = await db.query(
+      'SELECT * FROM saved_restaurants WHERE user_id = $1 ORDER BY saved_at DESC',
+      [userId]
+    );
+    
+    const restaurants = result.rows.map(row => ({
+      id: row.id,
+      restaurantId: row.restaurant_id || row.id,
+      userId: row.user_id,
+      name: row.name,
+      address: row.address,
+      lat: row.lat,
+      lng: row.lng,
+      styles: row.styles || [],
+      categories: row.categories || [],
+      rating: row.rating,
+      priceLevel: row.price_level,
+      savedFromPostId: row.saved_from_post_id,
+      savedAt: row.saved_at
+    }));
+    
+    res.json(restaurants);
+  } catch (error) {
+    console.error('Error fetching saved restaurants:', error);
+    res.status(500).json({ error: 'Failed to fetch saved restaurants' });
+  }
+});
+
+// POST /api/restaurants/save - Save a restaurant (legacy)
+app.post('/api/restaurants/save', async (req, res) => {
+  try {
+    if (!db) return res.status(503).json({ error: 'Database not configured' });
+    
+    const userId = getUserFromToken(req);
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    const { restaurantId, name, address, lat, lng, styles, categories, rating, priceLevel, savedFromPostId } = req.body;
+    
+    if (!name || !address || lat === undefined || lng === undefined) {
+      return res.status(400).json({ error: 'Name, address, lat, and lng are required' });
+    }
+    
+    const rid = restaurantId || uuidv4();
+    const id = uuidv4();
+    
+    // Check if already saved
+    const existing = await db.query(
+      'SELECT id FROM saved_restaurants WHERE user_id = $1 AND restaurant_id = $2',
+      [userId, rid]
+    );
+    
+    if (existing.rows.length > 0) {
+      return res.json({ success: true, message: 'Already saved', id: existing.rows[0].id });
+    }
+    
+    await db.query(
+      `INSERT INTO saved_restaurants (id, user_id, restaurant_id, name, address, lat, lng, styles, categories, rating, price_level, saved_from_post_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+      [id, userId, rid, name, address, lat, lng, styles || [], categories || [], rating || null, priceLevel || null, savedFromPostId || null]
+    );
+    
+    res.status(201).json({
+      success: true,
+      id,
+      restaurantId: rid,
+      userId,
+      name,
+      address,
+      lat,
+      lng,
+      styles: styles || [],
+      categories: categories || [],
+      rating,
+      priceLevel,
+      savedFromPostId,
+      savedAt: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error saving restaurant:', error);
+    res.status(500).json({ error: 'Failed to save restaurant' });
+  }
+});
+
+// DELETE /api/restaurants/:id - Unsave a restaurant (legacy)
 app.delete('/api/restaurants/:id', async (req, res) => {
   try {
     if (!db) return res.status(503).json({ error: 'Database not configured' });
@@ -1702,7 +2265,7 @@ app.delete('/api/restaurants/:id', async (req, res) => {
     const { id } = req.params;
     
     await db.query(
-      'DELETE FROM saved_restaurants WHERE id = $1 AND user_id = $2',
+      'DELETE FROM saved_restaurants WHERE (id = $1 OR restaurant_id = $1) AND user_id = $2',
       [id, userId]
     );
     
@@ -2090,6 +2653,370 @@ app.put('/api/posts/meetup/:id', async (req, res) => {
   } catch (error) {
     console.error('Error updating meetup post:', error);
     res.status(500).json({ error: 'Failed to update post' });
+  }
+});
+
+// ==================== MEETUP ENROLLMENT ====================
+// GET /api/posts/:id/enrollment - Get enrollment info for a meetup post
+app.get('/api/posts/:id/enrollment', async (req, res) => {
+  try {
+    if (!db) return res.status(503).json({ error: 'Database not configured' });
+    
+    const { id } = req.params;
+    const currentUserId = getUserFromToken(req);
+    
+    // Get the meetup post
+    const postResult = await db.query(`
+      SELECT mp.*, u.display_name, u.handle, u.avatar_url
+      FROM meetup_posts mp
+      LEFT JOIN users u ON mp.author_id = u.id
+      WHERE mp.id = $1
+    `, [id]);
+    
+    if (postResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Meetup post not found' });
+    }
+    
+    const post = postResult.rows[0];
+    
+    // Get enrolled members
+    const enrollmentResult = await db.query(`
+      SELECT me.*, u.id as user_id, u.display_name, u.handle, u.avatar_url
+      FROM meetup_enrollments me
+      JOIN users u ON me.user_id = u.id
+      WHERE me.post_id = $1
+      ORDER BY me.created_at ASC
+    `, [id]);
+    
+    const enrolledMembers = enrollmentResult.rows.map(row => ({
+      id: row.user_id,
+      displayName: row.display_name,
+      handle: row.handle,
+      avatarUrl: row.avatar_url
+    }));
+    
+    // Check if current user is enrolled
+    const isEnrolled = currentUserId ? enrolledMembers.some(m => m.id === currentUserId) : false;
+    
+    // Calculate enrollment status
+    const enrolledCount = enrolledMembers.length + 1; // +1 for the host
+    const capacity = post.max_headcount;
+    const isFull = enrolledCount >= capacity;
+    const eventTime = post.meetup_time;
+    const eventStarted = new Date(eventTime) < new Date();
+    
+    // Can cancel if enrolled and event hasn't started
+    const canCancel = isEnrolled && !eventStarted;
+    
+    res.json({
+      postId: id,
+      capacity,
+      enrolledCount,
+      isEnrolled,
+      canCancel,
+      isFull,
+      eventStarted,
+      eventTime,
+      host: {
+        id: post.author_id,
+        displayName: post.display_name,
+        handle: post.handle,
+        avatarUrl: post.avatar_url
+      },
+      enrolledMembers
+    });
+  } catch (error) {
+    console.error('Error fetching enrollment info:', error);
+    res.status(500).json({ error: 'Failed to fetch enrollment info' });
+  }
+});
+
+// POST /api/posts/:id/enroll - Enroll in a meetup
+app.post('/api/posts/:id/enroll', async (req, res) => {
+  try {
+    if (!db) return res.status(503).json({ error: 'Database not configured' });
+    
+    const userId = getUserFromToken(req);
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    const { id } = req.params;
+    
+    // Get the meetup post
+    const postResult = await db.query('SELECT * FROM meetup_posts WHERE id = $1', [id]);
+    if (postResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Meetup post not found' });
+    }
+    
+    const post = postResult.rows[0];
+    
+    // Check if user is the host
+    if (post.author_id === userId) {
+      return res.status(400).json({ error: 'Host cannot enroll in their own meetup' });
+    }
+    
+    // Check if event has started
+    if (new Date(post.meetup_time) < new Date()) {
+      return res.status(400).json({ error: 'Event has already started' });
+    }
+    
+    // Check if already enrolled
+    const existing = await db.query(
+      'SELECT id FROM meetup_enrollments WHERE post_id = $1 AND user_id = $2',
+      [id, userId]
+    );
+    
+    if (existing.rows.length > 0) {
+      return res.json({ success: true, isEnrolled: true, message: 'Already enrolled' });
+    }
+    
+    // Check capacity
+    const countResult = await db.query(
+      'SELECT COUNT(*) FROM meetup_enrollments WHERE post_id = $1',
+      [id]
+    );
+    const currentCount = parseInt(countResult.rows[0].count) + 1; // +1 for host
+    
+    if (currentCount >= post.max_headcount) {
+      return res.status(400).json({ error: 'Meetup is full' });
+    }
+    
+    // Enroll user
+    const enrollmentId = uuidv4();
+    await db.query(
+      'INSERT INTO meetup_enrollments (id, post_id, user_id) VALUES ($1, $2, $3)',
+      [enrollmentId, id, userId]
+    );
+    
+    // Update current headcount
+    await db.query(
+      'UPDATE meetup_posts SET current_headcount = current_headcount + 1 WHERE id = $1',
+      [id]
+    );
+    
+    // Get updated enrollment info
+    const enrollmentResult = await db.query(`
+      SELECT u.id, u.display_name, u.handle, u.avatar_url
+      FROM meetup_enrollments me
+      JOIN users u ON me.user_id = u.id
+      WHERE me.post_id = $1
+    `, [id]);
+    
+    const enrolledMembers = enrollmentResult.rows.map(row => ({
+      id: row.id,
+      displayName: row.display_name,
+      handle: row.handle,
+      avatarUrl: row.avatar_url
+    }));
+    
+    res.json({
+      success: true,
+      isEnrolled: true,
+      enrolledCount: enrolledMembers.length + 1,
+      capacity: post.max_headcount,
+      isFull: enrolledMembers.length + 1 >= post.max_headcount,
+      enrolledMembers
+    });
+  } catch (error) {
+    console.error('Error enrolling in meetup:', error);
+    res.status(500).json({ error: 'Failed to enroll' });
+  }
+});
+
+// DELETE /api/posts/:id/enroll - Cancel enrollment
+app.delete('/api/posts/:id/enroll', async (req, res) => {
+  try {
+    if (!db) return res.status(503).json({ error: 'Database not configured' });
+    
+    const userId = getUserFromToken(req);
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    const { id } = req.params;
+    
+    // Get the meetup post
+    const postResult = await db.query('SELECT * FROM meetup_posts WHERE id = $1', [id]);
+    if (postResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Meetup post not found' });
+    }
+    
+    const post = postResult.rows[0];
+    
+    // Check if event has started
+    if (new Date(post.meetup_time) < new Date()) {
+      return res.status(400).json({ error: 'Cannot cancel after event has started' });
+    }
+    
+    // Delete enrollment
+    const deleteResult = await db.query(
+      'DELETE FROM meetup_enrollments WHERE post_id = $1 AND user_id = $2',
+      [id, userId]
+    );
+    
+    if (deleteResult.rowCount > 0) {
+      // Update current headcount
+      await db.query(
+        'UPDATE meetup_posts SET current_headcount = GREATEST(current_headcount - 1, 1) WHERE id = $1',
+        [id]
+      );
+    }
+    
+    // Get updated enrollment info
+    const enrollmentResult = await db.query(`
+      SELECT u.id, u.display_name, u.handle, u.avatar_url
+      FROM meetup_enrollments me
+      JOIN users u ON me.user_id = u.id
+      WHERE me.post_id = $1
+    `, [id]);
+    
+    const enrolledMembers = enrollmentResult.rows.map(row => ({
+      id: row.id,
+      displayName: row.display_name,
+      handle: row.handle,
+      avatarUrl: row.avatar_url
+    }));
+    
+    res.json({
+      success: true,
+      isEnrolled: false,
+      enrolledCount: enrolledMembers.length + 1,
+      capacity: post.max_headcount,
+      isFull: false,
+      enrolledMembers
+    });
+  } catch (error) {
+    console.error('Error canceling enrollment:', error);
+    res.status(500).json({ error: 'Failed to cancel enrollment' });
+  }
+});
+
+// ==================== FOLLOWING POSTS ====================
+// GET /api/posts/following - Get posts from followed users
+app.get('/api/posts/following', async (req, res) => {
+  try {
+    if (!db) return res.status(503).json({ error: 'Database not configured' });
+    
+    const userId = getUserFromToken(req);
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    // Get users that current user follows
+    const followingResult = await db.query(
+      'SELECT following_id FROM follows WHERE follower_id = $1',
+      [userId]
+    );
+    
+    if (followingResult.rows.length === 0) {
+      return res.json([]);
+    }
+    
+    const followingIds = followingResult.rows.map(row => row.following_id);
+    
+    // Get review posts from followed users
+    const reviewResult = await db.query(`
+      SELECT rp.*, u.display_name, u.handle, u.avatar_url, 'review' as type
+      FROM review_posts rp
+      LEFT JOIN users u ON rp.author_id = u.id
+      WHERE rp.author_id = ANY($1)
+      ORDER BY rp.created_at DESC
+      LIMIT 50
+    `, [followingIds]);
+    
+    // Get meetup posts from followed users
+    const meetupResult = await db.query(`
+      SELECT mp.*, u.display_name, u.handle, u.avatar_url, 'meetup' as type
+      FROM meetup_posts mp
+      LEFT JOIN users u ON mp.author_id = u.id
+      WHERE mp.author_id = ANY($1)
+      ORDER BY mp.created_at DESC
+      LIMIT 50
+    `, [followingIds]);
+    
+    // Process review posts
+    const reviewPosts = await Promise.all(reviewResult.rows.map(async (row) => {
+      const imagesResult = await db.query(
+        'SELECT image_url FROM post_images WHERE post_id = $1 ORDER BY image_order',
+        [row.id]
+      );
+      const images = imagesResult.rows.map(img => img.image_url).filter(url => url && !url.startsWith('blob:'));
+      
+      return {
+        id: row.id,
+        type: 'review',
+        authorId: row.author_id,
+        author: row.author_id ? {
+          id: row.author_id,
+          displayName: row.display_name,
+          handle: row.handle,
+          avatarUrl: row.avatar_url
+        } : undefined,
+        restaurantName: row.restaurant_name,
+        restaurantAddress: row.restaurant_address,
+        restaurantLat: row.restaurant_lat,
+        restaurantLng: row.restaurant_lng,
+        locationArea: row.location_area,
+        boardId: row.board_id,
+        styleType: row.style_type,
+        foodType: row.food_type,
+        title: row.title || '',
+        content: row.content || '',
+        rating: row.rating,
+        priceLevel: row.price_level,
+        images: images.length > 0 ? images : undefined,
+        visibility: row.visibility,
+        likeCount: row.like_count || 0,
+        commentCount: row.comment_count || 0,
+        shareCount: row.share_count || 0,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at
+      };
+    }));
+    
+    // Process meetup posts
+    const meetupPosts = meetupResult.rows.map(row => ({
+      id: row.id,
+      type: 'meetup',
+      authorId: row.author_id,
+      author: row.author_id ? {
+        id: row.author_id,
+        displayName: row.display_name,
+        handle: row.handle,
+        avatarUrl: row.avatar_url
+      } : undefined,
+      restaurantName: row.restaurant_name,
+      locationText: row.location_text,
+      address: row.address,
+      meetupTime: row.meetup_time,
+      foodTags: row.food_tags || [],
+      maxHeadcount: row.max_headcount,
+      currentHeadcount: row.current_headcount,
+      budgetDescription: row.budget_description,
+      hasReservation: row.has_reservation,
+      description: row.description,
+      visibility: row.visibility,
+      imageUrl: row.image_url,
+      status: row.status,
+      boardId: row.board_id,
+      locationArea: row.location_area,
+      likeCount: row.like_count || 0,
+      commentCount: row.comment_count || 0,
+      shareCount: row.share_count || 0,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    }));
+    
+    // Combine and sort by created_at
+    const allPosts = [...reviewPosts, ...meetupPosts].sort(
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+    );
+    
+    res.json(allPosts);
+  } catch (error) {
+    console.error('Error fetching following posts:', error);
+    res.status(500).json({ error: 'Failed to fetch posts' });
   }
 });
 

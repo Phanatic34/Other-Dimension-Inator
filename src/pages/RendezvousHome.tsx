@@ -4,6 +4,7 @@ import { Board, Post, ReviewPost, MeetupPost, User } from '../types/models';
 import { 
   fetchBoards as fetchBoardsAPI, 
   fetchAllPosts, 
+  fetchFollowingPosts,
   fetchRecommendedUsers as fetchRecommendedUsersAPI,
   createReviewPost as createReviewPostAPI,
   createMeetupPost as createMeetupPostAPI,
@@ -50,6 +51,7 @@ const RendezvousHomeContent: React.FC = () => {
   // State
   const [boards, setBoards] = useState<Board[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
+  const [followingPosts, setFollowingPosts] = useState<Post[]>([]);
   const [activeTab, setActiveTab] = useState<'reviews' | 'meetups' | 'food-selector'>('reviews');
   const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null);
   const [feedFilter, setFeedFilter] = useState<'all' | 'following'>('all');
@@ -162,6 +164,23 @@ const RendezvousHomeContent: React.FC = () => {
 
     loadData();
   }, []);
+
+  // Fetch following posts when feedFilter changes to 'following'
+  useEffect(() => {
+    const loadFollowingPosts = async () => {
+      if (feedFilter === 'following' && isAuthenticated) {
+        try {
+          const followingPostsData = await fetchFollowingPosts();
+          setFollowingPosts(followingPostsData);
+        } catch (error) {
+          console.error('Error loading following posts:', error);
+          setFollowingPosts([]);
+        }
+      }
+    };
+
+    loadFollowingPosts();
+  }, [feedFilter, isAuthenticated]);
 
   // Handle location selection from post cards (legacy handler for onLocationClick prop)
   const handleLocationSelect = (location: { name: string; address?: string; lat: number; lng: number }) => {
@@ -296,7 +315,8 @@ const RendezvousHomeContent: React.FC = () => {
 
   // Filter posts based on active tab, board, feed filter, and ALL active filters
   const filteredPosts = useMemo(() => {
-    let filtered = [...posts];
+    // Use following posts when filter is 'following', otherwise use all posts
+    let filtered = feedFilter === 'following' ? [...followingPosts] : [...posts];
 
     // Filter out archived posts (archived posts should not appear in home feed)
     filtered = filtered.filter(post => !(post.isArchived === true));
@@ -323,11 +343,6 @@ const RendezvousHomeContent: React.FC = () => {
       });
     }
 
-    // Filter by following
-    if (feedFilter === 'following') {
-      filtered = filtered.filter(post => post.isFromFollowedUser === true);
-    }
-
     // Apply comprehensive filters
     if (activeTab === 'reviews') {
       filtered = filtered.filter((post) => passesFilters(post as ReviewPost, filters));
@@ -338,9 +353,9 @@ const RendezvousHomeContent: React.FC = () => {
       }
     }
 
-    console.log(`[FilteredPosts] Query="${filters.searchQuery}", Total=${posts.length}, After filter=${filtered.length}`);
+    console.log(`[FilteredPosts] Query="${filters.searchQuery}", Total=${feedFilter === 'following' ? followingPosts.length : posts.length}, After filter=${filtered.length}`);
     return filtered;
-  }, [posts, activeTab, selectedBoardId, feedFilter, filters, passesFilters, matchesMeetupText]);
+  }, [posts, followingPosts, activeTab, selectedBoardId, feedFilter, filters, passesFilters, matchesMeetupText]);
 
   const handlePostClick = (post: Post) => {
     console.log('Post clicked:', post.id);
