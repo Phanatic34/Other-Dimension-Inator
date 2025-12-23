@@ -246,11 +246,11 @@ INSERT INTO users (id, display_name, handle, username, email, password_hash, ava
   ('user-test-1', 'Test User', 'testuser', 'testuser', 'test@example.com', '$2a$10$rBV2JM5VnJgY6s6kG5lXz.q5Z5F5Z5F5Z5F5Z5F5Z5F5Z5F5Z5F5Z', 'https://api.dicebear.com/7.x/avataaars/svg?seed=testuser', 'This is a test user account')
 ON CONFLICT (id) DO NOTHING;
 
--- Insert sample review posts
-INSERT INTO review_posts (id, author_id, restaurant_name, restaurant_address, restaurant_lat, restaurant_lng, location_area, board_id, style_type, food_type, title, content, rating, price_level, visibility, like_count, comment_count) VALUES
-  ('post-sample-1', 'user-test-1', '鼎泰豐', '台北市信義區信義路二段194號', 25.0330, 121.5654, 'Xinyi', 'board-taiwanese', 'taiwanese', 'dumplings', '小籠包超好吃！', '來台北一定要吃的小籠包，皮薄餡多汁，太好吃了！ #鼎泰豐 #小籠包 #台北美食', 4.8, '$$', 'PUBLIC', 42, 8),
-  ('post-sample-2', 'user-test-1', '一蘭拉麵', '台北市信義區松壽路12號', 25.0360, 121.5680, 'Xinyi', 'board-japanese', 'japanese', 'ramen', '一個人吃拉麵的好地方', '湯頭濃郁，麵條Q彈，調味可以自己選，超推薦！ #一蘭拉麵 #日式拉麵 #台北', 4.5, '$$', 'PUBLIC', 28, 5),
-  ('post-sample-3', 'user-test-1', 'Starbucks Reserve', '台北市大安區敦化南路一段187號', 25.0420, 121.5490, 'Da''an', 'board-cafe', 'western', 'coffee', '超美的星巴克臻選', '環境超美，咖啡也很好喝，適合約會或工作 #星巴克 #咖啡廳 #大安區', 4.3, '$$', 'PUBLIC', 35, 3)
+-- Insert sample review posts (with realistic counts starting at 0)
+INSERT INTO review_posts (id, author_id, restaurant_name, restaurant_address, restaurant_lat, restaurant_lng, location_area, board_id, style_type, food_type, title, content, rating, price_level, visibility, like_count, comment_count, share_count) VALUES
+  ('post-sample-1', 'user-test-1', '鼎泰豐', '台北市信義區信義路二段194號', 25.0330, 121.5654, 'Xinyi', 'board-taiwanese', 'taiwanese', 'dumplings', '小籠包超好吃！', '來台北一定要吃的小籠包，皮薄餡多汁，太好吃了！ #鼎泰豐 #小籠包 #台北美食', 4.8, '$$', 'PUBLIC', 0, 0, 0),
+  ('post-sample-2', 'user-test-1', '一蘭拉麵', '台北市信義區松壽路12號', 25.0360, 121.5680, 'Xinyi', 'board-japanese', 'japanese', 'ramen', '一個人吃拉麵的好地方', '湯頭濃郁，麵條Q彈，調味可以自己選，超推薦！ #一蘭拉麵 #日式拉麵 #台北', 4.5, '$$', 'PUBLIC', 0, 0, 0),
+  ('post-sample-3', 'user-test-1', 'Starbucks Reserve', '台北市大安區敦化南路一段187號', 25.0420, 121.5490, 'Da''an', 'board-cafe', 'western', 'coffee', '超美的星巴克臻選', '環境超美，咖啡也很好喝，適合約會或工作 #星巴克 #咖啡廳 #大安區', 4.3, '$$', 'PUBLIC', 0, 0, 0)
 ON CONFLICT (id) DO NOTHING;
 
 -- Insert sample post images
@@ -259,6 +259,31 @@ INSERT INTO post_images (id, post_id, image_url, image_order) VALUES
   ('img-2', 'post-sample-2', 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=800', 0),
   ('img-3', 'post-sample-3', 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=800', 0)
 ON CONFLICT (id) DO NOTHING;
+
+-- =====================================================
+-- RESET ALL COUNTS TO REAL VALUES
+-- This ensures like_count and comment_count match actual data
+-- =====================================================
+
+-- Reset review posts like counts to actual values
+UPDATE review_posts SET like_count = (
+  SELECT COUNT(*) FROM likes WHERE likes.post_id = review_posts.id
+);
+
+-- Reset review posts comment counts to actual values
+UPDATE review_posts SET comment_count = (
+  SELECT COUNT(*) FROM comments WHERE comments.post_id = review_posts.id AND comments.post_type = 'review'
+);
+
+-- Reset meetup posts like counts to actual values
+UPDATE meetup_posts SET like_count = (
+  SELECT COUNT(*) FROM meetup_likes WHERE meetup_likes.post_id = meetup_posts.id
+);
+
+-- Reset meetup posts comment counts to actual values
+UPDATE meetup_posts SET comment_count = (
+  SELECT COUNT(*) FROM comments WHERE comments.post_id = meetup_posts.id AND comments.post_type = 'meetup'
+);
 
 -- =====================================================
 -- DONE! Your database is now set up.

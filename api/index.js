@@ -377,6 +377,35 @@ app.post('/api/posts/:id/like', async (req, res) => {
   }
 });
 
+// DELETE /api/posts/:id/like - Unlike a post
+app.delete('/api/posts/:id/like', async (req, res) => {
+  try {
+    if (!db) return res.status(503).json({ error: 'Database not configured' });
+    
+    const userId = getUserFromToken(req);
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    const { id } = req.params;
+    const { type } = req.query;
+    const postType = type || 'review';
+    
+    if (postType === 'meetup') {
+      await db.query('DELETE FROM meetup_likes WHERE post_id = $1 AND user_id = $2', [id, userId]);
+      await db.query('UPDATE meetup_posts SET like_count = GREATEST(like_count - 1, 0) WHERE id = $1', [id]);
+    } else {
+      await db.query('DELETE FROM likes WHERE post_id = $1 AND user_id = $2', [id, userId]);
+      await db.query('UPDATE review_posts SET like_count = GREATEST(like_count - 1, 0) WHERE id = $1', [id]);
+    }
+    
+    res.json({ liked: false });
+  } catch (error) {
+    console.error('Error unliking post:', error);
+    res.status(500).json({ error: 'Failed to unlike post' });
+  }
+});
+
 // ==================== USERS ENDPOINTS ====================
 // GET /api/users/recommended
 app.get('/api/users/recommended', async (req, res) => {
@@ -403,6 +432,47 @@ app.get('/api/users/recommended', async (req, res) => {
   } catch (error) {
     console.error('Error fetching recommended users:', error);
     res.status(500).json({ error: 'Failed to fetch recommended users' });
+  }
+});
+
+// GET /api/users/handle/:handle - Get user by handle
+app.get('/api/users/handle/:handle', async (req, res) => {
+  try {
+    if (!db) return res.status(503).json({ error: 'Database not configured' });
+    
+    const { handle } = req.params;
+    const result = await db.query(
+      'SELECT id, display_name, handle, avatar_url, bio, cover_image_url, favorite_styles, favorite_categories, joined_date, created_at FROM users WHERE handle = $1',
+      [handle]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const user = result.rows[0];
+    
+    // Get follower count
+    const followerResult = await db.query('SELECT COUNT(*) FROM follows WHERE following_id = $1', [user.id]);
+    const followingResult = await db.query('SELECT COUNT(*) FROM follows WHERE follower_id = $1', [user.id]);
+    
+    res.json({
+      id: user.id,
+      displayName: user.display_name,
+      handle: user.handle,
+      username: user.handle,
+      avatarUrl: user.avatar_url,
+      coverImageUrl: user.cover_image_url,
+      bio: user.bio,
+      followerCount: parseInt(followerResult.rows[0].count),
+      followingCount: parseInt(followingResult.rows[0].count),
+      favoriteStyles: user.favorite_styles || [],
+      favoriteCategories: user.favorite_categories || [],
+      joinedDate: user.joined_date || user.created_at
+    });
+  } catch (error) {
+    console.error('Error fetching user by handle:', error);
+    res.status(500).json({ error: 'Failed to fetch user' });
   }
 });
 
@@ -502,7 +572,110 @@ app.delete('/api/users/:id/follow', async (req, res) => {
 });
 
 // ==================== COMMENTS ENDPOINTS ====================
-// GET /api/posts/:postId/comments
+// GET /api/comments/:postId - Fetch comments for a post (frontend uses this path)
+app.get('/api/comments/:postId', async (req, res) => {
+  try {
+    if (!db) return res.status(503).json({ error: 'Database not configured' });
+    
+    const { postId } = req.params;
+    const { postType } = req.query;
+    
+    const result = await db.query(`
+      SELECT c.*, u.display_name, u.handle, u.avatar_url
+      FROM comments c
+      LEFT JOIN users u ON c.author_id = u.id
+      WHERE c.post_id = $1
+      ORDER BY c.created_at ASC
+    `, [postId]);
+    
+    const comments = result.rows.map(row => ({
+      id: row.id,
+      postId: row.post_id,
+      authorId: row.author_id,
+      author: {
+        id: row.author_id,
+        displayName: row.display_name,
+        handle: row.handle,
+        avatarUrl: row.avatar_url
+      },
+      parentId: row.parent_id,
+      content: row.content,
+      likeCount: row.like_count || 0,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    }));
+    
+    res.json(comments);
+  } catch (error) {
+    console.error('Error fetching comments:', error);
+    res.status(500).json({ error: 'Failed to fetch comments' });
+  }
+});
+
+// POST /api/comments/:postId - Create a comment (frontend uses this path)
+app.post('/api/comments/:postId', async (req, res) => {
+  try {
+    if (!db) return res.status(503).json({ error: 'Database not configured' });
+    
+    const userId = getUserFromToken(req);
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    const { postId } = req.params;
+    const { content, parentId, postType } = req.body;
+    
+    if (!content) {
+      return res.status(400).json({ error: 'Content is required' });
+    }
+    
+    const commentId = uuidv4();
+    
+    await db.query(
+      `INSERT INTO comments (id, post_id, post_type, author_id, parent_id, content)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [commentId, postId, postType || 'review', userId, parentId || null, content]
+    );
+    
+    // Update comment count
+    if (postType === 'meetup') {
+      await db.query('UPDATE meetup_posts SET comment_count = comment_count + 1 WHERE id = $1', [postId]);
+    } else {
+      await db.query('UPDATE review_posts SET comment_count = comment_count + 1 WHERE id = $1', [postId]);
+    }
+    
+    // Get the created comment with author info
+    const result = await db.query(`
+      SELECT c.*, u.display_name, u.handle, u.avatar_url
+      FROM comments c
+      LEFT JOIN users u ON c.author_id = u.id
+      WHERE c.id = $1
+    `, [commentId]);
+    
+    const row = result.rows[0];
+    res.status(201).json({
+      id: row.id,
+      postId: row.post_id,
+      authorId: row.author_id,
+      author: {
+        id: row.author_id,
+        displayName: row.display_name,
+        handle: row.handle,
+        avatarUrl: row.avatar_url
+      },
+      parentId: row.parent_id,
+      content: row.content,
+      likeCount: 0,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    });
+  } catch (error) {
+    console.error('Error creating comment:', error);
+    res.status(500).json({ error: 'Failed to create comment' });
+  }
+});
+
+// GET /api/posts/:postId/comments (alternative path)
 app.get('/api/posts/:postId/comments', async (req, res) => {
   try {
     if (!db) return res.status(503).json({ error: 'Database not configured' });
