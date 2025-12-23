@@ -4,6 +4,11 @@
   "outputDirectory": "build",
   "installCommand": "npm install && cd backend && npm install",
   "framework": "create-react-app",
+  "functions": {
+    "api/[...slug].ts": {
+      "includeFiles": "backend/**"
+    }
+  },
   "rewrites": [
     {
       "source": "/((?!api).*)",
@@ -11,6 +16,7 @@
     }
   ],
   "env": {
-    "NODE_ENV": "production"
+    "NODE_ENV": "production",
+    "VERCEL": "1"
   }
 }
