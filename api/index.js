@@ -6,6 +6,22 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
+const cloudinary = require('cloudinary').v2;
+
+// Configure Cloudinary from CLOUDINARY_URL
+if (process.env.CLOUDINARY_URL) {
+  // CLOUDINARY_URL format: cloudinary://API_KEY:API_SECRET@CLOUD_NAME
+  const cloudinaryUrl = process.env.CLOUDINARY_URL;
+  const matches = cloudinaryUrl.match(/cloudinary:\/\/(\d+):([^@]+)@(.+)/);
+  if (matches) {
+    cloudinary.config({
+      cloud_name: matches[3],
+      api_key: matches[1],
+      api_secret: matches[2]
+    });
+    console.log('Cloudinary configured with cloud:', matches[3]);
+  }
+}
 
 const app = express();
 
@@ -17,8 +33,9 @@ app.use(cors({
   origin: true,
   credentials: true
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Increase body size limit for image uploads (base64 images can be large)
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Database connection
 let db;
@@ -468,9 +485,8 @@ app.delete('/api/posts/meetup/:id', async (req, res) => {
 });
 
 // ==================== IMAGE UPLOAD ====================
-// POST /api/upload/images - Upload images
-// Note: For production, you should use Cloudinary or similar service
-// This endpoint returns a placeholder that accepts the image data
+// POST /api/upload/images - Upload images to Cloudinary
+// Accepts: { images: [base64_string, ...] } or { image: base64_string }
 app.post('/api/upload/images', async (req, res) => {
   try {
     const userId = getUserFromToken(req);
@@ -478,29 +494,105 @@ app.post('/api/upload/images', async (req, res) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
     
-    // In a real implementation, you would:
-    // 1. Accept multipart form data with the image
-    // 2. Upload to Cloudinary/S3/etc.
-    // 3. Return the URL
-    
-    // For now, we'll check if CLOUDINARY_URL is configured
-    const cloudinaryUrl = process.env.CLOUDINARY_URL;
-    
-    if (cloudinaryUrl) {
-      // If Cloudinary is configured, we can use it
-      // But we need the cloudinary package which may not be installed
-      // For now, return an error suggesting to use direct URL
+    // Check if Cloudinary is configured
+    if (!process.env.CLOUDINARY_URL) {
       return res.status(501).json({ 
-        error: 'Direct image upload not implemented. Please use external image URLs.',
-        suggestion: 'You can upload images to imgur.com or similar and paste the URL'
+        error: 'Cloudinary not configured',
+        suggestion: 'Please set CLOUDINARY_URL environment variable'
       });
     }
     
-    // Without cloud storage, we can't store images on Vercel (serverless)
-    return res.status(501).json({ 
-      error: 'Image upload requires cloud storage configuration',
-      suggestion: 'Please use external image URLs (e.g., upload to imgur.com first)'
+    const { images, image } = req.body;
+    
+    // Handle single image or array of images
+    const imagesToUpload = images || (image ? [image] : []);
+    
+    if (imagesToUpload.length === 0) {
+      return res.status(400).json({ error: 'No images provided' });
+    }
+    
+    const uploadedUrls = [];
+    
+    for (const img of imagesToUpload) {
+      try {
+        // Check if it's a base64 string or already a URL
+        if (img.startsWith('http://') || img.startsWith('https://')) {
+          // Already a URL, just add it
+          uploadedUrls.push(img);
+        } else if (img.startsWith('data:image') || img.startsWith('/9j/') || img.startsWith('iVBOR')) {
+          // Base64 image - upload to Cloudinary
+          const base64Data = img.startsWith('data:') ? img : `data:image/jpeg;base64,${img}`;
+          
+          const result = await cloudinary.uploader.upload(base64Data, {
+            folder: 'rendezvous',
+            resource_type: 'image',
+            transformation: [
+              { width: 1200, height: 1200, crop: 'limit' },
+              { quality: 'auto', fetch_format: 'auto' }
+            ]
+          });
+          
+          uploadedUrls.push(result.secure_url);
+        } else {
+          console.log('Skipping invalid image format');
+        }
+      } catch (uploadError) {
+        console.error('Error uploading single image:', uploadError);
+        // Continue with other images
+      }
+    }
+    
+    if (uploadedUrls.length === 0) {
+      return res.status(400).json({ error: 'Failed to upload any images' });
+    }
+    
+    res.json({ 
+      success: true, 
+      urls: uploadedUrls,
+      url: uploadedUrls[0] // For single image uploads
     });
+  } catch (error) {
+    console.error('Error uploading images:', error);
+    res.status(500).json({ error: 'Failed to upload images' });
+  }
+});
+
+// POST /api/upload/image - Single image upload (alternative endpoint)
+app.post('/api/upload/image', async (req, res) => {
+  try {
+    const userId = getUserFromToken(req);
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    if (!process.env.CLOUDINARY_URL) {
+      return res.status(501).json({ error: 'Cloudinary not configured' });
+    }
+    
+    const { image } = req.body;
+    
+    if (!image) {
+      return res.status(400).json({ error: 'No image provided' });
+    }
+    
+    // Check if it's already a URL
+    if (image.startsWith('http://') || image.startsWith('https://')) {
+      return res.json({ success: true, url: image });
+    }
+    
+    // Upload to Cloudinary
+    const base64Data = image.startsWith('data:') ? image : `data:image/jpeg;base64,${image}`;
+    
+    const result = await cloudinary.uploader.upload(base64Data, {
+      folder: 'rendezvous',
+      resource_type: 'image',
+      transformation: [
+        { width: 1200, height: 1200, crop: 'limit' },
+        { quality: 'auto', fetch_format: 'auto' }
+      ]
+    });
+    
+    res.json({ success: true, url: result.secure_url });
   } catch (error) {
     console.error('Error uploading image:', error);
     res.status(500).json({ error: 'Failed to upload image' });
