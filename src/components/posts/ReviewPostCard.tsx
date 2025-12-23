@@ -149,6 +149,7 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick, o
 
   // Helper function to parse and style hashtags - clickable to search
   const renderContentWithHashtags = (text: string) => {
+    if (!text) return null;
     const parts = text.split(/(#[\w\u4e00-\u9fa5]+)/g);
     return parts.map((part, index) => {
       if (part.startsWith('#')) {
