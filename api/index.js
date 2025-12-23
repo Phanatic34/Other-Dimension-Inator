@@ -1811,33 +1811,59 @@ app.get('/api/comments/:postId', async (req, res) => {
     
     const { postId } = req.params;
     const { postType } = req.query;
+    const currentUserId = getUserFromToken(req);
     
+    // Fetch all comments for the post with author info and like status
     const result = await db.query(`
-      SELECT c.*, u.display_name, u.handle, u.avatar_url
+      SELECT c.*, u.display_name, u.handle, u.avatar_url,
+             EXISTS(SELECT 1 FROM comment_likes WHERE comment_id = c.id AND user_id = $2) as is_liked_by_user
       FROM comments c
       LEFT JOIN users u ON c.author_id = u.id
       WHERE c.post_id = $1
       ORDER BY c.created_at ASC
-    `, [postId]);
+    `, [postId, currentUserId]);
     
-    const comments = result.rows.map(row => ({
-      id: row.id,
-      postId: row.post_id,
-      authorId: row.author_id,
-      author: {
-        id: row.author_id,
-        displayName: row.display_name,
-        handle: row.handle,
-        avatarUrl: row.avatar_url
-      },
-      parentId: row.parent_id,
-      content: row.content,
-      likeCount: row.like_count || 0,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at
-    }));
+    // Build nested comment tree
+    const commentsMap = new Map();
+    const topLevelComments = [];
     
-    res.json(comments);
+    // First pass: create all comment objects
+    result.rows.forEach(row => {
+      const comment = {
+        id: row.id,
+        postId: row.post_id,
+        postType: row.post_type,
+        authorId: row.author_id,
+        author: {
+          id: row.author_id,
+          displayName: row.display_name || 'Unknown',
+          handle: row.handle || 'unknown',
+          avatarUrl: row.avatar_url
+        },
+        parentId: row.parent_id,
+        content: row.content,
+        likeCount: row.like_count || 0,
+        isLikedByUser: row.is_liked_by_user || false,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        replies: []
+      };
+      commentsMap.set(row.id, comment);
+    });
+    
+    // Second pass: build the tree structure
+    commentsMap.forEach(comment => {
+      if (comment.parentId && commentsMap.has(comment.parentId)) {
+        // This is a reply, add to parent's replies array
+        const parent = commentsMap.get(comment.parentId);
+        parent.replies.push(comment);
+      } else {
+        // This is a top-level comment
+        topLevelComments.push(comment);
+      }
+    });
+    
+    res.json(topLevelComments);
   } catch (error) {
     console.error('Error fetching comments:', error);
     res.status(500).json({ error: 'Failed to fetch comments' });
