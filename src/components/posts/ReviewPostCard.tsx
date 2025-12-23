@@ -305,7 +305,7 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick, o
                     <>
                       <MenuActionItem
                         icon={<Edit3 className="w-4 h-4" />}
-                        label="Edit this post"
+                        label="編輯貼文"
                         onClick={() => {
                           setMenuOpen(false);
                           if (onEdit) onEdit(post);
@@ -313,7 +313,7 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick, o
                       />
                       <MenuActionItem
                         icon={<Archive className="w-4 h-4" />}
-                        label={post.isArchived ? 'Cancel archived' : 'Archive this post'}
+                        label={post.isArchived ? '取消封存' : '封存貼文'}
                         onClick={() => {
                           setMenuOpen(false);
                           if (onArchive) onArchive(post);
@@ -321,7 +321,7 @@ export const ReviewPostCard: React.FC<ReviewPostCardProps> = ({ post, onClick, o
                       />
                       <MenuActionItem
                         icon={<Trash2 className="w-4 h-4" />}
-                        label="Delete this post"
+                        label="刪除貼文"
                         destructive
                         onClick={() => {
                           setMenuOpen(false);
