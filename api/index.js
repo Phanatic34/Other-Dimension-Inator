@@ -213,18 +213,41 @@ app.get('/api/auth/me', async (req, res) => {
 });
 
 // ==================== BOARDS ENDPOINTS ====================
+// Return hardcoded boards from taxonomy configuration (single source of truth)
+// This ensures consistency across all pages: main page, create post, saved restaurants
 app.get('/api/boards', async (req, res) => {
   try {
-    if (!db) return res.status(503).json({ error: 'Database not configured' });
+    // Style options (cuisine types) - 風格
+    const STYLES = [
+      { id: 'american', name: 'American', label: '美式 American', category: 'cuisine' },
+      { id: 'french', name: 'French', label: '法式 French', category: 'cuisine' },
+      { id: 'hongkong', name: 'Hong Kong', label: '港式 Hong Kong', category: 'cuisine' },
+      { id: 'indian', name: 'Indian', label: '印度 Indian', category: 'cuisine' },
+      { id: 'mexican', name: 'Mexican', label: '墨西哥 Mexican', category: 'cuisine' },
+      { id: 'vietnamese', name: 'Vietnamese', label: '越式 Vietnamese', category: 'cuisine' },
+      { id: 'others-style', name: 'Others', label: '其他 Others', category: 'cuisine' },
+    ];
     
-    const result = await db.query('SELECT * FROM boards ORDER BY name');
-    const boards = result.rows.map(row => ({
-      id: row.id,
-      name: row.name,
-      label: row.label,
-      category: row.category
-    }));
-    res.json(boards);
+    // Category options (food types) - 類別
+    const CATEGORIES = [
+      { id: 'beverages', name: 'Beverages', label: '飲料 Beverages', category: 'type' },
+      { id: 'breakfast', name: 'Breakfast', label: '早餐 Breakfast', category: 'type' },
+      { id: 'brunch', name: 'Brunch', label: '早午餐 Brunch', category: 'type' },
+      { id: 'cafe', name: 'Cafe', label: '咖啡廳 Cafe', category: 'type' },
+      { id: 'desserts', name: 'Desserts', label: '甜點 Desserts', category: 'type' },
+      { id: 'fastfood', name: 'Fast Food', label: '速食 Fast Food', category: 'type' },
+      { id: 'hotpot', name: 'Hotpot', label: '火鍋 Hotpot', category: 'type' },
+      { id: 'late_night', name: 'Late Night', label: '宵夜 Late Night', category: 'type' },
+      { id: 'lunch_din', name: 'Lunch / Dinner', label: '午晚餐 Lunch / Dinner', category: 'type' },
+      { id: 'noodles', name: 'Noodles', label: '麵食 Noodles', category: 'type' },
+      { id: 'ramen', name: 'Ramen', label: '拉麵 Ramen', category: 'type' },
+      { id: 'rice', name: 'Rice', label: '米飯 Rice', category: 'type' },
+      { id: 'streetfood', name: 'Street Food', label: '街頭小吃 Street Food', category: 'type' },
+      { id: 'vegetarian', name: 'Vegetarian', label: '素食 Vegetarian', category: 'type' },
+      { id: 'others-category', name: 'Others', label: '其他 Others', category: 'type' },
+    ];
+    
+    res.json([...STYLES, ...CATEGORIES]);
   } catch (error) {
     console.error('Error fetching boards:', error);
     res.status(500).json({ error: 'Failed to fetch boards' });
